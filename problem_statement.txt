@@ -1,0 +1,19 @@
+PROBLEM STATEMENT 
+India has 14 crore+ demat accounts, but most retail investors are flying blind — reacting to tips, missing 
+filings, unable to read technicals, and managing mutual fund portfolios on gut feel. ET Markets has the 
+data. Build the intelligence layer that turns data into actionable, money-making decisions. 
+WHAT YOU MAY BUILD 
+• Opportunity Radar — AI that continuously monitors corporate filings, quarterly results, bulk/block 
+deals, insider trades, management commentary shifts, and regulatory changes — surfacing 
+missed opportunities as daily alerts. Not a summarizer — a signal-finder. 
+• Chart Pattern Intelligence — Real-time technical pattern detection (breakouts, reversals, 
+support/resistance, divergences) across the full National Stock Exchange (NSE) universe — with 
+plain-English explanation and historical back-tested success rates for that pattern on that specific 
+stock. 
+• Market ChatGPT — Next Gen — ET already has a Market ChatGPT product. Your challenge: 
+break it and rebuild it better. Deeper data integration, multi-step analysis, portfolio-aware answers, 
+and source-cited responses. 
+• AI Market Video Engine — Auto-generate short, visually rich market update videos (30–90 
+seconds) from real-time data. Race-chart simulators, daily market wraps, sector rotations, Foreign 
+Institutional Investor (FII) / Domestic Institutional Investor (DII) flow visualizations, Initial Public 
+Offering (IPO) trackers — zero human editing required.

@@ -184,6 +184,53 @@ def make_decision(signals):
     
     return decision, reasons, score
 
+def make_holding_decision(signals, avg_cost, pnl):
+    """
+    Produce a professional portfolio decision based on current holding status (P&L) vs Market Trend.
+    """
+    decision = "HOLD"
+    reasons = []
+    
+    trend = signals['Trend']
+    overbought = signals['Overbought']
+    oversold = signals['Oversold']
+    breakout = signals['Breakout']
+    
+    is_profit = pnl > 0
+    
+    if is_profit:
+        if trend == 'Bullish':
+            decision = "RIDE TREND (HOLD)"
+            reasons.append("Stock is in an uptrend and you are in profit. Let winners run.")
+            if breakout:
+                reasons.append("Breakout confirmed. Momentum is accelerating.")
+        elif trend == 'Bearish':
+            decision = "BOOK PROFITS"
+            reasons.append("Trend has reversed downward. Lock in your gains.")
+        else: # Neutral
+            decision = "HOLD / TRAILING STOP"
+            reasons.append("Trend is neutral but you are in profit. Watch closely and consider a trailing stoploss.")
+            
+        if overbought and "BOOK PROFITS" not in decision:
+            decision = "PARTIAL BOOK PROFITS"
+            reasons.append("Warning: RSI > 70 implies overbought conditions. Consider taking partial profits soon.")
+            
+    else: # Loss
+        if trend == 'Bullish':
+            decision = "AVERAGE DOWN / HOLD"
+            reasons.append("Stock is regaining bullish momentum. Good opportunity to hold or lower your average cost.")
+        elif trend == 'Bearish':
+            decision = "CUT LOSSES / REDUCE"
+            reasons.append("Stock is in a defined downtrend and extending losses. Capital preservation is priority.")
+        else: # Neutral
+            decision = "HOLD / WATCH"
+            reasons.append("Trend is neutral while you are at a loss. Wait for a clear breakout before averaging down.")
+            
+        if oversold and "CUT LOSSES" not in decision:
+            reasons.append("RSI < 30 implies deep oversold territory. A near-term bounce is possible.")
+            
+    return decision, reasons
+
 def format_output(symbol, signals, decision, reasons, score):
     """
     5. Output Format
@@ -258,6 +305,57 @@ def analyze_single_ticker(symbol: str) -> dict:
                     "ma_20": convert_numpy(signals['MA20']),
                     "ma_50": convert_numpy(signals['MA50']),
                     "macd": clean_macd
+                }
+            }
+        }
+    except Exception as e:
+        return {
+            "symbol": symbol,
+            "success": False,
+            "error": str(e)
+        }
+
+def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
+    """
+    Analyzes a holding, applying advanced P&L-adjusted decision logic.
+    """
+    if not symbol.upper().endswith('.NS'):
+        symbol += '.NS'
+    symbol = symbol.upper()
+        
+    try:
+        df = fetch_data(symbol, period="100d")
+        df_indicators = calculate_indicators(df)
+        signals = generate_signals(df_indicators)
+        decision, reasons = make_holding_decision(signals, avg_cost, pnl)
+        
+        def convert_numpy(obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, bool) or isinstance(obj, np.bool_):
+                return bool(obj)
+            return obj
+
+        return {
+            "symbol": symbol,
+            "success": True,
+            "holding_context": {
+                "avg_cost": avg_cost,
+                "quantity": qty,
+                "current_pnl": pnl
+            },
+            "data": {
+                "price": convert_numpy(signals['Price']),
+                "trend": signals['Trend'],
+                "portfolio_decision": decision,
+                "reasons": reasons,
+                "signals": {
+                    "breakout": convert_numpy(signals['Breakout']),
+                    "volume_spike": convert_numpy(signals['Volume_Spike']),
+                    "overbought": convert_numpy(signals['Overbought']),
+                    "oversold": convert_numpy(signals['Oversold'])
                 }
             }
         }

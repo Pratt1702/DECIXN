@@ -84,3 +84,31 @@ Based on the final decision taken (BUY/HOLD/WATCH/REDUCE), the summary emits one
 *   **HOLD:** "Steady performance with potential for upside"
 *   **WATCH:** "Potential reversal watch or consolidation"
 *   **REDUCE:** "Weakness observed, consider reducing exposure"
+
+---
+
+## 5. Holdings Intelligence Layer (Portfolio Mode)
+
+When the engine analyzes existing holdings (via the `/analyze/portfolio` endpoint reading `holdings_kite.csv`), it shifts from generating generic signals to creating context-aware decisions based on mathematical P&L. 
+
+### Professional Decision Matrix (P&L vs Trend):
+
+Unlike standard discovery mode (where a Bullish trend is simply a `BUY`), Portfolio mode factors in entry price:
+
+#### Condition 1: Position is Profitable (P&L > 0)
+*   **Bullish Trend:** -> Decision: `RIDE TREND (HOLD)`
+    *   *Logic: Let winners run. If there's a breakout, momentum is accelerating.*
+*   **Bearish Trend:** -> Decision: `BOOK PROFITS`
+    *   *Logic: The trend has reversed downward. Protect your capital by locking in gains.*
+*   **Neutral Trend:** -> Decision: `HOLD / TRAILING STOP`
+    *   *Logic: Momentum is stalling, but there's no technical reason to sell right away.*
+*   **Overbought RSI (>70):** Overrides `HOLD` to `PARTIAL BOOK PROFITS` to secure gains before a pullback.
+
+#### Condition 2: Position is at a Loss (P&L < 0)
+*   **Bullish Trend:** -> Decision: `AVERAGE DOWN / HOLD`
+    *   *Logic: The stock is regaining upward momentum. This is technically the safest time to lower your average cost.*
+*   **Bearish Trend:** -> Decision: `CUT LOSSES / REDUCE`
+    *   *Logic: Holding onto a falling knife. The trend is actively making your P&L worse.*
+*   **Neutral Trend:** -> Decision: `HOLD / WATCH`
+    *   *Logic: Wait for a clear breakout before deploying more capital to average down.*
+*   **Oversold RSI (<30):** Adds context that a near-term bounce is possible, avoiding selling at the absolute bottom.

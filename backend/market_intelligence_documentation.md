@@ -112,3 +112,27 @@ Unlike standard discovery mode (where a Bullish trend is simply a `BUY`), Portfo
 *   **Neutral Trend:** -> Decision: `HOLD / WATCH`
     *   *Logic: Wait for a clear breakout before deploying more capital to average down.*
 *   **Oversold RSI (<30):** Adds context that a near-term bounce is possible, avoiding selling at the absolute bottom.
+
+---
+
+## 6. Portfolio Brain (Summary Intelligence Layer)
+
+The `/analyze/portfolio` API wraps the individual stock analyses into a top-level **Portfolio Summary** object that evaluates systemic risk based on mathematical weightings and distribution of decisions.
+
+### 6.1 Urgency Scoring & Risk Tagging
+Each position is assigned a priority so the frontend can rank them:
+*   **HIGH Urgency:** Action is actively required to preserve capital (`CUT LOSSES`, `BOOK PROFITS`).
+*   **MEDIUM Urgency:** Action should be heavily monitored (`AVERAGE DOWN`, `HOLD / TRAILING STOP`).
+*   **LOW Urgency:** No immediate action required, position is stable (`RIDE TREND`, `HOLD / WATCH`).
+
+### 6.2 Structural Capital Allocation (Weighting)
+The engine does not treat all stocks equally. It computes real portfolio impact:
+*   `Invested Value = Avg Cost * Quantity`
+*   `Current Value = Current Price * Quantity`
+*   `Portfolio Weight % = (Current Value / Total Portfolio Value) * 100`
+
+### 6.3 Dynamic Risk Assessment
+The brain counts the distribution of decisions across the entire portfolio to assign top-level Health and Risk labels:
+*   **High Risk (Selloff Imminent):** Triggered if more than 40% of the user's capital positions require `CUT LOSSES`. 
+*   **Weak Health:** Triggered if the number of absolute losers is strictly greater than the number of winners.
+*   **Capital Reallocation Alerts:** If zero positions are in a strong bullish uptrend (`RIDE TREND`), the engine recommends trimming dead weight to rotate capital into trending sectors.

@@ -329,6 +329,25 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         signals = generate_signals(df_indicators)
         decision, reasons = make_holding_decision(signals, avg_cost, pnl)
         
+        total_invested = avg_cost * qty
+        current_value = signals['Price'] * qty
+        pnl_pct = (pnl / total_invested * 100) if total_invested > 0 else 0.0
+        
+        def get_urgency_and_risk(dec, trend):
+            urgency = "LOW"
+            risk = "LOW"
+            if "CUT LOSSES" in dec or "BOOK PROFITS" in dec:
+                urgency = "HIGH"
+                risk = "HIGH" if "CUT LOSSES" in dec else "LOW"
+            elif "AVERAGE DOWN" in dec or "TRAILING STOP" in dec or "REDUCE" in dec:
+                urgency = "MEDIUM"
+                risk = "MEDIUM"
+            if trend == 'Bearish' and pnl < 0:
+                risk = "HIGH"
+            return urgency, risk
+            
+        urgency_score, risk_tag = get_urgency_and_risk(decision, signals['Trend'])
+        
         def convert_numpy(obj):
             if isinstance(obj, np.integer):
                 return int(obj)
@@ -344,12 +363,17 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             "holding_context": {
                 "avg_cost": avg_cost,
                 "quantity": qty,
-                "current_pnl": pnl
+                "invested_value": convert_numpy(total_invested),
+                "current_value": convert_numpy(current_value),
+                "current_pnl": pnl,
+                "pnl_pct": convert_numpy(pnl_pct)
             },
             "data": {
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,
+                "urgency_score": urgency_score,
+                "risk_tag": risk_tag,
                 "reasons": reasons,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),

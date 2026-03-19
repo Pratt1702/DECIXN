@@ -71,6 +71,13 @@ def calculate_indicators(df):
     # Highest close of the last 20 days (excluding today for breakout comparison)
     df['High20'] = df['Close'].shift(1).rolling(window=20).max()
     
+    # Calculate MACD (12, 26, 9)
+    ema12 = df['Close'].ewm(span=12, adjust=False).mean()
+    ema26 = df['Close'].ewm(span=26, adjust=False).mean()
+    df['MACD'] = ema12 - ema26
+    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+    df['MACD_Histogram'] = df['MACD'] - df['MACD_Signal']
+    
     return df
 
 def generate_signals(df):
@@ -88,7 +95,12 @@ def generate_signals(df):
         'Oversold': False,
         'Trend': 'Neutral',
         'MA20': latest['MA20'],
-        'MA50': latest['MA50']
+        'MA50': latest['MA50'],
+        'MACD': {
+            'MACD_Line': latest['MACD'],
+            'Signal_Line': latest['MACD_Signal'],
+            'Histogram': latest['MACD_Histogram']
+        }
     }
     
     # Breakout: Current price > highest close of last 20 days
@@ -199,6 +211,63 @@ def format_output(symbol, signals, decision, reasons, score):
     
     return "\n".join(output_lines)
 
+def analyze_single_ticker(symbol: str) -> dict:
+    """
+    Analyzes a single ticker and returns a deep, nested dictionary of all intelligence data.
+    Suitable for API responses.
+    """
+    if not symbol.upper().endswith('.NS'):
+        symbol += '.NS'
+    symbol = symbol.upper()
+        
+    try:
+        df = fetch_data(symbol, period="100d")
+        df_indicators = calculate_indicators(df)
+        signals = generate_signals(df_indicators)
+        decision, reasons, score = make_decision(signals)
+        
+        # Helper to convert numpy numbers to native Python types for JSON serialization
+        def convert_numpy(obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, bool) or isinstance(obj, np.bool_):
+                return bool(obj)
+            return obj
+
+        clean_macd = {k: convert_numpy(v) for k, v in signals['MACD'].items()}
+        
+        return {
+            "symbol": symbol,
+            "success": True,
+            "data": {
+                "price": convert_numpy(signals['Price']),
+                "trend": signals['Trend'],
+                "decision": decision,
+                "confidence_score": score,
+                "reasons": reasons,
+                "signals": {
+                    "breakout": convert_numpy(signals['Breakout']),
+                    "volume_spike": convert_numpy(signals['Volume_Spike']),
+                    "overbought": convert_numpy(signals['Overbought']),
+                    "oversold": convert_numpy(signals['Oversold'])
+                },
+                "indicators": {
+                    "rsi_14": convert_numpy(signals['RSI']),
+                    "ma_20": convert_numpy(signals['MA20']),
+                    "ma_50": convert_numpy(signals['MA50']),
+                    "macd": clean_macd
+                }
+            }
+        }
+    except Exception as e:
+        return {
+            "symbol": symbol,
+            "success": False,
+            "error": str(e)
+        }
+
 def run_market_intelligence(stocks):
     results = {}
     print("========================================")
@@ -251,5 +320,18 @@ def run_market_intelligence(stocks):
         print(f"* {clean_symbol} (Score: {data['score']}) -> {summary}")
 
 if __name__ == "__main__":
-    target_stocks = ["SBIN.NS", "BEL.NS", "TATAPOWER.NS"]
-    run_market_intelligence(target_stocks)
+    print("Welcome to the Market Intelligence Engine")
+    print("Enter NSE stock tickers separated by commas (e.g., SBIN.NS, BEL.NS, TATAPOWER.NS)")
+    print("Or press Enter to use the default list.")
+    user_input = input("Tickers: ").strip()
+    
+    if user_input:
+        target_stocks = [ticker.strip().upper() for ticker in user_input.split(',') if ticker.strip()]
+    else:
+        target_stocks = ["SBIN.NS", "BEL.NS", "TATAPOWER.NS"]
+        print(f"No input provided. Using defaults: {', '.join(target_stocks)}")
+        
+    if target_stocks:
+        run_market_intelligence(target_stocks)
+    else:
+        print("No valid tickers provided. Exiting.")

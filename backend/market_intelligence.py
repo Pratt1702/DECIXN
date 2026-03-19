@@ -45,13 +45,25 @@ def generate_mock_data(days=100):
 
 def calculate_indicators(df):
     """
-    2. Calculate RSI, MA20, MA50, and Volume average.
+    2. Calculate RSI, MAs, and Volume average.
     """
     df = df.copy()
     
     # Calculate Moving Averages (MA20, MA50)
-    df['MA20'] = df['Close'].rolling(window=20).mean()
-    df['MA50'] = df['Close'].rolling(window=50).mean()
+    df['SMA10'] = df['Close'].rolling(window=10).mean()
+    df['SMA20'] = df['Close'].rolling(window=20).mean()
+    df['SMA50'] = df['Close'].rolling(window=50).mean()
+    df['SMA100'] = df['Close'].rolling(window=100).mean()
+    df['SMA200'] = df['Close'].rolling(window=200).mean()
+    
+    df['EMA10'] = df['Close'].ewm(span=10, adjust=False).mean()
+    df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
+    df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
+    df['EMA100'] = df['Close'].ewm(span=100, adjust=False).mean()
+    df['EMA200'] = df['Close'].ewm(span=200, adjust=False).mean()
+    
+    df['MA20'] = df['SMA20']
+    df['MA50'] = df['SMA50']
     
     # Calculate Volume average (20-day)
     df['Vol20'] = df['Volume'].rolling(window=20).mean()
@@ -268,7 +280,7 @@ def analyze_single_ticker(symbol: str) -> dict:
     symbol = symbol.upper()
         
     try:
-        df = fetch_data(symbol, period="100d")
+        df = fetch_data(symbol, period="1y")
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
         decision, reasons, score = make_decision(signals)
@@ -285,6 +297,50 @@ def analyze_single_ticker(symbol: str) -> dict:
 
         clean_macd = {k: convert_numpy(v) for k, v in signals['MACD'].items()}
         
+        chart_data = [{"date": d.strftime("%Y-%m-%d"), "price": convert_numpy(p)} for d, p in zip(df.index, df['Close'])]
+        
+        try:
+            info = yf.Ticker(symbol).info
+        except:
+            info = {}
+            
+        dy = info.get("dividendYield")
+        fundamentals = {
+            "market_cap": convert_numpy(info.get("marketCap", 0) or 0),
+            "pe_ratio": convert_numpy(info.get("trailingPE", 0) or 0),
+            "industry_pe": convert_numpy(info.get("industryPE", 0) or 0),
+            "dividend_yield": convert_numpy((dy * 100) if dy is not None else 0),
+            "beta": convert_numpy(info.get("beta", 0.98) or 0.98)
+        }
+        
+        last_c = df.iloc[-2] if len(df) > 1 else df.iloc[-1]
+        H, L, C = last_c['High'], last_c['Low'], last_c['Close']
+        P = (H + L + C) / 3
+        
+        pivots = {
+            "R3": convert_numpy(H + 2*(P - L)),
+            "R2": convert_numpy(P + (H - L)),
+            "R1": convert_numpy(2*P - L),
+            "Pivot": convert_numpy(P),
+            "S1": convert_numpy(2*P - H),
+            "S2": convert_numpy(P - (H - L)),
+            "S3": convert_numpy(L - 2*(H - P))
+        }
+        
+        latest_df = df_indicators.iloc[-1]
+        moving_averages = {
+            "sma_10d": convert_numpy(latest_df['SMA10']),
+            "sma_20d": convert_numpy(latest_df['SMA20']),
+            "sma_50d": convert_numpy(latest_df['SMA50']),
+            "sma_100d": convert_numpy(latest_df['SMA100']),
+            "sma_200d": convert_numpy(latest_df['SMA200']),
+            "ema_10d": convert_numpy(latest_df['EMA10']),
+            "ema_20d": convert_numpy(latest_df['EMA20']),
+            "ema_50d": convert_numpy(latest_df['EMA50']),
+            "ema_100d": convert_numpy(latest_df['EMA100']),
+            "ema_200d": convert_numpy(latest_df['EMA200'])
+        }
+        
         return {
             "symbol": symbol,
             "success": True,
@@ -294,6 +350,10 @@ def analyze_single_ticker(symbol: str) -> dict:
                 "decision": decision,
                 "confidence_score": score,
                 "reasons": reasons,
+                "chart_data": chart_data,
+                "fundamentals": fundamentals,
+                "pivots": pivots,
+                "moving_averages": moving_averages,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "volume_spike": convert_numpy(signals['Volume_Spike']),

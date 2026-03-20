@@ -2,6 +2,7 @@ import { Search, Bell, Settings, Loader2 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { searchStocks } from "../../services/api";
+import { motion } from "framer-motion";
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -65,33 +66,41 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-[#0a0a0a]/60 px-6 backdrop-blur-xl transition-all duration-300">
-      <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
+    <nav className="sticky top-0 z-50 flex h-[72px] items-center justify-between border-b border-white/10 bg-[#0a0a0a]/60 px-6 backdrop-blur-xl transition-all duration-300">
+      <div className="flex items-center justify-between w-full h-full max-w-7xl mx-auto">
         
-        {/* Left Section: Logo & Links */}
-        <div className="flex items-center gap-8 shrink-0">
+        {/* Left Section: Logo + Title + Navigation Links */}
+        <div className="flex items-center h-full">
+          {/* Logo */}
           <div 
-            className="flex cursor-pointer items-center gap-3 group" 
+            className="flex cursor-pointer items-center gap-3 group mr-10" 
             onClick={() => navigate("/")}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent group-hover:scale-105 group-active:scale-95 transition-all duration-300">
+            {/* <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent group-hover:scale-105 group-active:scale-95 transition-all duration-300">
               <span className="font-heading font-bold text-black text-lg">E</span>
-            </div>
+            </div> */}
             <span className="text-xl font-heading font-bold tracking-wider text-text-bold group-hover:text-white transition-colors">ETMarkets</span>
           </div>
-
-          <div className="hidden ml-4 md:flex space-x-6">
+          
+          {/* Navigation Links */}
+          <div className="hidden md:flex h-full space-x-2">
             <button 
               onClick={() => navigate("/holdings")} 
-              className={`text-sm tracking-wide transition-all font-medium py-1.5 px-3 rounded-lg hover:bg-white/5 active:scale-95 ${location.pathname.includes("holdings") ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-bold"}`}
+              className={`relative h-full flex items-center px-4 text-[15px] font-semibold tracking-wide transition-colors ${location.pathname.includes("holdings") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
             >
               Holdings
+              {location.pathname.includes("holdings") && (
+                <motion.div layoutId="nav-indicator" className="absolute bottom-0 left-4 right-4 h-[3px] bg-white rounded-t-md" />
+              )}
             </button>
             <button 
               onClick={() => navigate("/nudges")} 
-              className={`text-sm tracking-wide transition-all font-medium py-1.5 px-3 rounded-lg hover:bg-white/5 active:scale-95 ${location.pathname.includes("nudges") ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-bold"}`}
+              className={`relative h-full flex items-center px-4 text-[15px] font-semibold tracking-wide transition-colors ${location.pathname.includes("nudges") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
             >
               Nudges
+              {location.pathname.includes("nudges") && (
+                <motion.div layoutId="nav-indicator" className="absolute bottom-0 left-4 right-4 h-[3px] bg-white rounded-t-md" />
+              )}
             </button>
           </div>
         </div>

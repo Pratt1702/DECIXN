@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTickerAnalysis } from "../services/api";
+import { getTickerAnalysis, getPortfolio } from "../services/api";
 import { motion } from "framer-motion";
 import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from "recharts";
@@ -30,6 +30,28 @@ export function StockDetails() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1Y');
+  const [holding, setHolding] = useState<any>(null);
+
+  // Cross-reference data state with user's portfolio via 5m Cache
+  useEffect(() => {
+    async function checkPortfolio() {
+      try {
+        const port = await getPortfolio();
+        if (port && port.portfolio_analysis && ticker) {
+          const normalizedTicker = ticker.toLowerCase().replace('.ns', '').replace('.bo', '');
+          const match = port.portfolio_analysis.find((h: any) => {
+            const hSym = h.symbol.toLowerCase().replace(/\s+/g, '');
+            const dataName = (data?.companyName || "").toLowerCase().replace(/\s+/g, '');
+            return hSym === normalizedTicker || hSym === dataName || (dataName && dataName.includes(hSym)) || normalizedTicker.includes(hSym);
+          });
+          setHolding(match);
+        }
+      } catch (e) {
+        console.error("Failed to cross-reference portfolio cache");
+      }
+    }
+    checkPortfolio();
+  }, [ticker, data]);
 
   // We only fetch ONCE when the component mounts or ticker changes
   useEffect(() => {
@@ -165,7 +187,7 @@ export function StockDetails() {
           )}
         </div>
       </header>
-
+      
       {/* Interactive Chart Area */}
       <div className="border-b border-border-main pb-4 mt-8">
           <div className="h-72 sm:h-80 w-full relative">
@@ -218,6 +240,32 @@ export function StockDetails() {
             })}
           </div>
       </div>
+
+      {holding && currentPrice > 0 && (
+        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="bg-[#121212]/40 backdrop-blur-md border border-white/5 rounded-xl px-5 py-3 mt-6 mb-4 flex flex-row items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-l-4 border-l-accent shadow-sm" onClick={() => navigate('/holdings')}>
+          <div className="flex items-center gap-4">
+             <div>
+                <p className="text-base font-bold text-text-bold tracking-tight">{holding.holding_context.quantity} <span className="text-xs text-text-muted font-medium ml-0.5 uppercase tracking-wider">Shares</span></p>
+                <p className="text-[11px] text-text-muted font-medium tracking-wide uppercase mt-0.5">Avg ₹{holding.holding_context.avg_cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+             </div>
+          </div>
+          <div className="text-right flex flex-col items-end">
+            {(() => {
+              const holdingPnl = (currentPrice - holding.holding_context.avg_cost) * holding.holding_context.quantity;
+              const holdingPnlPct = ((currentPrice - holding.holding_context.avg_cost) / holding.holding_context.avg_cost) * 100;
+              const isHPnlPos = holdingPnl >= 0;
+              return (
+                <>
+                   <p className="text-base font-bold font-mono text-text-bold">₹{(holding.holding_context.quantity * currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+                   <p className={`text-[12px] font-bold font-mono mt-0.5 ${isHPnlPos ? 'text-success' : 'text-danger'}`}>
+                     {isHPnlPos ? '+' : ''}₹{holdingPnl.toLocaleString('en-IN', {minimumFractionDigits: 2})} ({isHPnlPos ? '+' : ''}{holdingPnlPct.toFixed(2)}%)
+                   </p>
+                </>
+              );
+            })()}
+          </div>
+        </motion.div>
+      )}
 
       <div className="pt-2">
           {loading && !data ? (

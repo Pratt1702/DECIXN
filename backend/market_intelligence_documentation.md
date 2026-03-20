@@ -1,7 +1,7 @@
 # Market Intelligence Engine — Logic & Scoring Documentation
-**Last updated:** March 2026 | **Version:** 1.1
+**Last updated:** March 20, 2026 | **Version:** 1.2
 
-This document explains the internal mechanics of `market_intelligence.py` — what indicators are computed, how signals are generated, the decision logic, and how the final outputs are derived. It also documents the full API surface exposed by `main.py`.
+This document explains the internal mechanics of `market_intelligence.py` — how signals are generated, the decision logic, and how the final **Actionable Insights** are derived. It also documents the portfolio aggregation layer and full API surface.
 
 ---
 
@@ -107,6 +107,11 @@ Used by `analyze_single_holding` (called by both portfolio endpoints). Factors i
 | Neutral | `HOLD / WATCH` — wait for clear direction |
 | Any + Oversold RSI | Adds context: bounce possible, avoid forced exits |
 
+### Multi-Factor Overrides (Urgency)
+- **Signal Multiplier:** If `Trend_Days >= 3`, confidence in the decision increases.
+- **Relative Strength:** If stock is underperforming the Nifty 50 benchmark by >10% over 30 days, a "Caution" reason is appended.
+- **Floor-less Risk:** If `Bearish` + `Price is near 52-week low`, "Do not average down" warning is triggered.
+
 ---
 
 ## 6. Urgency & Risk Tagging
@@ -124,22 +129,21 @@ get_urgency_and_risk(decision, trend) → (urgency, risk)
 
 ---
 
-## 7. Portfolio Brain — `_run_portfolio_analysis(holdings_data)`
+## 7. The Insights Brain — `_run_portfolio_analysis`
 
 Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list of dicts `{symbol, quantity, avg_cost, pnl, current_value}`.
 
-**Aggregation:**
-- `total_invested = Σ invested_value` (from backend — avg_cost × qty)
-- `total_value_live = Σ current_value` (live price × qty from yfinance)
+**Aggregation & Consistency:**
+- **Live P&L Correction:** Backend ignores input P&L and recalculates every metric using live quotes from Yahoo Finance.
+- `total_invested = Σ invested_value` (avg_cost × qty)
+- `total_value_live = Σ current_value` (live price × qty)
 - `total_pnl = total_value_live - total_invested`
 - `win_rate = winners / total × 100%`
 
-**Risk Rules:**
-- `CUT LOSSES count / total ≥ 40%` → **High Risk**
-- `losers > winners` → **Weak Health**
-- `RIDE TREND count == 0` → Recommend capital reallocation
-
-**Prioritization Sort:** HIGH urgency first → then by worst pnl_pct.
+**Global Assessment:**
+- `High Risk` triggered if `CUT LOSSES` count / total ≥ 40%.
+- `Weak Health` triggered if total losers > total winners.
+- **Prioritization:** Results are sorted primarily by **Urgency (High -> Medium -> Low)** and then by **P&L % (Worst -> Best)**.
 
 ---
 
@@ -170,9 +174,6 @@ Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list o
 
 ---
 
-## 9. Output Shape — `/analyze/portfolio`
-
-```json
 {
   "portfolio_summary": {
     "health": "Weak | Fair | Strong",
@@ -192,16 +193,18 @@ Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list o
         "avg_cost": 131.56, "quantity": 160,
         "invested_value": 21049.6, "current_value": 11953.6,
         "current_pnl": -9096, "pnl_pct": -43.21,
-        "portfolio_weight_pct": 19.06
+        "portfolio_weight_pct": 19.06,
+        "52w_low": 68.4, "52w_high": 182.3
       },
       "data": {
         "price": 74.71, "trend": "Bearish",
         "portfolio_decision": "CUT LOSSES / REDUCE",
         "urgency_score": "HIGH", "risk_tag": "HIGH",
-        "reasons": ["..."],
-        "signals": { "breakout": false, "volume_spike": false, "overbought": false, "oversold": false }
+        "reasons": ["...", "..."],
+        "benchmark_comparison": { "relative_strength": -12.4, "status": "UNDERPERFORMING" },
+        "signals": { "breakout": false, "volume_spike": false, "overbought": false, "oversold": false, "trend_days": 5 }
       }
     }
   ]
 }
-```
+

@@ -91,6 +91,7 @@ export function StockDetails() {
           pivots: res.data.pivots,
           moving_averages: res.data.moving_averages,
           indicators: res.data.indicators,
+          benchmark_comparison: res.data.benchmark_comparison,
         });
       } catch (err) {
         console.error("Failed to fetch ticker:", err);
@@ -166,10 +167,7 @@ export function StockDetails() {
   const strokeColor = isPos ? "#10b981" : "#f43f5e";
 
   return (
-    <div
-      ref={containerRef}
-      className="space-y-10 max-w-4xl mx-auto pb-12"
-    >
+    <div ref={containerRef} className="space-y-10 max-w-4xl mx-auto pb-12">
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-all w-fit group"
@@ -376,7 +374,7 @@ export function StockDetails() {
         </div>
       )}
 
-      <div className="pt-2 flex flex-col gap-10">
+      <div className="pt-2 flex flex-col gap-6">
         <YearlyRangeBar data={data} />
         <AIIntelligencePanel data={data} />
         <TechnicalIndicators data={data} />

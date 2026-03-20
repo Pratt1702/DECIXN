@@ -27,49 +27,56 @@ const InfoTooltip = ({
 export function YearlyRangeBar({ data }: { data: any }) {
   const barRef = useRef<HTMLDivElement>(null);
   const dotRef = useRef<HTMLDivElement>(null);
-  
+
   const loading = !data;
   const low = data?.fundamentals?.["52w_low"] || 0;
   const high = data?.fundamentals?.["52w_high"] || 0;
   const price = data?.price || 0;
-  const pct = (low > 0 && high > low) ? Math.max(0, Math.min(100, ((price - low) / (high - low)) * 100)) : 0;
+  const pct =
+    low > 0 && high > low
+      ? Math.max(0, Math.min(100, ((price - low) / (high - low)) * 100))
+      : 0;
 
   useEffect(() => {
     if (!loading && barRef.current && dotRef.current) {
       // Animate from 0 to current pct using GSAP
-      gsap.fromTo(barRef.current, 
-        { width: "0%" }, 
-        { width: `${pct}%`, duration: 1.5, ease: "power4.out", delay: 0.2 }
+      gsap.fromTo(
+        barRef.current,
+        { width: "0%" },
+        { width: `${pct}%`, duration: 1.5, ease: "power4.out", delay: 0.2 },
       );
-      gsap.fromTo(dotRef.current, 
-        { left: "0%" }, 
-        { left: `${pct}%`, duration: 1.5, ease: "power4.out", delay: 0.2 }
+      gsap.fromTo(
+        dotRef.current,
+        { left: "0%" },
+        { left: `${pct}%`, duration: 1.5, ease: "power4.out", delay: 0.2 },
       );
     }
   }, [loading, pct]);
 
   return (
-    <div className="mb-6">
+    <div className="">
       <h2 className="text-xl font-bold text-text-bold mb-4 flex items-center gap-2">
-        52-Week Range <InfoTooltip content="Yearly price trajectory." align="left" />
+        52-Week Range{" "}
+        <InfoTooltip content="Yearly price trajectory." align="left" />
       </h2>
       <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl px-6 py-5 shadow-lg">
         <div className="flex justify-between text-[10px] text-text-muted uppercase tracking-[0.15em] font-bold mb-3 tabular-nums">
-          <span>52W Low {loading ? '---' : `(₹${low.toLocaleString("en-IN")})`}</span>
-          <span>52W High {loading ? '---' : `(₹${high.toLocaleString("en-IN")})`}</span>
+          <span>
+            52W Low {loading ? "---" : `(₹${low.toLocaleString("en-IN")})`}
+          </span>
+          <span>
+            52W High {loading ? "---" : `(₹${high.toLocaleString("en-IN")})`}
+          </span>
         </div>
 
         <div className="relative h-1.5 w-full mb-6">
           <div className="absolute inset-0 bg-white/10 rounded-full overflow-hidden">
-            <div
-              ref={barRef}
-              className="h-full bg-success rounded-full w-0"
-            />
+            <div ref={barRef} className="h-full bg-success rounded-full w-0" />
           </div>
           <div
             ref={dotRef}
             className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 pointer-events-none opacity-0"
-            style={{ left: '0%', opacity: loading ? 0 : 1 }}
+            style={{ left: "0%", opacity: loading ? 0 : 1 }}
           >
             <div className="w-3.5 h-3.5 rounded-full border-2 border-[#121212] bg-white shadow-[0_0_10px_rgba(255,255,255,0.4)]" />
           </div>
@@ -77,13 +84,19 @@ export function YearlyRangeBar({ data }: { data: any }) {
 
         <div className="flex justify-between items-center border-t border-white/5 pt-4 mt-4 text-xs">
           <div className="flex items-baseline gap-2">
-            <span className={`font-bold text-text-bold text-lg tabular-nums ${loading ? 'animate-pulse text-white/10' : ''}`}>
-              {loading ? '₹---' : `₹${price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+            <span
+              className={`font-bold text-text-bold text-lg tabular-nums ${loading ? "animate-pulse text-white/10" : ""}`}
+            >
+              {loading
+                ? "₹---"
+                : `₹${price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
             </span>
-            <span className="text-[10px] text-white/30 uppercase tracking-widest font-black">Current</span>
+            <span className="text-[10px] text-white/30 uppercase tracking-widest font-black">
+              Current
+            </span>
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest text-white/20">
-            {loading ? '---' : `${pct.toFixed(0)}% Distance from low`}
+            {loading ? "---" : `${pct.toFixed(0)}% Distance from low`}
           </div>
         </div>
       </div>
@@ -110,6 +123,8 @@ export function TechnicalIndicators({ data }: { data: any }) {
   const rsi = data?.indicators?.rsi_14 || 50;
   const macd = data?.indicators?.macd?.MACD_Line || 0;
   const beta = data?.fundamentals?.beta || 1.0;
+  const alpha = data?.benchmark_comparison?.relative_strength || 0;
+  const alphaStatus = data?.benchmark_comparison?.status || "NEUTRAL";
 
   return (
     <div className="space-y-8 mb-12">
@@ -228,9 +243,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
               </thead>
               <tbody className="divide-y divide-border-main text-[#f3f4f6]">
                 <tr className="hover:bg-white/5 transition-colors">
-                  <td className="px-5 py-4 font-medium">
-                    RSI (14)
-                  </td>
+                  <td className="px-5 py-4 font-medium">RSI (14)</td>
                   <td className="px-5 py-4 text-right font-bold font-mono">
                     +{rsi.toFixed(2)}
                   </td>
@@ -245,9 +258,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
                   </td>
                 </tr>
                 <tr className="hover:bg-white/5 transition-colors">
-                  <td className="px-5 py-4 font-medium">
-                    MACD
-                  </td>
+                  <td className="px-5 py-4 font-medium">MACD</td>
                   <td className="px-5 py-4 text-right font-bold font-mono">
                     {macd > 0 ? "+" : ""}
                     {macd.toFixed(2)}
@@ -258,10 +269,8 @@ export function TechnicalIndicators({ data }: { data: any }) {
                     {macd > 0 ? "Bullish" : "Bearish"}
                   </td>
                 </tr>
-                <tr className="hover:bg-white/5 transition-colors border-b-0">
-                  <td className="px-5 py-4 font-medium">
-                    Volatility (Beta)
-                  </td>
+                <tr className="hover:bg-white/5 transition-colors">
+                  <td className="px-5 py-4 font-medium">Volatility (Beta)</td>
                   <td className="px-5 py-4 text-right font-bold font-mono">
                     {beta.toFixed(2)}
                   </td>
@@ -269,12 +278,23 @@ export function TechnicalIndicators({ data }: { data: any }) {
                     Neutral
                   </td>
                 </tr>
+                <tr className="hover:bg-white/5 transition-colors border-b-0">
+                  <td className="px-5 py-4 font-medium">Alpha (Nifty 50)</td>
+                  <td className="px-5 py-4 text-right font-bold font-mono">
+                    {alpha > 0 ? "+" : ""}
+                    {alpha.toFixed(2)}%
+                  </td>
+                  <td
+                    className={`px-5 py-4 text-right font-bold ${alphaStatus.includes("OUTPERFORMING") ? "text-success" : alphaStatus.includes("UNDERPERFORMING") ? "text-danger" : "text-text-muted"}`}
+                  >
+                    {alphaStatus.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
-
 
       {/* Moving Averages */}
       <div>

@@ -22,7 +22,7 @@ export function AIIntelligencePanel({ data }: { data: any }) {
   const activeIndex = Math.floor(Math.max(0, Math.min(29, (score / 100) * 30)));
 
   return (
-    <div className="mt-12">
+    <div className="">
       <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
         Summary <InfoTooltip content="An AI-calculated composite score blending active technical indicators, moving averages, and deep market sentiment to determine your precise trading conviction." />
       </h2>
@@ -75,7 +75,7 @@ export function AIIntelligencePanel({ data }: { data: any }) {
 
         {(loading || (data.reasons && data.reasons.length > 0)) && (
           <div className="mt-8 border-t border-white/5 pt-6">
-            <h3 className="font-bold text-text-bold mb-3">AI Nudges Context</h3>
+            <h3 className="font-bold text-text-bold mb-3">AI Insights Context</h3>
             <ul className="space-y-3">
                 {loading ? (
                    [1,2,3].map(i => <div key={i} className="h-4 w-full bg-white/5 animate-pulse rounded" />)

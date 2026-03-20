@@ -43,6 +43,54 @@ def generate_mock_data(days=100):
     }, index=dates)
     return df
 
+def calculate_return(df, days=30):
+    """Calculate percentage return over the last N days."""
+    if df is None or len(df) < 2:
+        return 0.0
+    actual_days = min(len(df), days)
+    start_price = df.iloc[-actual_days]['Close']
+    end_price = df.iloc[-1]['Close']
+    if start_price == 0: return 0.0
+    return ((end_price - start_price) / start_price) * 100
+
+def get_benchmark_comparison(stock_df):
+    """
+    2.2 - Compare stock performance vs Nifty 50 (^NSEI) over 30 days.
+    """
+    try:
+        # Fetch Nifty 50 data
+        nifty_df = fetch_data("^NSEI", period="100d")
+        
+        stock_30d = calculate_return(stock_df, 30)
+        nifty_30d = calculate_return(nifty_df, 30)
+        
+        rel_strength = stock_30d - nifty_30d
+        
+        if rel_strength > 15: 
+            status = "HEAVILY_OUTPERFORMING"
+        elif rel_strength > 6:
+            status = "OUTPERFORMING"
+        elif rel_strength > 2:
+            status = "SLIGHTLY_OUTPERFORMING"
+        elif rel_strength < -15:
+            status = "HEAVILY_UNDERPERFORMING"
+        elif rel_strength < -6:
+            status = "UNDERPERFORMING"
+        elif rel_strength < -2:
+            status = "SLIGHTLY_UNDERPERFORMING"
+        else:
+            status = "NEUTRAL"
+
+        return {
+            "stock_30d_return": float(round(stock_30d, 2)),
+            "nifty_30d_return": float(round(nifty_30d, 2)),
+            "relative_strength": float(round(rel_strength, 2)),
+            "status": status
+        }
+    except Exception as e:
+        print(f"Benchmark fetch failed: {e}")
+        return None
+
 def calculate_indicators(df):
     """
     2. Calculate RSI, MAs, and Volume average.
@@ -97,7 +145,15 @@ def generate_signals(df):
     3. Generate trading signals based on calculated indicators.
     """
     latest = df.iloc[-1]
-    
+    prev = df.iloc[-2] if len(df) > 1 else latest
+
+    # MACD histogram direction: True = turning bullish (crossing up), False = turning bearish
+    macd_hist_now = latest['MACD_Histogram']
+    macd_hist_prev = prev['MACD_Histogram']
+    macd_turning_bullish = (macd_hist_prev < 0 and macd_hist_now > 0)
+    macd_turning_bearish = (macd_hist_prev > 0 and macd_hist_now < 0)
+    macd_accelerating_bearish = (macd_hist_now < macd_hist_prev < 0)  # deepening red histogram
+
     signals = {
         'Price': latest['Close'],
         'RSI': latest['RSI'],
@@ -106,35 +162,58 @@ def generate_signals(df):
         'Overbought': False,
         'Oversold': False,
         'Trend': 'Neutral',
+        'Trend_Days': 1,
         'MA20': latest['MA20'],
         'MA50': latest['MA50'],
+        'MACD_Turning_Bullish': macd_turning_bullish,
+        'MACD_Turning_Bearish': macd_turning_bearish,
+        'MACD_Accelerating_Bearish': macd_accelerating_bearish,
         'MACD': {
             'MACD_Line': latest['MACD'],
             'Signal_Line': latest['MACD_Signal'],
             'Histogram': latest['MACD_Histogram']
         }
     }
-    
+
     # Breakout: Current price > highest close of last 20 days
     if latest['Close'] > latest['High20']:
         signals['Breakout'] = True
-        
+
     # Volume Spike: Current volume > 2 * 20-day average volume
     if latest['Volume'] > 2 * latest['Vol20']:
         signals['Volume_Spike'] = True
-        
+
     # Overbought / Oversold
     if latest['RSI'] > 70:
         signals['Overbought'] = True
     elif latest['RSI'] < 30:
         signals['Oversold'] = True
-        
+
     # Trend
     if latest['Close'] > latest['MA20'] and latest['MA20'] > latest['MA50']:
         signals['Trend'] = 'Bullish'
     elif latest['Close'] < latest['MA20'] and latest['MA20'] < latest['MA50']:
         signals['Trend'] = 'Bearish'
-        
+
+    # 2.1 - Count consecutive days of current trend
+    if signals['Trend'] != 'Neutral':
+        count = 1
+        current_trend = signals['Trend']
+        # Look back up to min(len(df), 20) days
+        for i in range(2, min(len(df), 20)):
+            day = df.iloc[-i]
+            day_trend = 'Neutral'
+            if day['Close'] > day['MA20'] and day['MA20'] > day['MA50']:
+                day_trend = 'Bullish'
+            elif day['Close'] < day['MA20'] and day['MA20'] < day['MA50']:
+                day_trend = 'Bearish'
+            
+            if day_trend == current_trend:
+                count += 1
+            else:
+                break
+        signals['Trend_Days'] = count
+
     return signals
 
 def make_decision(signals):
@@ -146,6 +225,7 @@ def make_decision(signals):
     score = 50 # Base score out of 100
     
     trend = signals['Trend']
+    trend_days = signals.get('Trend_Days', 1)
     breakout = signals['Breakout']
     vol_spike = signals['Volume_Spike']
     overbought = signals['Overbought']
@@ -153,8 +233,14 @@ def make_decision(signals):
     
     # Rules Processing
     if trend == 'Bullish':
-        reasons.append("Price above key moving averages (bullish trend)")
+        reasons.append(f"Price above key moving averages (bullish trend for {trend_days} days)")
         score += 20
+        if trend_days >= 3:
+            reasons.append("Uptrend is confirmed over multiple days.")
+            score += 10
+        else:
+            reasons.append("Trend is new; monitor for confirmation.")
+
         if breakout and vol_spike:
             decision = "BUY"
             reasons.append("Strong breakout supported by high volume")
@@ -168,9 +254,14 @@ def make_decision(signals):
             reasons.append("Breakout observed, but lacks volume confirmation")
             score += 15
     elif trend == 'Bearish':
-        reasons.append("Price below key moving averages (bearish trend)")
+        reasons.append(f"Price below key moving averages (bearish trend for {trend_days} days)")
         decision = "REDUCE"
         score -= 20
+        if trend_days >= 3:
+            reasons.append("Downtrend is firmly established.")
+            score -= 10
+        else:
+            reasons.append("Bearish pressure is recent; watch for reversal or further weakness.")
     else:
         reasons.append("Neutral trend configuration")
         decision = "WATCH"
@@ -196,51 +287,96 @@ def make_decision(signals):
     
     return decision, reasons, score
 
-def make_holding_decision(signals, avg_cost, pnl):
+def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty_two_week_high=None, benchmark_comparison=None):
     """
     Produce a professional portfolio decision based on current holding status (P&L) vs Market Trend.
+    Phase 1: MACD + 52-week context.
+    Phase 2: Signal stability (Trend_Days) + Relative Strength (Nifty comparison)
     """
     decision = "HOLD"
     reasons = []
-    
+
     trend = signals['Trend']
+    trend_days = signals.get('Trend_Days', 1)
     overbought = signals['Overbought']
     oversold = signals['Oversold']
     breakout = signals['Breakout']
-    
+    price = signals['Price']
+    macd_turning_bullish = signals.get('MACD_Turning_Bullish', False)
+    macd_turning_bearish = signals.get('MACD_Turning_Bearish', False)
+    macd_accel_bearish = signals.get('MACD_Accelerating_Bearish', False)
+
     is_profit = pnl > 0
-    
+
+    # 52-week proximity context
+    near_52w_low = fifty_two_week_low and price <= fifty_two_week_low * 1.08   # within 8% of 52w low
+    near_52w_high = fifty_two_week_high and price >= fifty_two_week_high * 0.95  # within 5% of 52w high
+
     if is_profit:
         if trend == 'Bullish':
             decision = "RIDE TREND (HOLD)"
-            reasons.append("Stock is in an uptrend and you are in profit. Let winners run.")
+            reasons.append(f"Stock is in an uptrend ({trend_days} days) and you are in profit. Let winners run.")
+            if trend_days >= 3:
+                reasons.append("Trend is well-confirmed over multiple sessions.")
+            else:
+                reasons.append("New trend emerging; monitor for persistence.")
             if breakout:
-                reasons.append("Breakout confirmed. Momentum is accelerating.")
+                reasons.append("Breakout confirmed — momentum is accelerating.")
+            if macd_turning_bullish:
+                reasons.append("MACD histogram just crossed above zero — fresh bullish momentum.")
+            if near_52w_high:
+                reasons.append("Caution: price is near the 52-week high — consider a trailing stop to protect gains.")
         elif trend == 'Bearish':
             decision = "BOOK PROFITS"
-            reasons.append("Trend has reversed downward. Lock in your gains.")
-        else: # Neutral
+            reasons.append(f"Trend has reversed downward ({trend_days} days). Lock in your gains before further erosion.")
+            if trend_days >= 3:
+                reasons.append("Confirmed bearish shift — exit recommended for trend-followers.")
+            if macd_accel_bearish:
+                reasons.append("MACD histogram is deepening — bearish momentum is strengthening. Act promptly.")
+        else:  # Neutral
             decision = "HOLD / TRAILING STOP"
-            reasons.append("Trend is neutral but you are in profit. Watch closely and consider a trailing stoploss.")
-            
+            reasons.append("Trend is neutral but you are in profit. Consider a trailing stop-loss.")
+
         if overbought and "BOOK PROFITS" not in decision:
             decision = "PARTIAL BOOK PROFITS"
-            reasons.append("Warning: RSI > 70 implies overbought conditions. Consider taking partial profits soon.")
-            
-    else: # Loss
+            reasons.append("RSI > 70: overbought conditions — consider taking partial profits soon.")
+
+    else:  # Loss
         if trend == 'Bullish':
             decision = "AVERAGE DOWN / HOLD"
-            reasons.append("Stock is regaining bullish momentum. Good opportunity to hold or lower your average cost.")
+            reasons.append(f"Stock is regaining bullish momentum ({trend_days} days). Consider holding or lowering average cost.")
+            if trend_days >= 3:
+                reasons.append("Upside trend is stable; increases confidence in averaging down.")
+            if macd_turning_bullish:
+                reasons.append("MACD just crossed bullish — momentum shift supports averaging down here.")
+            if near_52w_low:
+                reasons.append("Price is near the 52-week low — historically a stronger support zone for averaging.")
         elif trend == 'Bearish':
             decision = "CUT LOSSES / REDUCE"
-            reasons.append("Stock is in a defined downtrend and extending losses. Capital preservation is priority.")
-        else: # Neutral
+            reasons.append(f"Stock is in a defined downtrend ({trend_days} days) and extending losses. Capital preservation is priority.")
+            if trend_days >= 3:
+                reasons.append("High confidence in downtrend; high urgency to preserve remaining capital.")
+            else:
+                reasons.append("Bearish signal is recent; monitor closely but be ready to exit if it persists.")
+            if macd_accel_bearish:
+                reasons.append("MACD histogram is deepening further — momentum is accelerating downward. High urgency.")
+            if near_52w_low:
+                reasons.append("Price is at a 52-week low — the stock has no technical floor. Do not average down.")
+        else:  # Neutral
             decision = "HOLD / WATCH"
-            reasons.append("Trend is neutral while you are at a loss. Wait for a clear breakout before averaging down.")
-            
+            reasons.append("Trend is neutral while at a loss. Wait for a clear directional breakout.")
+            if macd_turning_bullish:
+                reasons.append("MACD shows early bullish crossover — a reversal may be forming. Watch closely.")
+
         if oversold and "CUT LOSSES" not in decision:
-            reasons.append("RSI < 30 implies deep oversold territory. A near-term bounce is possible.")
-            
+            reasons.append("RSI < 30: deeply oversold — a near-term bounce is possible. Avoid panic selling.")
+
+    if benchmark_comparison and benchmark_comparison.get('status') == 'UNDERPERFORMING':
+        reasons.append(f"Caution: Stock is underperforming the Nifty 50 by {abs(benchmark_comparison['relative_strength'])}% in 30 days.")
+
+    if macd_turning_bearish and is_profit and "BOOK" not in decision:
+        reasons.append("MACD just crossed bearish — consider reducing position size to protect gains.")
+
     return decision, reasons
 
 def format_output(symbol, signals, decision, reasons, score):
@@ -335,6 +471,9 @@ def analyze_single_ticker(symbol: str) -> dict:
         signals = generate_signals(df_indicators)
         decision, reasons, score = make_decision(signals)
         
+        # 2.2 - Benchmark Comparison
+        benchmark_comparison = get_benchmark_comparison(df)
+        
         # Helper to convert numpy numbers to native Python types for JSON serialization
         def convert_numpy(obj):
             if isinstance(obj, np.integer):
@@ -362,7 +501,9 @@ def analyze_single_ticker(symbol: str) -> dict:
             "pe_ratio": convert_numpy(info.get("trailingPE", 0) or 0),
             "industry_pe": convert_numpy(info.get("industryPE", 0) or 0),
             "dividend_yield": convert_numpy((dy * 100) if dy is not None else 0),
-            "beta": convert_numpy(info.get("beta", 0.98) or 0.98)
+            "beta": convert_numpy(info.get("beta", 0.98) or 0.98),
+            "52w_low": convert_numpy(info.get("fiftyTwoWeekLow") or 0),
+            "52w_high": convert_numpy(info.get("fiftyTwoWeekHigh") or 0),
         }
         
         last_c = df.iloc[-2] if len(df) > 1 else df.iloc[-1]
@@ -408,11 +549,15 @@ def analyze_single_ticker(symbol: str) -> dict:
                 "fundamentals": fundamentals,
                 "pivots": pivots,
                 "moving_averages": moving_averages,
+                "benchmark_comparison": benchmark_comparison,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "volume_spike": convert_numpy(signals['Volume_Spike']),
                     "overbought": convert_numpy(signals['Overbought']),
-                    "oversold": convert_numpy(signals['Oversold'])
+                    "oversold": convert_numpy(signals['Oversold']),
+                    "macd_turning_bullish": convert_numpy(signals['MACD_Turning_Bullish']),
+                    "macd_turning_bearish": convert_numpy(signals['MACD_Turning_Bearish']),
+                    "trend_days": convert_numpy(signals['Trend_Days'])
                 },
                 "indicators": {
                     "rsi_14": convert_numpy(signals['RSI']),
@@ -431,24 +576,63 @@ def analyze_single_ticker(symbol: str) -> dict:
 
 def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
     """
-    Analyzes a holding, applying advanced P&L-adjusted decision logic.
+    Analyzes a holding with P&L-adjusted decisions.
+    Phase 1 upgrades:
+    - P&L always recalculated from live price (not CSV input)
+    - 52-week high/low fetched and used in decisions
+    - MACD momentum direction used in decision reasons
     """
     symbol = symbol.upper().replace(' ', '')
     if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
         symbol += '.NS'
     symbol = symbol.upper()
-        
+
+    def convert_numpy(obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, (bool, np.bool_)):
+            return bool(obj)
+        return obj
+
     try:
         df = fetch_data(symbol, period="100d")
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
-        decision, reasons = make_holding_decision(signals, avg_cost, pnl)
-        
+
+        # --- 1.1 P&L CONSISTENCY FIX ---
+        # Always compute from live price. Ignore user-supplied pnl for decision logic.
         total_invested = avg_cost * qty
-        current_value = signals['Price'] * qty
-        pnl_pct = (pnl / total_invested * 100) if total_invested > 0 else 0.0
-        
-        def get_urgency_and_risk(dec, trend):
+        current_value = signals['Price'] * qty          # live price from Yahoo Finance
+        live_pnl = current_value - total_invested       # authoritative P&L
+        pnl_pct = (live_pnl / total_invested * 100) if total_invested > 0 else 0.0
+
+        # --- 1.2 52-WEEK CONTEXT ---
+        fifty_two_week_low = None
+        fifty_two_week_high = None
+        company_name = symbol.replace('.NS', '').replace('.BO', '')
+        try:
+            info = yf.Ticker(symbol).info
+            fifty_two_week_low = info.get('fiftyTwoWeekLow')
+            fifty_two_week_high = info.get('fiftyTwoWeekHigh')
+            company_name = info.get('longName', info.get('shortName', company_name))
+        except Exception:
+            pass
+
+        # --- 2.2 BENCHMARK COMPARISON ---
+        benchmark_comparison = get_benchmark_comparison(df)
+
+        # --- 1.3 MACD IN DECISIONS ---
+        # make_holding_decision now receives 52w range and MACD signals are in signals dict
+        decision, reasons = make_holding_decision(
+            signals, avg_cost, live_pnl,
+            fifty_two_week_low=fifty_two_week_low,
+            fifty_two_week_high=fifty_two_week_high,
+            benchmark_comparison=benchmark_comparison
+        )
+
+        def get_urgency_and_risk(dec, trend, pnl_val):
             urgency = "LOW"
             risk = "LOW"
             if "CUT LOSSES" in dec or "BOOK PROFITS" in dec:
@@ -457,20 +641,11 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             elif "AVERAGE DOWN" in dec or "TRAILING STOP" in dec or "REDUCE" in dec:
                 urgency = "MEDIUM"
                 risk = "MEDIUM"
-            if trend == 'Bearish' and pnl < 0:
+            if trend == 'Bearish' and pnl_val < 0:
                 risk = "HIGH"
             return urgency, risk
-            
-        urgency_score, risk_tag = get_urgency_and_risk(decision, signals['Trend'])
-        
-        def convert_numpy(obj):
-            if isinstance(obj, np.integer):
-                return int(obj)
-            elif isinstance(obj, np.floating):
-                return float(obj)
-            elif isinstance(obj, bool) or isinstance(obj, np.bool_):
-                return bool(obj)
-            return obj
+
+        urgency_score, risk_tag = get_urgency_and_risk(decision, signals['Trend'], live_pnl)
 
         return {
             "symbol": symbol.replace('.NS', '').replace('.BO', ''),
@@ -480,22 +655,28 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "quantity": qty,
                 "invested_value": convert_numpy(total_invested),
                 "current_value": convert_numpy(current_value),
-                "current_pnl": pnl,
-                "pnl_pct": convert_numpy(pnl_pct)
+                "current_pnl": convert_numpy(live_pnl),
+                "pnl_pct": convert_numpy(pnl_pct),
+                "52w_low": convert_numpy(fifty_two_week_low) if fifty_two_week_low else None,
+                "52w_high": convert_numpy(fifty_two_week_high) if fifty_two_week_high else None,
             },
             "data": {
-                "companyName": info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', ''))) if 'info' in locals() else symbol.replace('.NS', ''),
+                "companyName": company_name,
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,
                 "urgency_score": urgency_score,
                 "risk_tag": risk_tag,
                 "reasons": reasons,
+                "benchmark_comparison": benchmark_comparison,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "volume_spike": convert_numpy(signals['Volume_Spike']),
                     "overbought": convert_numpy(signals['Overbought']),
-                    "oversold": convert_numpy(signals['Oversold'])
+                    "oversold": convert_numpy(signals['Oversold']),
+                    "macd_turning_bullish": convert_numpy(signals['MACD_Turning_Bullish']),
+                    "macd_turning_bearish": convert_numpy(signals['MACD_Turning_Bearish']),
+                    "trend_days": convert_numpy(signals['Trend_Days'])
                 }
             }
         }

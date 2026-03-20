@@ -1,138 +1,210 @@
-# Market Intelligence Engine - Logic & Scoring Documentation
+# Market Intelligence Engine — Logic & Scoring Documentation
+**Last updated:** March 20, 2026 | **Version:** 1.2
 
-This document explains the internal mechanics of the `market_intelligence.py` script. It breaks down what indicators are calculated, how signals are generated, the decision logic, and how the final confidence scores are derived.
-
-## 1. Core Indicators Calculated
-
-The script fetches the last 100 days of Daily OHLCV (Open, High, Low, Close, Volume) data. Using this raw data, the following indicators are calculated:
-
-*   **MA20 (20-Day Simple Moving Average):** The average closing price over the last 20 days. Used to gauge short-term market momentum.
-*   **MA50 (50-Day Simple Moving Average):** The average closing price over the last 50 days. Used to gauge medium-term market momentum.
-*   **Volume Average (20-Day):** The average daily trading volume over the last 20 days. Used as a baseline to detect abnormal trading activity.
-*   **RSI (14-Period Relative Strength Index):** Calculated using Wilder's Smoothing (Exponential Moving Average). It measures the speed and change of price movements, outputting a value between 0 and 100.
-*   **High20 (Highest Close in previous 20 days):** The maximum closing price out of the preceding 20 days (excluding today). This acts as a resistance level for breakout detection.
+This document explains the internal mechanics of `market_intelligence.py` — how signals are generated, the decision logic, and how the final **Actionable Insights** are derived. It also documents the portfolio aggregation layer and full API surface.
 
 ---
 
-## 2. Signal Generation
+## 1. Data Fetching
 
-Using the computed indicators, the engine scans the most recent trading day to generate binary (True/False) signals and a categorical Trend state:
+```
+fetch_data(symbol, period="100d")
+```
 
-*   **Breakout:** `True` if the Current Closing Price is strictly *greater* than the `High20` (Highest close of the last 20 days).
-*   **Volume Spike:** `True` if the Current Daily Volume is strictly *greater* than **2x** the 20-Day Volume Average.
-*   **Overbought:** `True` if the RSI is **> 70**. This typically warns that the stock might be overvalued and due for a pullback.
-*   **Oversold:** `True` if the RSI is **< 30**. This suggests the stock might be undervalued and due for a bounce.
-*   **Trend Configuration:**
-    *   **Bullish:** If `Current Price > MA20` AND `MA20 > MA50`. (Denotes a strong uptrend).
-    *   **Bearish:** If `Current Price < MA20` AND `MA20 < MA50`. (Denotes a strong downtrend).
-    *   **Neutral:** Any other moving average configuration that doesn't cleanly meet the two above definitions.
+- Fetches historical **Daily OHLCV** (Open, High, Low, Close, Volume) via `yfinance`.
+- Requires at least **50 rows** of data; raises if insufficient.
+- Symbols are auto-normalized: if not ending in `.NS` or `.BO`, `.NS` is appended.
+- Falls back to logged error and re-raises — callers handle gracefully.
 
----
-
-## 3. Decision Matrix & Confidence Scoring Engine
-
-The core logic resides in the `make_decision` function. 
-
-Every stock starts with a **Base Confidence Score of `50/100`**. The engine then walks through the signals, adjusting the score up or down and determining the final Action (`BUY`, `HOLD`, `REDUCE`, `WATCH`).
-
-Reasons are appended to an array at each step to provide contextual output for exactly *why* the script is making a particular decision.
-
-### Step A: Trend Assessment
-*   **If Bullish:** The trend is strong.
-    *   **Score Penalty/Bonus:** `+20` (Score = 70)
-    *   **Decision logic tree:**
-        *   If `Breakout` AND `Volume Spike`: Decision is **BUY**. (+20 points for explosive momentum -> Score = 90). *Reason: Strong breakout supported by high volume.*
-        *   If `Breakout` ONLY: Decision is **HOLD**. (+15 points -> Score = 85). *Reason: Breakout observed, but lacks volume confirmation.*
-        *   If Neither: Decision is **HOLD**. (+10 points -> Score = 80). *Reason: Strong uptrend continuation without breakout.*
-*   **If Bearish:** The trend is declining.
-    *   **Score Penalty/Bonus:** `-20` (Score = 30)
-    *   **Decision:** **REDUCE**. *Reason: Price below key moving averages.*
-*   **If Neutral:** The market is undecided.
-    *   **Score Penalty/Bonus:** `0` (Score = 50)
-    *   **Decision:** **WATCH**. *Reason: Neutral trend configuration.*
-
-### Step B: RSI Adjustments (Overbought / Oversold Check)
-Independent of the trend, the RSI state heavily impacts the final result:
-*   **If Overbought (RSI > 70):** 
-    *   **Action:** If the current decision from Step A is `BUY`, downgrade it to `HOLD`.
-    *   **Reasoning:** The stock might have exhausted its short-term buying pressure. Partial profit booking or caution is advised.
-    *   **Score Penalty/Bonus:** `-15` (Penalty for risk).
-*   **If Oversold (RSI < 30):** 
-    *   **Action:** Automatically sets the decision to `WATCH`.
-    *   **Reasoning:** Even in a downtrend, extreme oversold levels indicate a potential reversal or dead-cat bounce. It belongs on a watch list, not an immediate sell.
-    *   **Score Penalty/Bonus:** `+15` (Bonus for deep-value potential).
-
-### Step C: Edge Case Volume Spike
-*   **Condition:** If there is a `Volume Spike` but NO `Breakout`, AND the trend is NOT Bullish.
-    *   **Reasoning:** Major accumulation (buying) or distribution (selling) is happening under the surface without moving price above resistance.
-    *   **Score Penalty/Bonus:** `+5`
-
-### Step D: Score Normalization
-To ensure logic handles don't break boundaries, the final score mathematically clamped so it will **never be less than 0 or greater than 100.** `Score = max(0, min(100, Score))`
+For `analyze_single_ticker`: fetches `1y` of daily data + multi-period intraday charts (5m for 1D, 1h for 1W).
 
 ---
 
-## 4. Final Output & Ranking
+## 2. Indicators Calculated
 
-At the end of processing the requested list of stocks, the engine formats the specific `Decision`, `Reasons`, and `Signals` into a readable console block. 
+```
+calculate_indicators(df) → df with added columns
+```
 
-Finally, it sorts all analyzed stocks by their final calculated `Confidence Score` in descending order, printing a "Top Opportunities Today" summary list.
-
-### Summary Labels:
-Based on the final decision taken (BUY/HOLD/WATCH/REDUCE), the summary emits one of the following quick-hand conclusions:
-*   **BUY:** "Strong trend continuation & breakout"
-*   **HOLD:** "Steady performance with potential for upside"
-*   **WATCH:** "Potential reversal watch or consolidation"
-*   **REDUCE:** "Weakness observed, consider reducing exposure"
-
----
-
-## 5. Holdings Intelligence Layer (Portfolio Mode)
-
-When the engine analyzes existing holdings (via the `/analyze/portfolio` endpoint reading `holdings_kite.csv`), it shifts from generating generic signals to creating context-aware decisions based on mathematical P&L. 
-
-### Professional Decision Matrix (P&L vs Trend):
-
-Unlike standard discovery mode (where a Bullish trend is simply a `BUY`), Portfolio mode factors in entry price:
-
-#### Condition 1: Position is Profitable (P&L > 0)
-*   **Bullish Trend:** -> Decision: `RIDE TREND (HOLD)`
-    *   *Logic: Let winners run. If there's a breakout, momentum is accelerating.*
-*   **Bearish Trend:** -> Decision: `BOOK PROFITS`
-    *   *Logic: The trend has reversed downward. Protect your capital by locking in gains.*
-*   **Neutral Trend:** -> Decision: `HOLD / TRAILING STOP`
-    *   *Logic: Momentum is stalling, but there's no technical reason to sell right away.*
-*   **Overbought RSI (>70):** Overrides `HOLD` to `PARTIAL BOOK PROFITS` to secure gains before a pullback.
-
-#### Condition 2: Position is at a Loss (P&L < 0)
-*   **Bullish Trend:** -> Decision: `AVERAGE DOWN / HOLD`
-    *   *Logic: The stock is regaining upward momentum. This is technically the safest time to lower your average cost.*
-*   **Bearish Trend:** -> Decision: `CUT LOSSES / REDUCE`
-    *   *Logic: Holding onto a falling knife. The trend is actively making your P&L worse.*
-*   **Neutral Trend:** -> Decision: `HOLD / WATCH`
-    *   *Logic: Wait for a clear breakout before deploying more capital to average down.*
-*   **Oversold RSI (<30):** Adds context that a near-term bounce is possible, avoiding selling at the absolute bottom.
+| Indicator | Window | Description |
+|---|---|---|
+| SMA10/20/50/100/200 | various | Simple Moving Averages |
+| EMA10/20/50/100/200 | various | Exponential Moving Averages |
+| MA20 / MA50 | 20 / 50 | Aliases for SMA20/SMA50 (used in decision logic) |
+| Vol20 | 20-day | Rolling volume average (baseline for spike detection) |
+| RSI | 14-period | Wilder's Smoothing EMA. Filled with 50 on NaN startup. |
+| High20 | 20-day | Rolling max of **shifted** close (excludes today) — used as resistance |
+| MACD | 12/26/9 | MACD Line, Signal Line, Histogram |
 
 ---
 
-## 6. Portfolio Brain (Summary Intelligence Layer)
+## 3. Signal Generation
 
-The `/analyze/portfolio` API wraps the individual stock analyses into a top-level **Portfolio Summary** object that evaluates systemic risk based on mathematical weightings and distribution of decisions.
+```
+generate_signals(df) → signals dict
+```
 
-### 6.1 Urgency Scoring & Risk Tagging
-Each position is assigned a priority so the frontend can rank them:
-*   **HIGH Urgency:** Action is actively required to preserve capital (`CUT LOSSES`, `BOOK PROFITS`).
-*   **MEDIUM Urgency:** Action should be heavily monitored (`AVERAGE DOWN`, `HOLD / TRAILING STOP`).
-*   **LOW Urgency:** No immediate action required, position is stable (`RIDE TREND`, `HOLD / WATCH`).
+Reads the **latest row** of the indicator dataframe.
 
-### 6.2 Structural Capital Allocation (Weighting)
-The engine does not treat all stocks equally. It computes real portfolio impact:
-*   `Invested Value = Avg Cost * Quantity`
-*   `Current Value = Current Price * Quantity`
-*   `Portfolio Weight % = (Current Value / Total Portfolio Value) * 100`
+| Signal | Condition | Type |
+|---|---|---|
+| `Breakout` | `Close > High20` | bool |
+| `Volume_Spike` | `Volume > 2 × Vol20` | bool |
+| `Overbought` | `RSI > 70` | bool |
+| `Oversold` | `RSI < 30` | bool |
+| `Trend = Bullish` | `Close > MA20 AND MA20 > MA50` | categorical |
+| `Trend = Bearish` | `Close < MA20 AND MA20 < MA50` | categorical |
+| `Trend = Neutral` | all other configurations | categorical |
 
-### 6.3 Dynamic Risk Assessment
-The brain counts the distribution of decisions across the entire portfolio to assign top-level Health and Risk labels:
-*   **High Risk (Selloff Imminent):** Triggered if more than 40% of the user's capital positions require `CUT LOSSES`. 
-*   **Weak Health:** Triggered if the number of absolute losers is strictly greater than the number of winners.
-*   **Capital Reallocation Alerts:** If zero positions are in a strong bullish uptrend (`RIDE TREND`), the engine recommends trimming dead weight to rotate capital into trending sectors.
+Also returns raw values: `Price`, `RSI`, `MA20`, `MA50`, `MACD dict`.
+
+---
+
+## 4. Discovery Mode — `make_decision(signals)`
+
+Used by `analyze_single_ticker`. Starts at **base score = 50**.
+
+### Step A — Trend
+| Trend | Score Δ | Decision |
+|---|---|---|
+| Bullish + Breakout + Volume Spike | +40 | **BUY** |
+| Bullish + Breakout only | +35 | **HOLD** |
+| Bullish, no breakout | +30 | **HOLD** |
+| Bearish | -20 | **REDUCE** |
+| Neutral | 0 | **WATCH** |
+
+### Step B — RSI Override
+| RSI State | Score Δ | Decision Change |
+|---|---|---|
+| Overbought (>70) | -15 | BUY → HOLD |
+| Oversold (<30) | +15 | Any → WATCH |
+
+### Step C — Edge: Volume Spike without Breakout (non-Bullish)
+- Score +5. No decision change. Flags unusual accumulation/distribution.
+
+### Step D — Clamp
+`score = max(0, min(100, int(score)))`
+
+---
+
+## 5. Portfolio Mode — `make_holding_decision(signals, avg_cost, pnl)`
+
+Used by `analyze_single_holding` (called by both portfolio endpoints). Factors in **entry price context** to produce actionable portfolio decisions.
+
+### Profitable Position (pnl > 0)
+| Trend | Decision |
+|---|---|
+| Bullish | `RIDE TREND (HOLD)` — let winners run |
+| Bearish | `BOOK PROFITS` — trend reversed, lock in gains |
+| Neutral | `HOLD / TRAILING STOP` — stalling, protect gains |
+| Any + Overbought RSI | `PARTIAL BOOK PROFITS` (overrides HOLD) |
+
+### Loss Position (pnl ≤ 0)
+| Trend | Decision |
+|---|---|
+| Bullish | `AVERAGE DOWN / HOLD` — regaining momentum |
+| Bearish | `CUT LOSSES / REDUCE` — active downtrend |
+| Neutral | `HOLD / WATCH` — wait for clear direction |
+| Any + Oversold RSI | Adds context: bounce possible, avoid forced exits |
+
+### Multi-Factor Overrides (Urgency)
+- **Signal Multiplier:** If `Trend_Days >= 3`, confidence in the decision increases.
+- **Relative Strength:** If stock is underperforming the Nifty 50 benchmark by >10% over 30 days, a "Caution" reason is appended.
+- **Floor-less Risk:** If `Bearish` + `Price is near 52-week low`, "Do not average down" warning is triggered.
+
+---
+
+## 6. Urgency & Risk Tagging
+
+```
+get_urgency_and_risk(decision, trend) → (urgency, risk)
+```
+
+| Decision | Urgency | Risk |
+|---|---|---|
+| `CUT LOSSES` / `BOOK PROFITS` | HIGH | HIGH / LOW |
+| `AVERAGE DOWN` / `TRAILING STOP` / `REDUCE` | MEDIUM | MEDIUM |
+| `RIDE TREND` / `HOLD / WATCH` | LOW | LOW |
+| Bearish + pnl < 0 | — | HIGH (override) |
+
+---
+
+## 7. The Insights Brain — `_run_portfolio_analysis`
+
+Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list of dicts `{symbol, quantity, avg_cost, pnl, current_value}`.
+
+**Aggregation & Consistency:**
+- **Live P&L Correction:** Backend ignores input P&L and recalculates every metric using live quotes from Yahoo Finance.
+- `total_invested = Σ invested_value` (avg_cost × qty)
+- `total_value_live = Σ current_value` (live price × qty)
+- `total_pnl = total_value_live - total_invested`
+- `win_rate = winners / total × 100%`
+
+**Global Assessment:**
+- `High Risk` triggered if `CUT LOSSES` count / total ≥ 40%.
+- `Weak Health` triggered if total losers > total winners.
+- **Prioritization:** Results are sorted primarily by **Urgency (High -> Medium -> Low)** and then by **P&L % (Worst -> Best)**.
+
+---
+
+## 8. API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Health check |
+| GET | `/analyze/portfolio` | Reads `holdings_kite.csv` from backend dir, runs full portfolio analysis |
+| **POST** | `/analyze/portfolio` | **Accepts JSON holdings from frontend (uploaded CSV session)**. Same pipeline. |
+| GET | `/analyze/{ticker}` | Single stock deep analysis (charts, fundamentals, pivots, indicators) |
+| GET | `/search/{query}` | Yahoo Finance autocomplete, filtered to NSE/BSE equities |
+
+### POST /analyze/portfolio Payload
+```json
+{
+  "holdings": [
+    {
+      "symbol": "COCHINSHIP",
+      "quantity": 22,
+      "avg_cost": 1843.85,
+      "current_value": 31064,
+      "pnl": -6597.7
+    }
+  ]
+}
+```
+
+---
+
+{
+  "portfolio_summary": {
+    "health": "Weak | Fair | Strong",
+    "risk_level": "High | Medium | Low",
+    "total_invested": 85954.2,
+    "total_value_live": 62710.5,
+    "total_pnl": -23243.7,
+    "win_rate": "12.5%",
+    "insight": "..."
+  },
+  "recommended_actions": ["...", "..."],
+  "portfolio_analysis": [
+    {
+      "symbol": "SDBL",
+      "success": true,
+      "holding_context": {
+        "avg_cost": 131.56, "quantity": 160,
+        "invested_value": 21049.6, "current_value": 11953.6,
+        "current_pnl": -9096, "pnl_pct": -43.21,
+        "portfolio_weight_pct": 19.06,
+        "52w_low": 68.4, "52w_high": 182.3
+      },
+      "data": {
+        "price": 74.71, "trend": "Bearish",
+        "portfolio_decision": "CUT LOSSES / REDUCE",
+        "urgency_score": "HIGH", "risk_tag": "HIGH",
+        "reasons": ["...", "..."],
+        "benchmark_comparison": { "relative_strength": -12.4, "status": "UNDERPERFORMING" },
+        "signals": { "breakout": false, "volume_spike": false, "overbought": false, "oversold": false, "trend_days": 5 }
+      }
+    }
+  ]
+}
+

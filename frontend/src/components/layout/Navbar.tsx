@@ -94,11 +94,11 @@ export function Navbar() {
               )}
             </button>
             <button 
-              onClick={() => navigate("/nudges")} 
-              className={`relative h-full flex items-center px-4 text-[15px] font-semibold tracking-wide transition-colors ${location.pathname.includes("nudges") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
+              onClick={() => navigate("/insights")} 
+              className={`relative h-full flex items-center px-4 text-[15px] font-semibold tracking-wide transition-colors ${location.pathname.includes("insights") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
             >
-              Nudges
-              {location.pathname.includes("nudges") && (
+              Insights
+              {location.pathname.includes("insights") && (
                 <motion.div layoutId="nav-indicator" className="absolute bottom-0 left-4 right-4 h-[3px] bg-white rounded-t-md" />
               )}
             </button>

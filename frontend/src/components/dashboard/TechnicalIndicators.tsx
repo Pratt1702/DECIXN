@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Native CSS Group-Hover Tooltip 
 const InfoTooltip = ({ content, align }: { content: string, align?: "center" | "left" }) => (
@@ -12,17 +13,16 @@ const InfoTooltip = ({ content, align }: { content: string, align?: "center" | "
 );
 
 export function TechnicalIndicators({ data }: { data: any }) {
-  if (!data) return null;
-
-  const currentPrice = data.price || 1048.90;
+  const loading = !data;
+  const currentPrice = data?.price || 1000;
   
-  // Use backend data if populated, else mock gracefully
-  const pivots = data.pivots || { R3: currentPrice * 1.05, R2: currentPrice * 1.03, R1: currentPrice * 1.015, Pivot: currentPrice * 1.005, S1: currentPrice * 0.985, S2: currentPrice * 0.97, S3: currentPrice * 0.95 };
-  const ma = data.moving_averages || { sma_10d: currentPrice*1.01, ema_10d: currentPrice*1.02, sma_20d: currentPrice*1.05, ema_20d: currentPrice*1.04, sma_50d: currentPrice * 1.03, ema_50d: currentPrice * 1.035, sma_100d: currentPrice * 0.98, ema_100d: currentPrice * 0.99, sma_200d: currentPrice * 0.85, ema_200d: currentPrice * 0.88 };
+  // Use backend data if populated, else mock gracefully for skeleton
+  const pivots = data?.pivots || { R3: 1100, R2: 1080, R1: 1060, Pivot: 1050, S1: 1040, S2: 1020, S3: 1000 };
+  const ma = data?.moving_averages || {};
   
-  const rsi = data.indicators?.rsi_14 || 34.67;
-  const macd = data.indicators?.macd?.MACD_Line || -15.65;
-  const beta = data.fundamentals?.beta || 0.98;
+  const rsi = data?.indicators?.rsi_14 || 50;
+  const macd = data?.indicators?.macd?.MACD_Line || 0;
+  const beta = data?.fundamentals?.beta || 1.0;
 
   return (
     <div className="space-y-12 mt-12 mb-12">
@@ -34,27 +34,59 @@ export function TechnicalIndicators({ data }: { data: any }) {
           <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
             Support and Resistance <InfoTooltip content="Key computational price levels defined by Pivot Points where the stock historically encounters critical buying (Support) or massive selling (Resistance) pressure." align="left" />
           </h2>
-          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl p-6 lg:p-8 shadow-lg relative">
+          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl p-6 lg:p-8 shadow-lg relative h-full flex flex-col justify-center">
             
-            <div className="space-y-5">
-              <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">R3</span><span className="text-text-bold font-bold">{pivots.R3?.toFixed(2)}</span></div>
-              <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">R2</span><span className="text-text-bold font-bold">{pivots.R2?.toFixed(2)}</span></div>
-              <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">R1</span><span className="text-text-bold font-bold">{pivots.R1?.toFixed(2)}</span></div>
+            <div className="relative h-2 w-full bg-[#333] rounded-full mb-12 mt-4">
+              {/* Range labels */}
+              <div className="absolute -top-7 left-0 text-[10px] text-text-muted font-bold">{loading ? '---' : `S3 ${pivots.S3?.toFixed(1)}`}</div>
+              <div className="absolute -top-7 right-0 text-[10px] text-text-muted font-bold">{loading ? '---' : `R3 ${pivots.R3?.toFixed(1)}`}</div>
               
-              <div className="relative py-3">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#333] border-dashed"></div></div>
-                <div className="relative flex justify-center"><span className="bg-[#1f2028] px-3 font-bold text-xs text-text-muted rounded-full tracking-wider">PIVOT {pivots.Pivot?.toFixed(2)}</span></div>
-              </div>
+              {/* Scale points */}
+              {[pivots.S3, pivots.S2, pivots.S1, pivots.Pivot, pivots.R1, pivots.R2, pivots.R3].map((val, idx) => {
+                const totalRange = pivots.R3 - pivots.S3;
+                const pos = ((val - pivots.S3) / totalRange) * 100;
+                const label = ["S3", "S2", "S1", "P", "R1", "R2", "R3"][idx];
+                return (
+                  <div key={idx} className="absolute top-0 h-full w-[2px] bg-white/10" style={{ left: `${pos}%` }}>
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-text-muted/60">{label}</div>
+                  </div>
+                );
+              })}
 
-              <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">S1</span><span className="text-text-bold font-bold">{pivots.S1?.toFixed(2)}</span></div>
-              
-              <div className="relative py-2 hidden sm:block"> {/* Using absolute positioned div vs inline for the exact Groww layout style */}
-                <div className="absolute inset-0 flex items-center -ml-6 -mr-6"><div className="w-full border-t border-danger"></div></div>
-                <div className="relative flex justify-center"><span className="bg-[#2a1215] border border-danger text-danger px-4 py-0.5 text-xs font-bold rounded-full uppercase tracking-widest">Price {currentPrice?.toFixed(2)}</span></div>
-              </div>
+              {/* Price Indicator - Animate from center (Pivot) to target price */}
+              {(() => {
+                const totalRange = pivots.R3 - pivots.S3;
+                // Target position
+                const targetPos = ((currentPrice - pivots.S3) / totalRange) * 100;
+                // Pivot position (initial)
+                const pivotPos = ((pivots.Pivot - pivots.S3) / totalRange) * 100;
 
-              <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">S2</span><span className="text-text-bold font-bold">{pivots.S2?.toFixed(2)}</span></div>
-              <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">S3</span><span className="text-text-bold font-bold">{pivots.S3?.toFixed(2)}</span></div>
+                 return (
+                  <motion.div 
+                    initial={{ left: loading ? "50%" : `${pivotPos}%`, opacity: 0 }}
+                    animate={{ left: `${targetPos}%`, opacity: 1 }}
+                    transition={{ duration: 1.5, ease: "circOut", delay: 0.3 }}
+                    className="absolute top-1/2 -translate-y-1/2 z-10"
+                  >
+                    <div className="relative">
+                      <div className="h-6 w-[3px] bg-danger shadow-[0_0_10px_rgba(244,63,94,0.6)]" />
+                      {!loading && (
+                        <div className="absolute top-[-34px] left-1/2 -translate-x-1/2 bg-[#2a1215] border border-danger text-danger px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap shadow-xl">
+                          Price {currentPrice.toFixed(2)}
+                        </div>
+                      )}
+                      <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-danger" />
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 mt-4 border-t border-white/5 pt-6">
+               <div className="flex justify-between text-xs text-text-muted font-medium"><span>Support 1</span><span className="text-text-bold font-mono">{loading ? '---' : pivots.S1?.toFixed(2)}</span></div>
+               <div className="flex justify-between text-xs text-text-muted font-medium"><span>Resistance 1</span><span className="text-text-bold font-mono">{loading ? '---' : pivots.R1?.toFixed(2)}</span></div>
+               <div className="flex justify-between text-xs text-text-muted font-medium"><span>Support 2</span><span className="text-text-bold font-mono">{loading ? '---' : pivots.S2?.toFixed(2)}</span></div>
+               <div className="flex justify-between text-xs text-text-muted font-medium"><span>Resistance 2</span><span className="text-text-bold font-mono">{loading ? '---' : pivots.R2?.toFixed(2)}</span></div>
             </div>
           </div>
         </div>
@@ -117,14 +149,18 @@ export function TechnicalIndicators({ data }: { data: any }) {
               {['10D', '20D', '50D', '100D', '200D'].map((p) => {
                 const sma = ma[`sma_${p.toLowerCase()}`];
                 const ema = ma[`ema_${p.toLowerCase()}`];
-                const smaColor = currentPrice > sma ? 'text-success' : 'text-danger';
-                const emaColor = currentPrice > ema ? 'text-success' : 'text-danger';
+                const smaColor = (loading || !sma) ? 'text-white/10' : (currentPrice > sma ? 'text-success' : 'text-danger');
+                const emaColor = (loading || !ema) ? 'text-white/10' : (currentPrice > ema ? 'text-success' : 'text-danger');
                 
                 return (
                   <tr key={p} className="hover:bg-white/5 transition-colors">
                     <td className="px-8 py-5 font-medium">{p}</td>
-                    <td className={`px-8 py-5 text-right font-bold tracking-wide ${smaColor}`}>{sma?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-                    <td className={`px-8 py-5 text-right font-bold tracking-wide ${emaColor}`}>{ema?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                    <td className={`px-8 py-5 text-right font-bold tracking-wide ${smaColor}`}>
+                      {loading ? '---' : sma?.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                    </td>
+                    <td className={`px-8 py-5 text-right font-bold tracking-wide ${emaColor}`}>
+                      {loading ? '---' : ema?.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                    </td>
                   </tr>
                 );
               })}
@@ -142,19 +178,27 @@ export function TechnicalIndicators({ data }: { data: any }) {
            <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">Market Cap</p>
-                 <p className="text-2xl font-bold text-text-bold">₹{(data.fundamentals?.market_cap / 10000000 || 745300).toFixed(0)}Cr</p>
+                 <p className="text-2xl font-bold text-text-bold">
+                   {loading ? <span className="animate-pulse text-white/10">---</span> : `₹${(data.fundamentals?.market_cap / 10000000 || 0).toFixed(0)}Cr`}
+                 </p>
               </div>
               <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">P/E Ratio</p>
-                 <p className="text-2xl font-bold text-text-bold">{data.fundamentals?.pe_ratio?.toFixed(2) || '14.50'}</p>
+                 <p className="text-2xl font-bold text-text-bold">
+                   {loading ? <span className="animate-pulse text-white/10">---</span> : (data.fundamentals?.pe_ratio?.toFixed(2) || 'N/A')}
+                 </p>
               </div>
               <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">Industry P/E</p>
-                 <p className="text-2xl font-bold text-text-bold">{data.fundamentals?.industry_pe ? data.fundamentals.industry_pe.toFixed(2) : 'N/A'}</p>
+                 <p className="text-2xl font-bold text-text-bold">
+                   {loading ? <span className="animate-pulse text-white/10">---</span> : (data.fundamentals?.industry_pe ? data.fundamentals.industry_pe.toFixed(2) : 'N/A')}
+                 </p>
               </div>
               <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">Dividend Yield</p>
-                 <p className="text-2xl font-bold text-text-bold">{data.fundamentals?.dividend_yield?.toFixed(2) || '1.30'}%</p>
+                 <p className="text-2xl font-bold text-text-bold">
+                   {loading ? <span className="animate-pulse text-white/10">---</span> : `${(data.fundamentals?.dividend_yield?.toFixed(2) || '0.00')}%`}
+                 </p>
               </div>
            </div>
         </div>

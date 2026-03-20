@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Native CSS Group-Hover Tooltip 
 const InfoTooltip = ({ content }: { content: string }) => (
@@ -12,14 +13,9 @@ const InfoTooltip = ({ content }: { content: string }) => (
 );
 
 export function AIIntelligencePanel({ data }: { data: any }) {
-  if (!data) return null;
-  
-  const score = data.confidence_score || 45; 
-  let label = "Neutral";
-  if (score >= 70) label = "Strong Bullish";
-  else if (score >= 55) label = "Bullish";
-  else if (score <= 30) label = "Strong Bearish";
-  else if (score <= 45) label = "Slightly bearish";
+  const loading = !data;
+  const score = data?.confidence_score || 50; 
+  const label = !data ? "Synthesizing..." : (score >= 70 ? "Strong Bullish" : score >= 55 ? "Bullish" : score <= 30 ? "Strong Bearish" : score <= 45 ? "Slightly bearish" : "Neutral");
 
   // create bars for the slider effect like Groww Summary
   const bars = Array.from({length: 30}, (_, i) => i);
@@ -36,21 +32,21 @@ export function AIIntelligencePanel({ data }: { data: any }) {
         <div className="flex justify-between items-start mb-10">
            <div>
              <p className="text-sm text-text-muted mb-1">Based on technicals, this stock is</p>
-             <p className={`text-xl font-bold ${score > 53 ? 'text-success' : score < 47 ? 'text-danger' : 'text-[#9ca3af]'}`}>{label}</p>
+             <div className={`text-xl font-bold ${loading ? 'animate-pulse text-white/20' : score > 53 ? 'text-success' : score < 47 ? 'text-danger' : 'text-[#9ca3af]'}`}>{label}</div>
            </div>
            
            <div className="flex gap-6 text-sm">
               <div className="text-center">
-                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-danger" /> <span className="text-text-muted">Bearish</span></div>
-                <span className="font-bold text-text-bold">{score < 47 ? '8' : '2'}</span>
+                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-danger" /> <span className="text-text-muted text-[10px] uppercase tracking-tighter">Bearish</span></div>
+                <span className="font-bold text-text-bold">{loading ? '-' : (score < 47 ? '8' : '2')}</span>
               </div>
               <div className="text-center">
-                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-[#6b7280]" /> <span className="text-text-muted">Neutral</span></div>
-                <span className="font-bold text-text-bold">{score >= 47 && score <= 53 ? '6' : '0'}</span>
+                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-[#6b7280]" /> <span className="text-text-muted text-[10px] uppercase tracking-tighter">Neutral</span></div>
+                <span className="font-bold text-text-bold">{loading ? '-' : (score >= 47 && score <= 53 ? '6' : '0')}</span>
               </div>
               <div className="text-center">
-                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-success" /> <span className="text-text-muted">Bullish</span></div>
-                <span className="font-bold text-text-bold">{score > 53 ? '12' : '4'}</span>
+                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-success" /> <span className="text-text-muted text-[10px] uppercase tracking-tighter">Bullish</span></div>
+                <span className="font-bold text-text-bold">{loading ? '-' : (score > 53 ? '12' : '4')}</span>
               </div>
            </div>
         </div>
@@ -67,24 +63,30 @@ export function AIIntelligencePanel({ data }: { data: any }) {
             })}
           </div>
           
-          <div 
-            className="mt-2 text-[#4b5563] text-xs transition-all duration-500 ease-out" 
-            style={{ paddingLeft: `calc(${Math.min(99, (activeIndex / 29) * 100)}% - 4px)` }}
+          <motion.div 
+            initial={{ paddingLeft: "50%" }}
+            animate={{ paddingLeft: `calc(${Math.min(99, (activeIndex / 29) * 100)}% - 4px)` }}
+            transition={{ duration: 1.5, ease: "circOut", delay: 0.2 }}
+            className="mt-2 text-white text-xs transition-all" 
           >
              ▲
-          </div>
+          </motion.div>
         </div>
 
-        {data.reasons && data.reasons.length > 0 && (
-          <div className="mt-8 border-t border-border-main pt-6">
+        {(loading || (data.reasons && data.reasons.length > 0)) && (
+          <div className="mt-8 border-t border-white/5 pt-6">
             <h3 className="font-bold text-text-bold mb-3">AI Nudges Context</h3>
             <ul className="space-y-3">
-                {data.reasons.map((r: string, i: number) =>(
-                  <li key={i} className="text-sm text-text-muted flex gap-3">
-                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-info shrink-0" />
-                    <span className="leading-snug">{r}</span>
-                  </li>
-                ))}
+                {loading ? (
+                   [1,2,3].map(i => <div key={i} className="h-4 w-full bg-white/5 animate-pulse rounded" />)
+                ) : (
+                  data.reasons.map((r: string, i: number) =>(
+                    <li key={i} className="text-sm text-text-muted flex gap-3">
+                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-info shrink-0" />
+                      <span className="leading-snug">{r}</span>
+                    </li>
+                  ))
+                )}
             </ul>
           </div>
         )}

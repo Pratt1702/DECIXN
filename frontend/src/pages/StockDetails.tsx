@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTickerAnalysis, getPortfolio } from "../services/api";
-import { motion } from "framer-motion";
-import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, AlertTriangle, ChevronRight } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from "recharts";
 import { AIIntelligencePanel } from "../components/dashboard/AIIntelligencePanel";
 import { TechnicalIndicators } from "../components/dashboard/TechnicalIndicators";
 
 const PERIODS = ['1D', '1W', '1M', '3M', '6M', '1Y', '3Y', '5Y', 'All'];
 
-// Custom Tooltip Component for Recharts
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -32,7 +31,6 @@ export function StockDetails() {
   const [period, setPeriod] = useState('1Y');
   const [holding, setHolding] = useState<any>(null);
 
-  // Cross-reference data state with user's portfolio via 5m Cache
   useEffect(() => {
     async function checkPortfolio() {
       try {
@@ -53,7 +51,6 @@ export function StockDetails() {
     checkPortfolio();
   }, [ticker, data]);
 
-  // We only fetch ONCE when the component mounts or ticker changes
   useEffect(() => {
     async function fetchTicker() {
       if (!ticker) return;
@@ -85,21 +82,19 @@ export function StockDetails() {
     fetchTicker();
   }, [ticker]);
 
-  // Skeletons are now rendered inline below for better perceived performance.
-
   if (data?.error) {
     return (
-      <div className="flex flex-col h-[80vh] items-center justify-center space-y-5 text-center px-4">
+      <div className="flex flex-col h-[80vh] items-center justify-center space-y-5 text-center px-4 font-body">
         <div className="w-20 h-20 rounded-full bg-danger/10 flex items-center justify-center border border-danger/20">
             <AlertTriangle className="w-10 h-10 text-danger" />
         </div>
         <div>
             <h2 className="text-3xl font-bold text-text-bold mb-2">Stock Not Found</h2>
-            <p className="text-text-muted max-w-sm mx-auto">We couldn't retrieve intelligence for '<span className="text-[#f3f4f6] font-medium">{ticker}</span>'. The ticker might be invalid, recently delisted, or not supported.</p>
+            <p className="text-text-muted max-w-sm mx-auto"> Intelligence for '<span className="text-[#f3f4f6] font-medium">{ticker}</span>' is unavailable.</p>
         </div>
         <button 
             onClick={() => navigate(-1)} 
-            className="px-6 py-2.5 mt-4 bg-border-main hover:bg-[#3f3f46] rounded-full text-sm font-medium transition-colors text-text-bold flex items-center gap-2"
+            className="px-6 py-2.5 mt-4 bg-border-main hover:bg-[#3f3f46] rounded-full text-sm font-medium transition-all text-text-bold flex items-center gap-2"
         >
             <ArrowLeft className="w-4 h-4" /> Go Back
         </button>
@@ -107,7 +102,6 @@ export function StockDetails() {
     );
   }
 
-  // Active chart based on user click
   const currentChart = data?.charts?.[period] || [];
   const currentPrice = data?.price || 0;
   
@@ -116,170 +110,168 @@ export function StockDetails() {
   
   if (currentChart && currentChart.length > 0) {
     const firstPrice = currentChart[0].price;
-    // Make it dynamic - compare current price to the start of the period
     priceChange = currentPrice - firstPrice;
     priceChangePct = (priceChange / firstPrice) * 100;
   }
 
   const isPos = priceChange >= 0;
-  const strokeColor = isPos ? "#10b981" : "#f43f5e"; // success or danger
+  const strokeColor = isPos ? "#10b981" : "#f43f5e";
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+      initial={{ opacity: 0, y: 10 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.4 }}
       className="space-y-10 max-w-4xl mx-auto pb-12"
     >
-      <button 
-        onClick={() => navigate(-1)} 
-        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Nudges
-      </button>
+        <button 
+          onClick={() => navigate(-1)} 
+          className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-all w-fit group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
+        </button>
 
-      <header className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-1">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-heading font-black tracking-tight text-text-bold drop-shadow-sm truncate max-w-full">
-               {data?.companyName || data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker?.replace('.NS', '').replace('.BO', '')}
-            </h1>
-            <span className="bg-accent/10 text-accent border border-accent/20 px-3 py-1 rounded-full text-sm md:text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
-               {data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker?.replace('.NS', '').replace('.BO', '')}
-            </span>
-        </div>
-        
-        <div className="mt-2">
-          {loading && !data ? (
-            <div className="space-y-4 py-2">
-              <div className="h-10 w-32 bg-border-main/40 animate-pulse rounded-md"></div>
-              <div className="h-5 w-48 bg-border-main/40 animate-pulse rounded-md"></div>
-            </div>
-          ) : (
-            <>
-              <p className="text-4xl font-bold tracking-tight text-text-bold">
-                ₹{currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-              </p>
-              <div className={`flex items-center gap-1.5 font-medium mt-1 text-sm ${isPos ? 'text-success' : 'text-danger'}`}>
-                <span>{isPos ? '+' : ''}{priceChange.toFixed(2)} ({isPos ? '+' : ''}{priceChangePct.toFixed(2)}%)</span>
-                <span className="text-text-muted ml-1">{period}</span>
-              </div>
-              
-              {/* Core Fundamentals Badge Row */}
-              {data?.fundamentals && (
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 px-1">
-                  <div className="flex items-center gap-1.5 text-sm">
-                     <span className="text-text-muted font-medium">P/E:</span>
-                     <span className="font-bold font-mono tracking-wide text-accent">{data.fundamentals.pe_ratio?.toFixed(2) || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                     <span className="text-text-muted font-medium">RSI:</span>
-                     <span className={`font-bold font-mono tracking-wide ${data.indicators?.rsi_14 > 70 ? 'text-danger' : data.indicators?.rsi_14 < 30 ? 'text-success' : 'text-white'}`}>{data.indicators?.rsi_14?.toFixed(2) || '-'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                     <span className="text-text-muted font-medium">MACD:</span>
-                     <span className={`font-bold font-mono tracking-wide ${data.indicators?.macd?.MACD_Line > 0 ? 'text-success' : 'text-danger'}`}>{data.indicators?.macd?.MACD_Line > 0 ? '+' : ''}{data.indicators?.macd?.MACD_Line?.toFixed(2) || '-'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm">
-                     <span className="text-text-muted font-medium">Beta:</span>
-                     <span className="font-bold font-mono tracking-wide text-white">{data.fundamentals.beta?.toFixed(2) || '-'}</span>
-                  </div>
-                </div>
+        <header className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-1">
+              {(!data && loading) ? (
+                 <div className="h-12 w-64 bg-white/5 animate-pulse rounded-2xl" />
+              ) : (
+                 <>
+                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-text-bold drop-shadow-sm truncate">
+                     {data?.companyName || data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker}
+                   </h1>
+                   <span className="bg-accent/10 text-accent border border-accent/20 px-3 py-1 rounded-full text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
+                     {data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker}
+                   </span>
+                 </>
               )}
-            </>
-          )}
-        </div>
-      </header>
-      
-      {/* Interactive Chart Area */}
-      <div className="border-b border-border-main pb-4 mt-8">
-          <div className="h-72 sm:h-80 w-full relative">
-            {loading && !data ? (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-[#121212]/40 backdrop-blur-xl animate-pulse rounded-2xl border border-white/5">
-                 <Loader2 className="w-8 h-8 animate-spin text-text-muted/40 mb-3" />
-                 <span className="text-sm text-text-muted">Loading chart data...</span>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={currentChart}>
-                  <YAxis domain={['dataMin', 'dataMax']} hide />
-                  <Tooltip 
-                    content={<CustomTooltip />} 
-                    cursor={{ stroke: '#2e303a', strokeWidth: 1, strokeDasharray: "4 4" }} 
-                    isAnimationActive={false}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="price" 
-                    stroke={strokeColor} 
-                    strokeWidth={2} 
-                    dot={false}
-                    activeDot={{ r: 4, fill: strokeColor, stroke: '#121212', strokeWidth: 2 }}
-                    isAnimationActive={true}
-                    animationDuration={1500}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
           </div>
           
-          {/* Ranges Selection */}
-          <div className="flex items-center justify-center sm:justify-center gap-2 mt-6 overflow-x-auto pb-2 scrollbar-hide">
-            {PERIODS.map(p => {
-              const isActive = period === p;
-              return (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                    isActive 
-                      ? 'border border-[#4b5563] text-text-bold' 
-                      : 'border border-transparent text-text-muted hover:text-text-bold'
-                  }`}
-                >
-                  {p}
-                </button>
-              );
-            })}
-          </div>
-      </div>
-
-      {holding && currentPrice > 0 && (
-        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="bg-[#121212]/40 backdrop-blur-md border border-white/5 rounded-xl px-5 py-3 mt-6 mb-4 flex flex-row items-center justify-between cursor-pointer hover:bg-white/5 transition-colors border-l-4 border-l-accent shadow-sm" onClick={() => navigate('/holdings')}>
-          <div className="flex items-center gap-4">
-             <div>
-                <p className="text-base font-bold text-text-bold tracking-tight">{holding.holding_context.quantity} <span className="text-xs text-text-muted font-medium ml-0.5 uppercase tracking-wider">Shares</span></p>
-                <p className="text-[11px] text-text-muted font-medium tracking-wide uppercase mt-0.5">Avg ₹{holding.holding_context.avg_cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-             </div>
-          </div>
-          <div className="text-right flex flex-col items-end">
-            {(() => {
-              const holdingPnl = (currentPrice - holding.holding_context.avg_cost) * holding.holding_context.quantity;
-              const holdingPnlPct = ((currentPrice - holding.holding_context.avg_cost) / holding.holding_context.avg_cost) * 100;
-              const isHPnlPos = holdingPnl >= 0;
-              return (
-                <>
-                   <p className="text-base font-bold font-mono text-text-bold">₹{(holding.holding_context.quantity * currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
-                   <p className={`text-[12px] font-bold font-mono mt-0.5 ${isHPnlPos ? 'text-success' : 'text-danger'}`}>
-                     {isHPnlPos ? '+' : ''}₹{holdingPnl.toLocaleString('en-IN', {minimumFractionDigits: 2})} ({isHPnlPos ? '+' : ''}{holdingPnlPct.toFixed(2)}%)
+          <div className="mt-3 text-left">
+              {(!data && loading) ? (
+                 <div className="space-y-4">
+                    <div className="h-10 w-40 bg-white/5 animate-pulse rounded-xl" />
+                    <div className="h-4 w-64 bg-white/5 animate-pulse rounded-xl" />
+                 </div>
+              ) : (
+                 <>
+                   <p className="text-4xl font-bold tracking-tight text-text-bold">
+                     ₹{currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                    </p>
-                </>
-              );
-            })()}
+                   <div className={`flex items-center gap-2 font-bold mt-1.5 text-base ${isPos ? 'text-success' : 'text-danger'}`}>
+                     <span>{isPos ? '+' : ''}{priceChange.toLocaleString('en-IN', {minimumFractionDigits: 2})} ({isPos ? '+' : ''}{priceChangePct.toFixed(2)}%)</span>
+                     <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                     <span className="text-text-muted font-medium uppercase text-xs tracking-widest">{period}</span>
+                   </div>
+                 </>
+              )}
+              
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-6 px-1">
+                <div className="flex items-center gap-2 text-sm border-r border-white/10 pr-8 last:border-0 last:pr-0">
+                  <span className="text-text-muted font-bold text-[11px] uppercase tracking-widest">P/E</span>
+                  {data ? <span className="font-bold text-[#f3f4f6]">{data?.fundamentals?.pe_ratio?.toFixed(2) || 'N/A'}</span> : <div className="h-4 w-12 bg-white/5 animate-pulse rounded" />}
+                </div>
+                <div className="flex items-center gap-2 text-sm border-r border-white/10 pr-8 last:border-0 last:pr-0">
+                  <span className="text-text-muted font-bold text-[11px] uppercase tracking-widest">RSI</span>
+                  {data ? <span className={`font-bold ${data?.indicators?.rsi_14 > 70 ? 'text-danger' : data?.indicators?.rsi_14 < 30 ? 'text-success' : 'text-white'}`}>{data?.indicators?.rsi_14?.toFixed(2) || '-'}</span> : <div className="h-4 w-12 bg-white/5 animate-pulse rounded" />}
+                </div>
+                <div className="flex items-center gap-2 text-sm border-r border-white/10 pr-8 last:border-0 last:pr-0">
+                  <span className="text-text-muted font-bold text-[11px] uppercase tracking-widest">MACD</span>
+                  {data ? <span className={`font-bold ${data?.indicators?.macd?.MACD_Line > 0 ? 'text-success' : 'text-danger'}`}>{data?.indicators?.macd?.MACD_Line?.toFixed(2) || '-'}</span> : <div className="h-4 w-12 bg-white/5 animate-pulse rounded" />}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-text-muted font-bold text-[11px] uppercase tracking-widest">Beta</span>
+                  {data ? <span className="font-bold text-white">{data?.fundamentals?.beta?.toFixed(2) || '-'}</span> : <div className="h-4 w-12 bg-white/5 animate-pulse rounded" />}
+                </div>
+              </div>
           </div>
-        </motion.div>
-      )}
+        </header>
+        
+        <div className="border-b border-white/5 pb-8 mt-4">
+            <div className="h-72 sm:h-80 w-full relative mb-6">
+                {!data && loading ? (
+                   <div className="h-full w-full bg-white/5 animate-pulse rounded-[2.5rem] border border-white/5 flex items-center justify-center">
+                      <span className="text-sm text-text-muted font-medium tracking-widest animate-pulse">SYNTHESIZING CHART...</span>
+                   </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={currentChart}>
+                      <YAxis domain={['dataMin', 'dataMax']} hide />
+                      <Tooltip 
+                        content={<CustomTooltip />} 
+                        cursor={{ stroke: '#2e303a', strokeWidth: 1, strokeDasharray: "4 4" }} 
+                        isAnimationActive={false}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="price" 
+                        stroke={strokeColor} 
+                        strokeWidth={2.5} 
+                        dot={false}
+                        activeDot={{ r: 5, fill: strokeColor, stroke: '#121212', strokeWidth: 2 }}
+                        isAnimationActive={true}
+                        animationDuration={1000}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+            </div>
+            
+            <div className="flex items-center justify-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+              {PERIODS.map(p => {
+                const isActive = period === p;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      isActive 
+                        ? 'bg-border-main text-text-bold border border-white/10' 
+                        : 'bg-transparent text-text-muted hover:text-text-bold hover:bg-white/5'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+        </div>
 
-      <div className="pt-2">
-          {loading && !data ? (
-             <div className="space-y-6 mt-4">
-                 <div className="h-44 w-full bg-border-main/30 animate-pulse rounded-xl border border-border-main/20"></div>
-                 <div className="h-72 w-full bg-border-main/30 animate-pulse rounded-xl border border-border-main/20"></div>
-             </div>
-          ) : (
-             <>
-                 <AIIntelligencePanel data={data} />
-                 <TechnicalIndicators data={data} />
-             </>
+        <AnimatePresence>
+          {holding && currentPrice > 0 && (
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="bg-transparent border border-[#27272a] rounded-2xl px-6 py-5 mt-4 mb-4 flex flex-row items-center justify-between cursor-pointer hover:bg-white/5 transition-all group" onClick={() => navigate('/holdings')}>
+              <div>
+                <p className="text-lg font-bold text-text-bold tracking-tight">{holding.holding_context.quantity} Shares</p>
+                <p className="text-[13px] text-text-muted mt-1 font-medium">Avg Price ₹{holding.holding_context.avg_cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+              </div>
+              
+              <div className="flex items-center gap-5">
+                <div className="text-right flex flex-col items-end">
+                  {(() => {
+                    const holdingPnl = (currentPrice - holding.holding_context.avg_cost) * holding.holding_context.quantity;
+                    const holdingPnlPct = ((currentPrice - holding.holding_context.avg_cost) / holding.holding_context.avg_cost) * 100;
+                    const isHPnlPos = holdingPnl >= 0;
+                    return (
+                      <>
+                        <p className="text-lg font-bold text-text-bold">₹{(holding.holding_context.quantity * currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+                        <p className={`text-[13px] font-bold mt-1 ${isHPnlPos ? 'text-success' : 'text-danger'}`}>
+                          {isHPnlPos ? '+' : ''}₹{holdingPnl.toLocaleString('en-IN', {minimumFractionDigits: 2})} ({isHPnlPos ? '+' : ''}{holdingPnlPct.toFixed(2)}%)
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-text-bold transition-colors shrink-0" />
+              </div>
+            </motion.div>
           )}
-      </div>
+        </AnimatePresence>
+
+        <div className="pt-2">
+            {/* These components now handle their own header rendering immediately */}
+            <AIIntelligencePanel data={data} />
+            <TechnicalIndicators data={data} />
+        </div>
     </motion.div>
   );
 }

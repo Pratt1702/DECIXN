@@ -35,7 +35,7 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   };
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500">
+    <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500">
       <table className="w-full text-left text-sm text-text-bold">
         <thead className="border-b border-white/5 bg-white/5 text-xs uppercase tracking-wider text-text-muted font-heading">
           <tr>

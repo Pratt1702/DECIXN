@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTickerAnalysis } from "../services/api";
 import { motion } from "framer-motion";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from "recharts";
 import { AIIntelligencePanel } from "../components/dashboard/AIIntelligencePanel";
 import { TechnicalIndicators } from "../components/dashboard/TechnicalIndicators";
@@ -38,12 +38,22 @@ export function StockDetails() {
       setLoading(true);
       try {
         const res = await getTickerAnalysis(ticker); 
-        // We augment the single API response with a map of charts for all timeframes
-        // This makes period switching instantaneous without hammering the server
-        setData(augmentWithAllCharts(ticker, res?.data));
+        setData({
+          symbol: res.symbol,
+          price: res.data.price,
+          decision: res.data.decision,
+          confidence_score: res.data.confidence_score,
+          trend: res.data.trend,
+          reasons: res.data.reasons,
+          charts: res.data.charts || {},
+          fundamentals: res.data.fundamentals,
+          pivots: res.data.pivots,
+          moving_averages: res.data.moving_averages,
+          indicators: res.data.indicators
+        });
       } catch (err) {
-        console.error("Failed to fetch ticker, using mock data", err);
-        setData(augmentWithAllCharts(ticker, null));
+        console.error("Failed to fetch ticker:", err);
+        setData({ error: true });
       } finally {
         setLoading(false);
       }
@@ -51,81 +61,46 @@ export function StockDetails() {
     fetchTicker();
   }, [ticker]);
 
-  const augmentWithAllCharts = (t: string, apiData: any) => {
-    const allCharts: any = {};
-    let basePrice = apiData?.price || 2000;
-    
-    PERIODS.forEach(p => {
-      // Simulate historical paths for different periods
-      const variance = p === '1D' ? 5 : p === '1W' ? 10 : p === '1M' ? 20 : 50;
-      const length = p === '1D' ? 40 : p === '1M' ? 30 : p === '1Y' ? 100 : 80;
-      
-      let currentSimPrice = basePrice * (p === '1D' ? 0.99 : 0.8); 
-      
-      const chartPoints = Array.from({ length }, (_, i) => {
-        currentSimPrice += (Math.random() - 0.45) * variance;
-        
-        let dateLabel = `Day ${i + 1}`;
-        if (p === '1D') {
-          const hour = 9 + Math.floor(i / 6);
-          const min = (i % 6) * 10;
-          dateLabel = `${hour}:${min.toString().padStart(2, '0')} AM`;
-        } else if (p === '1W') {
-           const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-           dateLabel = `${days[i % 5]} 12:00 PM`;
-        }
-        
-        return { 
-          price: currentSimPrice,
-          date: dateLabel
-        };
-      });
-      
-      // Override 1Y with the real backend chart data if available
-      if (p === '1Y' && apiData?.chart_data?.length) {
-         allCharts[p] = apiData.chart_data;
-      } else {
-         allCharts[p] = chartPoints;
-      }
-    });
-
-    return {
-      symbol: apiData?.symbol || t,
-      price: apiData?.price || basePrice,
-      decision: apiData?.decision || "HOLD",
-      confidence_score: apiData?.confidence_score || 50,
-      trend: apiData?.trend || "Bullish",
-      reasons: apiData?.reasons || [
-        "Price momentum has shifted in the chosen timeframe.",
-        "Unusual volume activity detected in the options chain."
-      ],
-      charts: allCharts,
-      fundamentals: apiData?.fundamentals,
-      pivots: apiData?.pivots,
-      moving_averages: apiData?.moving_averages,
-      indicators: apiData?.indicators
-    };
-  };
-
   if (loading && !data) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+      <div className="flex flex-col h-[60vh] items-center justify-center space-y-4">
+        <Loader2 className="w-8 h-8 animate-spin text-[#d1d5db]" />
+        <p className="text-text-muted animate-pulse">Analyzing real-time market data...</p>
       </div>
     );
   }
 
-  // Active chart based on user click (NO API CALL REQUIRED!)
+  if (data?.error) {
+    return (
+      <div className="flex flex-col h-[80vh] items-center justify-center space-y-5 text-center px-4">
+        <div className="w-20 h-20 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+            <AlertTriangle className="w-10 h-10 text-rose-500" />
+        </div>
+        <div>
+            <h2 className="text-3xl font-bold text-text-bold mb-2">Stock Not Found</h2>
+            <p className="text-text-muted max-w-sm mx-auto">We couldn't retrieve intelligence for '<span className="text-[#f3f4f6] font-medium">{ticker}</span>'. The ticker might be invalid, recently delisted, or not supported.</p>
+        </div>
+        <button 
+            onClick={() => navigate(-1)} 
+            className="px-6 py-2.5 mt-4 bg-border-main hover:bg-[#3f3f46] rounded-full text-sm font-medium transition-colors text-text-bold flex items-center gap-2"
+        >
+            <ArrowLeft className="w-4 h-4" /> Go Back
+        </button>
+      </div>
+    );
+  }
+
+  // Active chart based on user click
   const currentChart = data?.charts?.[period] || [];
   const currentPrice = data?.price || 0;
   
   let priceChange = 0;
   let priceChangePct = 0;
   
-  if (currentChart && currentChart.length > 1) {
+  if (currentChart && currentChart.length > 0) {
     const firstPrice = currentChart[0].price;
-    const lastPrice = currentChart[currentChart.length - 1].price;
-    priceChange = lastPrice - firstPrice;
+    // Make it dynamic - compare current price to the start of the period
+    priceChange = currentPrice - firstPrice;
     priceChangePct = (priceChange / firstPrice) * 100;
   }
 

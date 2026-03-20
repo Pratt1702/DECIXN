@@ -321,17 +321,26 @@ export function Insights() {
                       </div>
                     </div>
                     <div className="border-t border-border-main border-dashed pt-4">
-                      <ul className="space-y-3">
-                        {item.data?.reasons?.map((r: string, idx: number) => (
-                          <li
-                            key={idx}
-                            className="flex gap-3 text-sm text-text-muted"
-                          >
-                            <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500/80" />
-                            {r}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="flex flex-col gap-4">
+                        <ul className="space-y-3 flex-1">
+                          {item.data?.reasons?.map((r: string, idx: number) => (
+                            <li
+                              key={idx}
+                              className="flex gap-3 text-sm text-text-muted"
+                            >
+                              <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500/80" />
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                        
+                        {item.data?.portfolio_action && (
+                          <div className="mt-2 bg-white/[0.03] border border-white/5 rounded-lg p-3 group-hover:bg-white/[0.05] transition-colors">
+                             <div className="text-[10px] text-accent font-bold uppercase tracking-widest mb-1.5">Strategic Action</div>
+                             <p className="text-sm text-text-bold leading-snug">{item.data.portfolio_action}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 );
@@ -356,6 +365,8 @@ export function Insights() {
                   : data?.portfolio_summary?.risk_level === "High"
                     ? 20
                     : 50,
+              decision: `${data?.portfolio_summary?.health} Portfolio Status`,
+              action: data?.portfolio_summary?.insight,
               reasons: data?.recommended_actions || [],
             }}
           />

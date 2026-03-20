@@ -1,7 +1,7 @@
 import { Info } from "lucide-react";
 import { motion } from "framer-motion";
 
-// Native CSS Group-Hover Tooltip 
+// Native CSS Group-Hover Tooltip
 const InfoTooltip = ({ content }: { content: string }) => (
   <div className="group relative flex items-center">
     <Info className="w-5 h-5 text-text-muted cursor-help hover:text-info transition-colors" />
@@ -14,80 +14,139 @@ const InfoTooltip = ({ content }: { content: string }) => (
 
 export function AIIntelligencePanel({ data }: { data: any }) {
   const loading = !data;
-  const score = data?.confidence_score || 50; 
-  const label = !data ? "Synthesizing..." : (score >= 70 ? "Strong Bullish" : score >= 55 ? "Bullish" : score <= 30 ? "Strong Bearish" : score <= 45 ? "Slightly bearish" : "Neutral");
+  const score = data?.confidence_score || 50;
+  const label = !data
+    ? "Synthesizing..."
+    : score >= 70
+      ? "Strong Bullish"
+      : score >= 55
+        ? "Bullish"
+        : score <= 30
+          ? "Strong Bearish"
+          : score <= 45
+            ? "Slightly bearish"
+            : "Neutral";
 
   // create bars for the slider effect like Groww Summary
-  const bars = Array.from({length: 30}, (_, i) => i);
+  const bars = Array.from({ length: 30 }, (_, i) => i);
   const activeIndex = Math.floor(Math.max(0, Math.min(29, (score / 100) * 30)));
 
   return (
     <div className="">
       <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
-        Summary <InfoTooltip content="An AI-calculated composite score blending active technical indicators, moving averages, and deep market sentiment to determine your precise trading conviction." />
+        Summary{" "}
+        <InfoTooltip content="An AI-calculated composite score blending active technical indicators, moving averages, and deep market sentiment to determine your precise trading conviction." />
       </h2>
-      <p className="text-sm text-text-muted mb-6">Based on AI heuristics and technicals</p>
+      <p className="text-sm text-text-muted mb-6">
+        Based on AI heuristics and technicals
+      </p>
 
       <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl p-8 shadow-lg">
         <div className="flex justify-between items-start mb-10">
-           <div>
-             <p className="text-sm text-text-muted mb-1">Based on technicals, this stock is</p>
-             <div className={`text-xl font-bold ${loading ? 'animate-pulse text-white/20' : score > 53 ? 'text-success' : score < 47 ? 'text-danger' : 'text-[#9ca3af]'}`}>{label}</div>
-           </div>
-           
-           <div className="flex gap-6 text-sm">
-              <div className="text-center">
-                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-danger" /> <span className="text-text-muted text-[10px] uppercase tracking-tighter">Bearish</span></div>
-                <span className="font-bold text-text-bold">{loading ? '-' : (score < 47 ? '8' : '2')}</span>
+          <div>
+            <p className="text-sm text-text-muted mb-1">
+              Based on technicals, this stock is
+            </p>
+            <div
+              className={`text-xl font-bold ${loading ? "animate-pulse text-white/20" : score > 53 ? "text-success" : score < 47 ? "text-danger" : "text-[#9ca3af]"}`}
+            >
+              {label}
+            </div>
+          </div>
+
+          <div className="flex gap-6 text-sm">
+            <div className="text-center">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-danger" />{" "}
+                <span className="text-text-muted text-[10px] uppercase tracking-tighter">
+                  Bearish
+                </span>
               </div>
-              <div className="text-center">
-                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-[#6b7280]" /> <span className="text-text-muted text-[10px] uppercase tracking-tighter">Neutral</span></div>
-                <span className="font-bold text-text-bold">{loading ? '-' : (score >= 47 && score <= 53 ? '6' : '0')}</span>
+              <span className="font-bold text-text-bold">
+                {loading ? "-" : score < 47 ? "8" : "2"}
+              </span>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#6b7280]" />{" "}
+                <span className="text-text-muted text-[10px] uppercase tracking-tighter">
+                  Neutral
+                </span>
               </div>
-              <div className="text-center">
-                <div className="flex items-center gap-1.5 mb-1"><div className="w-2.5 h-2.5 rounded-full bg-success" /> <span className="text-text-muted text-[10px] uppercase tracking-tighter">Bullish</span></div>
-                <span className="font-bold text-text-bold">{loading ? '-' : (score > 53 ? '12' : '4')}</span>
+              <span className="font-bold text-text-bold">
+                {loading ? "-" : score >= 47 && score <= 53 ? "6" : "0"}
+              </span>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-success" />{" "}
+                <span className="text-text-muted text-[10px] uppercase tracking-tighter">
+                  Bullish
+                </span>
               </div>
-           </div>
+              <span className="font-bold text-text-bold">
+                {loading ? "-" : score > 53 ? "12" : "4"}
+              </span>
+            </div>
+          </div>
         </div>
-        
+
         <div className="flex flex-col">
           <div className="flex gap-[3px] items-end h-8">
             {bars.map((b) => {
               let bg = "bg-[#6b7280]"; // neutral gray
               if (b < 12) bg = "bg-danger";
               else if (b > 18) bg = "bg-success";
-              
-              const isOpacity = b === activeIndex ? "opacity-100 h-8" : "opacity-60 h-6";
-              return <div key={b} className={`flex-1 rounded-sm ${bg} ${isOpacity} transition-all duration-300`} />;
+
+              const isOpacity =
+                b === activeIndex ? "opacity-100 h-8" : "opacity-60 h-6";
+              return (
+                <div
+                  key={b}
+                  className={`flex-1 rounded-sm ${bg} ${isOpacity} transition-all duration-300`}
+                />
+              );
             })}
           </div>
-          
-          <motion.div 
+
+          <motion.div
             initial={{ paddingLeft: "50%" }}
-            animate={{ paddingLeft: `calc(${Math.min(99, (activeIndex / 29) * 100)}% - 4px)` }}
+            animate={{
+              paddingLeft: `calc(${Math.min(99, (activeIndex / 29) * 100)}% - 4px)`,
+            }}
             transition={{ duration: 1.5, ease: "circOut", delay: 0.2 }}
-            className="mt-2 text-white text-xs transition-all" 
+            className="mt-2 text-white text-xs transition-all"
           >
-             ▲
+            ▲
           </motion.div>
         </div>
 
         {(loading || (data.reasons && data.reasons.length > 0)) && (
-          <div className="mt-8 border-t border-white/5 pt-6">
-            <h3 className="font-bold text-text-bold mb-3">AI Insights Context</h3>
-            <ul className="space-y-3">
-                {loading ? (
-                   [1,2,3].map(i => <div key={i} className="h-4 w-full bg-white/5 animate-pulse rounded" />)
-                ) : (
-                  data.reasons.map((r: string, i: number) =>(
-                    <li key={i} className="text-sm text-text-muted flex gap-3">
-                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-info shrink-0" />
-                      <span className="leading-snug">{r}</span>
-                    </li>
-                  ))
-                )}
-            </ul>
+          <div className="mt-8 border-t border-white/5 pt-6 flex flex-col gap-8">
+            <div>
+              <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-info rounded-full" />
+                AI Insights Context
+              </h3>
+              <ul className="space-y-3">
+                {loading
+                  ? [1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="h-4 w-full bg-white/5 animate-pulse rounded"
+                      />
+                    ))
+                  : data.reasons.map((r: string, i: number) => (
+                      <li
+                        key={i}
+                        className="text-sm text-text-muted flex gap-3"
+                      >
+                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-info/30 shrink-0" />
+                        <span className="leading-snug">{r}</span>
+                      </li>
+                    ))}
+              </ul>
+            </div>
           </div>
         )}
       </div>

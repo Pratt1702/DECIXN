@@ -93,7 +93,7 @@ def get_benchmark_comparison(stock_df):
 
 def calculate_indicators(df):
     """
-    2. Calculate RSI, MAs, and Volume average.
+    2. Calculate RSI, MAs, Volume average, ATR, and MA slopes.
     """
     df = df.copy()
     
@@ -130,6 +130,7 @@ def calculate_indicators(df):
     
     # Highest close of the last 20 days (excluding today for breakout comparison)
     df['High20'] = df['Close'].shift(1).rolling(window=20).max()
+    df['Low20'] = df['Close'].shift(1).rolling(window=20).min()
     
     # Calculate MACD (12, 26, 9)
     ema12 = df['Close'].ewm(span=12, adjust=False).mean()
@@ -137,32 +138,82 @@ def calculate_indicators(df):
     df['MACD'] = ema12 - ema26
     df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     df['MACD_Histogram'] = df['MACD'] - df['MACD_Signal']
-    
+
+    # ATR (Average True Range)
+    tr1 = df['High'] - df['Low']
+    tr2 = (df['High'] - df['Close'].shift(1)).abs()
+    tr3 = (df['Low'] - df['Close'].shift(1)).abs()
+    df['TR'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    df['ATR'] = df['TR'].rolling(window=14).mean()
+
+    # MA Slopes (Momentum)
+    df['MA20_Slope'] = (df['MA20'] - df['MA20'].shift(3)) / df['MA20'].shift(3) * 100
+    df['MA50_Slope'] = (df['MA50'] - df['MA50'].shift(5)) / df['MA50'].shift(5) * 100
+
+    # Price distance from MAs
+    df['Dist_MA20'] = (df['Close'] - df['MA20']) / df['MA20'] * 100
+    df['Dist_MA50'] = (df['Close'] - df['MA50']) / df['MA50'] * 100
+
     return df
+
 
 def generate_signals(df):
     """
-    3. Generate trading signals based on calculated indicators.
+    3. Generate trading signals with scores and ratios instead of just booleans.
     """
     latest = df.iloc[-1]
     prev = df.iloc[-2] if len(df) > 1 else latest
 
-    # MACD histogram direction: True = turning bullish (crossing up), False = turning bearish
+    # Basic binary signals (for legacy support if needed)
     macd_hist_now = latest['MACD_Histogram']
     macd_hist_prev = prev['MACD_Histogram']
     macd_turning_bullish = (macd_hist_prev < 0 and macd_hist_now > 0)
     macd_turning_bearish = (macd_hist_prev > 0 and macd_hist_now < 0)
-    macd_accelerating_bearish = (macd_hist_now < macd_hist_prev < 0)  # deepening red histogram
+    macd_accelerating_bearish = (macd_hist_now < macd_hist_prev < 0)
+
+    # Probabilistic Scores / Ratios
+    breakout_strength = (latest['Close'] - latest['High20']) / latest['High20'] if latest['High20'] > 0 else 0
+    volume_ratio = latest['Volume'] / latest['Vol20'] if latest['Vol20'] > 0 else 1.0
+    trend_strength = (latest['MA20'] - latest['MA50']) / latest['MA50'] if latest['MA50'] > 0 else 0
+    
+    # Volatility Check (High ATR relative to price indicates high volatility)
+    volatility_ratio = latest['ATR'] / latest['Close'] if latest['Close'] > 0 else 0
+
+    # Gap detection
+    gap_pct = (latest['Open'] - prev['Close']) / prev['Close'] * 100 if len(df) > 1 else 0
+
+    # RSI Divergence detection (Simple version: Price higher but RSI lower or vice versa)
+    # Checking over the last 15 days for peaks
+    recent_df = df.iloc[-15:]
+    price_uptrend = recent_df['Close'].iloc[-1] > recent_df['Close'].iloc[0]
+    rsi_uptrend = recent_df['RSI'].iloc[-1] > recent_df['RSI'].iloc[0]
+    
+    rsi_divergence = False
+    if price_uptrend and not rsi_uptrend and latest['RSI'] > 60:
+        rsi_divergence = True # Bearish divergence
+    elif not price_uptrend and rsi_uptrend and latest['RSI'] < 40:
+        rsi_divergence = True # Bullish divergence
 
     signals = {
         'Price': latest['Close'],
         'RSI': latest['RSI'],
-        'Breakout': False,
-        'Volume_Spike': False,
-        'Overbought': False,
-        'Oversold': False,
+        'Breakout': breakout_strength > 0,
+        'Breakout_Strength': breakout_strength,
+        'Volume_Spike': volume_ratio > 2.0,
+        'Volume_Ratio': volume_ratio,
+        'Overbought': latest['RSI'] > 70,
+        'Oversold': latest['RSI'] < 30,
         'Trend': 'Neutral',
         'Trend_Days': 1,
+        'Trend_Strength': trend_strength,
+        'MA20_Slope': latest['MA20_Slope'],
+        'MA50_Slope': latest['MA50_Slope'],
+        'Dist_MA20': latest['Dist_MA20'],
+        'Dist_MA50': latest['Dist_MA50'],
+        'ATR': latest['ATR'],
+        'Volatility_Ratio': volatility_ratio,
+        'Gap_Pct': gap_pct,
+        'RSI_Divergence': rsi_divergence,
         'MA20': latest['MA20'],
         'MA50': latest['MA50'],
         'MACD_Turning_Bullish': macd_turning_bullish,
@@ -175,32 +226,17 @@ def generate_signals(df):
         }
     }
 
-    # Breakout: Current price > highest close of last 20 days
-    if latest['Close'] > latest['High20']:
-        signals['Breakout'] = True
-
-    # Volume Spike: Current volume > 2 * 20-day average volume
-    if latest['Volume'] > 2 * latest['Vol20']:
-        signals['Volume_Spike'] = True
-
-    # Overbought / Oversold
-    if latest['RSI'] > 70:
-        signals['Overbought'] = True
-    elif latest['RSI'] < 30:
-        signals['Oversold'] = True
-
-    # Trend
+    # Trend Determination
     if latest['Close'] > latest['MA20'] and latest['MA20'] > latest['MA50']:
         signals['Trend'] = 'Bullish'
     elif latest['Close'] < latest['MA20'] and latest['MA20'] < latest['MA50']:
         signals['Trend'] = 'Bearish'
 
-    # 2.1 - Count consecutive days of current trend
+    # Consecutive Trend Days
     if signals['Trend'] != 'Neutral':
         count = 1
         current_trend = signals['Trend']
-        # Look back up to min(len(df), 20) days
-        for i in range(2, min(len(df), 20)):
+        for i in range(2, min(len(df), 30)):
             day = df.iloc[-i]
             day_trend = 'Neutral'
             if day['Close'] > day['MA20'] and day['MA20'] > day['MA50']:
@@ -216,82 +252,95 @@ def generate_signals(df):
 
     return signals
 
+
 def make_decision(signals):
     """
-    4. Make human-readable trading decision based on signals.
+    4. Advanced scoring engine with confluence logic and action layer.
     """
-    decision = "WATCH"
     reasons = []
-    score = 50 # Base score out of 100
+    confluence_score = 0
     
-    trend = signals['Trend']
-    trend_days = signals.get('Trend_Days', 1)
-    breakout = signals['Breakout']
-    vol_spike = signals['Volume_Spike']
-    overbought = signals['Overbought']
-    oversold = signals['Oversold']
+    # 1. Breakout Strength (High weight)
+    if signals.get('Breakout_Strength', 0) > 0:
+        points = min(25, int(signals['Breakout_Strength'] * 1000)) # e.g. 2% breakout = 20 points
+        confluence_score += points
+        reasons.append(f"Confirmed Breakout above 20-day high ({signals['Breakout_Strength']*100:.1f}%)")
     
-    # Rules Processing
-    if trend == 'Bullish':
-        reasons.append(f"Price above key moving averages (bullish trend for {trend_days} days)")
-        score += 20
-        if trend_days >= 3:
-            reasons.append("Uptrend is confirmed over multiple days.")
-            score += 10
-        else:
-            reasons.append("Trend is new; monitor for confirmation.")
+    # 2. Volume Confirmation
+    v_ratio = signals.get('Volume_Ratio', 1.0)
+    if v_ratio > 1.2:
+        points = min(20, int((v_ratio - 1) * 10))
+        confluence_score += points
+        reasons.append(f"Volume is {v_ratio:.1f}x higher than average")
+    elif v_ratio < 0.7:
+        confluence_score -= 10
+        reasons.append(f"Caution: Low trading volume ({v_ratio:.1f}x)")
 
-        if breakout and vol_spike:
-            decision = "BUY"
-            reasons.append("Strong breakout supported by high volume")
-            score += 20
-        elif not breakout:
-            decision = "HOLD"
-            reasons.append("Strong uptrend continuation without breakout")
-            score += 10
-        else: # breakout without volume spike
-            decision = "HOLD"
-            reasons.append("Breakout observed, but lacks volume confirmation")
-            score += 15
-    elif trend == 'Bearish':
-        reasons.append(f"Price below key moving averages (bearish trend for {trend_days} days)")
+    # 3. RSI Context
+    rsi = signals['RSI']
+    if 40 < rsi < 65:
+        confluence_score += 10
+        reasons.append(f"RSI in healthy bullish zone ({rsi:.1f})")
+    elif rsi > 75:
+        confluence_score -= 15
+        reasons.append(f"Overbought conditions detected (RSI: {rsi:.1f})")
+    elif rsi < 30:
+        confluence_score += 5 # value buy potential
+        reasons.append(f"Oversold conditions (RSI: {rsi:.1f}) — potential reversal")
+
+    # 4. Trend & Momentum (MA Slopes)
+    if signals['Trend'] == 'Bullish':
+        confluence_score += 15
+        if signals.get('MA20_Slope', 0) > 0.5:
+            confluence_score += 10
+            reasons.append("Short-term momentum (MA20) is sloping UP")
+        if signals.get('MA50_Slope', 0) > 0.2:
+            confluence_score += 5
+            reasons.append("Long-term trend (MA50) is confirmed UP")
+    elif signals['Trend'] == 'Bearish':
+        confluence_score -= 20
+        reasons.append("Stock is in a Bearish trend (Price < MA20 < MA50)")
+    
+    # 5. Gap detection
+    gap = signals.get('Gap_Pct', 0)
+    if gap > 1.5:
+        confluence_score += 10
+        reasons.append(f"Significant Gap Up ({gap:.1f}%) detected at open")
+    elif gap < -1.5:
+        confluence_score -= 15
+        reasons.append(f"Gap Down ({gap:.1f}%) signals opening weakness")
+
+    # 6. Divergence
+    if signals.get('RSI_Divergence', False):
+        confluence_score += 15 if rsi < 50 else -15
+        reasons.append("RSI Divergence detected — potential trend shift imminent")
+
+    # Final Decision Mapping
+    # 0-30: Sell/Avoid, 30-50: Watch, 50-70: Hold, 70-100: Buy/Strong Buy
+    score = max(0, min(100, 40 + confluence_score)) # Base 40
+    
+    decision = "WATCH"
+    action = "Wait for clearer price action"
+    
+    if score >= 80:
+        decision = "STRONG BUY"
+        action = "Initiate long position with high conviction"
+    elif score >= 65:
+        decision = "BUY"
+        action = "Look for entry on minor pullbacks"
+    elif score >= 45:
+        decision = "HOLD"
+        action = "Maintain current position; monitor trend strength"
+    elif score < 30:
         decision = "REDUCE"
-        score -= 20
-        if trend_days >= 3:
-            reasons.append("Downtrend is firmly established.")
-            score -= 10
-        else:
-            reasons.append("Bearish pressure is recent; watch for reversal or further weakness.")
-    else:
-        reasons.append("Neutral trend configuration")
-        decision = "WATCH"
+        action = "Trim exposure or exit position"
+    
+    return decision, reasons, score, action
 
-    # RSI Adjustments
-    if overbought:
-        reasons.append("RSI > 70 implies overbought conditions, exercise caution / partial book")
-        if decision == "BUY":
-            decision = "HOLD"
-        score -= 15
-    
-    if oversold:
-        decision = "WATCH"
-        reasons.append("RSI < 30 implies oversold conditions, watch for potential reversal")
-        score += 15
-        
-    if vol_spike and not breakout and trend != "Bullish":
-        reasons.append("Volume spike observed in neutral/bearish zone")
-        score += 5
-        
-    # Boundary limiting for score
-    score = max(0, min(100, int(score)))
-    
-    return decision, reasons, score
 
 def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty_two_week_high=None, benchmark_comparison=None):
     """
     Produce a professional portfolio decision based on current holding status (P&L) vs Market Trend.
-    Phase 1: MACD + 52-week context.
-    Phase 2: Signal stability (Trend_Days) + Relative Strength (Nifty comparison)
     """
     decision = "HOLD"
     reasons = []
@@ -309,77 +358,75 @@ def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty
     is_profit = pnl > 0
 
     # 52-week proximity context
-    near_52w_low = fifty_two_week_low and price <= fifty_two_week_low * 1.08   # within 8% of 52w low
-    near_52w_high = fifty_two_week_high and price >= fifty_two_week_high * 0.95  # within 5% of 52w high
+    near_52w_low = fifty_two_week_low and price <= fifty_two_week_low * 1.08
+    near_52w_high = fifty_two_week_high and price >= fifty_two_week_high * 0.95
 
     if is_profit:
         if trend == 'Bullish':
             decision = "RIDE TREND (HOLD)"
             reasons.append(f"Stock is in an uptrend ({trend_days} days) and you are in profit. Let winners run.")
-            if trend_days >= 3:
-                reasons.append("Trend is well-confirmed over multiple sessions.")
-            else:
-                reasons.append("New trend emerging; monitor for persistence.")
             if breakout:
                 reasons.append("Breakout confirmed — momentum is accelerating.")
             if macd_turning_bullish:
-                reasons.append("MACD histogram just crossed above zero — fresh bullish momentum.")
+                reasons.append("MACD histogram just turned bullish — fresh momentum.")
             if near_52w_high:
-                reasons.append("Caution: price is near the 52-week high — consider a trailing stop to protect gains.")
+                reasons.append("Caution: near 52-week high — use a trailing stop.")
         elif trend == 'Bearish':
             decision = "BOOK PROFITS"
-            reasons.append(f"Trend has reversed downward ({trend_days} days). Lock in your gains before further erosion.")
-            if trend_days >= 3:
-                reasons.append("Confirmed bearish shift — exit recommended for trend-followers.")
+            reasons.append(f"Trend has reversed downward ({trend_days} days). Lock in your gains.")
             if macd_accel_bearish:
-                reasons.append("MACD histogram is deepening — bearish momentum is strengthening. Act promptly.")
-        else:  # Neutral
+                reasons.append("MACD momentum is deepening downward. Exit promptly.")
+        else:
             decision = "HOLD / TRAILING STOP"
-            reasons.append("Trend is neutral but you are in profit. Consider a trailing stop-loss.")
+            reasons.append("Trend is neutral. Consider a trailing stop-loss to protect gains.")
 
         if overbought and "BOOK PROFITS" not in decision:
             decision = "PARTIAL BOOK PROFITS"
-            reasons.append("RSI > 70: overbought conditions — consider taking partial profits soon.")
+            reasons.append("RSI > 70: overbought conditions — consider taking partial profits.")
 
     else:  # Loss
         if trend == 'Bullish':
             decision = "AVERAGE DOWN / HOLD"
-            reasons.append(f"Stock is regaining bullish momentum ({trend_days} days). Consider holding or lowering average cost.")
-            if trend_days >= 3:
-                reasons.append("Upside trend is stable; increases confidence in averaging down.")
+            reasons.append(f"Stock is regaining bullish momentum ({trend_days} days). Potential reversal forming.")
             if macd_turning_bullish:
-                reasons.append("MACD just crossed bullish — momentum shift supports averaging down here.")
+                reasons.append("MACD bullish crossover supports averaging down here.")
             if near_52w_low:
-                reasons.append("Price is near the 52-week low — historically a stronger support zone for averaging.")
+                reasons.append("Price is near 52-week low — strong historical support.")
         elif trend == 'Bearish':
             decision = "CUT LOSSES / REDUCE"
-            reasons.append(f"Stock is in a defined downtrend ({trend_days} days) and extending losses. Capital preservation is priority.")
-            if trend_days >= 3:
-                reasons.append("High confidence in downtrend; high urgency to preserve remaining capital.")
-            else:
-                reasons.append("Bearish signal is recent; monitor closely but be ready to exit if it persists.")
+            reasons.append(f"Stock is in a defined downtrend ({trend_days} days). Capital preservation is priority.")
             if macd_accel_bearish:
-                reasons.append("MACD histogram is deepening further — momentum is accelerating downward. High urgency.")
+                reasons.append("Bearish momentum is accelerating. High urgency to exit.")
             if near_52w_low:
-                reasons.append("Price is at a 52-week low — the stock has no technical floor. Do not average down.")
-        else:  # Neutral
+                reasons.append("Price is at 52-week low — no technical floor. Do not average down.")
+        else:
             decision = "HOLD / WATCH"
-            reasons.append("Trend is neutral while at a loss. Wait for a clear directional breakout.")
-            if macd_turning_bullish:
-                reasons.append("MACD shows early bullish crossover — a reversal may be forming. Watch closely.")
-
-        if oversold and "CUT LOSSES" not in decision:
-            reasons.append("RSI < 30: deeply oversold — a near-term bounce is possible. Avoid panic selling.")
+            reasons.append("Trend is neutral while at a loss. Wait for a clear breakout.")
 
     if benchmark_comparison and benchmark_comparison.get('status') == 'UNDERPERFORMING':
-        reasons.append(f"Caution: Stock is underperforming the Nifty 50 by {abs(benchmark_comparison['relative_strength'])}% in 30 days.")
+        reasons.append(f"Underperforming Nifty 50 by {abs(benchmark_comparison['relative_strength'])}% lately.")
 
     if macd_turning_bearish and is_profit and "BOOK" not in decision:
-        reasons.append("MACD just crossed bearish — consider reducing position size to protect gains.")
+        reasons.append("MACD just crossed bearish — monitor for exit.")
 
-    return decision, reasons
+    # Volatility Check
+    if signals.get('Volatility_Ratio', 0) > 0.04: # High relative ATR
+        reasons.append("Caution: High volatility detected. Expect wider price swings.")
 
-def format_output(symbol, signals, decision, reasons, score):
+    action = "Monitor price action at recent support/resistance levels."
+    if "BOOK" in decision:
+        action = "Sell current position to realize gains."
+    elif "CUT LOSSES" in decision or "REDUCE" in decision:
+        action = "Sell to preserve remaining capital."
+    elif "AVERAGE" in decision:
+        action = "Buy additional shares at current levels to lower cost basis."
+    elif "RIDE" in decision:
+        action = "Hold position and trail stop-loss 5% below current price."
+
+    return decision, reasons, action
+
+
+def format_output(symbol, signals, decision, reasons, score, action):
     """
     5. Output Format
     """
@@ -389,17 +436,9 @@ def format_output(symbol, signals, decision, reasons, score):
     output_lines.append(f"{clean_symbol} (₹{signals['Price']:.2f})")
     output_lines.append(f"Trend: {signals['Trend']}")
     
-    active_signals = []
-    if signals['Breakout']: active_signals.append("Breakout")
-    if signals['Volume_Spike']: active_signals.append("High Volume")
-    if signals['Overbought']: active_signals.append("Overbought")
-    if list(filter(None, [signals['Oversold']])): active_signals.append("Oversold")
-    if not active_signals: active_signals.append("None")
-    
-    output_lines.append(f"Signals: {', '.join(active_signals)}")
-    output_lines.append("")
     output_lines.append(f"Decision: {decision} (Confidence: {score}/100)")
-    output_lines.append(f"Reason:")
+    output_lines.append(f"Action: {action}")
+    output_lines.append(f"Reasoning:")
     for reason in reasons:
         output_lines.append(f" * {reason}")
     output_lines.append(f"---")
@@ -469,7 +508,7 @@ def analyze_single_ticker(symbol: str) -> dict:
         df = fetch_data(symbol, period="1y")
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
-        decision, reasons, score = make_decision(signals)
+        decision, reasons, score, action = make_decision(signals)
         
         # 2.2 - Benchmark Comparison
         benchmark_comparison = get_benchmark_comparison(df)
@@ -543,6 +582,7 @@ def analyze_single_ticker(symbol: str) -> dict:
                 "trend": signals['Trend'],
                 "decision": decision,
                 "confidence_score": score,
+                "action": action,
                 "reasons": reasons,
                 "chart_data": chart_data,
                 "charts": get_multi_period_charts(symbol),
@@ -552,17 +592,24 @@ def analyze_single_ticker(symbol: str) -> dict:
                 "benchmark_comparison": benchmark_comparison,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
+                    "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),
                     "volume_spike": convert_numpy(signals['Volume_Spike']),
+                    "volume_ratio": convert_numpy(signals.get('Volume_Ratio', 1.0)),
+                    "volatility_ratio": convert_numpy(signals.get('Volatility_Ratio', 0)),
                     "overbought": convert_numpy(signals['Overbought']),
                     "oversold": convert_numpy(signals['Oversold']),
                     "macd_turning_bullish": convert_numpy(signals['MACD_Turning_Bullish']),
                     "macd_turning_bearish": convert_numpy(signals['MACD_Turning_Bearish']),
-                    "trend_days": convert_numpy(signals['Trend_Days'])
+                    "trend_days": convert_numpy(signals['Trend_Days']),
+                    "trend_strength": convert_numpy(signals.get('Trend_Strength', 0)),
+                    "rsi_divergence": convert_numpy(signals.get('RSI_Divergence', False))
                 },
                 "indicators": {
                     "rsi_14": convert_numpy(signals['RSI']),
                     "ma_20": convert_numpy(signals['MA20']),
                     "ma_50": convert_numpy(signals['MA50']),
+                    "atr": convert_numpy(signals.get('ATR', 0)),
+                    "ma20_slope": convert_numpy(signals.get('MA20_Slope', 0)),
                     "macd": clean_macd
                 }
             }
@@ -625,7 +672,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
 
         # --- 1.3 MACD IN DECISIONS ---
         # make_holding_decision now receives 52w range and MACD signals are in signals dict
-        decision, reasons = make_holding_decision(
+        decision, reasons, action = make_holding_decision(
             signals, avg_cost, live_pnl,
             fifty_two_week_low=fifty_two_week_low,
             fifty_two_week_high=fifty_two_week_high,
@@ -665,18 +712,24 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,
+                "portfolio_action": action,
                 "urgency_score": urgency_score,
                 "risk_tag": risk_tag,
                 "reasons": reasons,
                 "benchmark_comparison": benchmark_comparison,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
+                    "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),
                     "volume_spike": convert_numpy(signals['Volume_Spike']),
+                    "volume_ratio": convert_numpy(signals.get('Volume_Ratio', 1.0)),
+                    "volatility_ratio": convert_numpy(signals.get('Volatility_Ratio', 0)),
                     "overbought": convert_numpy(signals['Overbought']),
                     "oversold": convert_numpy(signals['Oversold']),
                     "macd_turning_bullish": convert_numpy(signals['MACD_Turning_Bullish']),
                     "macd_turning_bearish": convert_numpy(signals['MACD_Turning_Bearish']),
-                    "trend_days": convert_numpy(signals['Trend_Days'])
+                    "trend_days": convert_numpy(signals['Trend_Days']),
+                    "trend_strength": convert_numpy(signals.get('Trend_Strength', 0)),
+                    "rsi_divergence": convert_numpy(signals.get('RSI_Divergence', False))
                 }
             }
         }
@@ -704,18 +757,19 @@ def run_market_intelligence(stocks):
         signals = generate_signals(df_indicators)
         
         # 4. Decision Engine
-        decision, reasons, score = make_decision(signals)
+        decision, reasons, score, action = make_decision(signals)
         
         # Store for ranking
         results[symbol] = {
             'signals': signals,
             'decision': decision,
             'reasons': reasons,
-            'score': score
+            'score': score,
+            'action': action
         }
         
         # 5. Output
-        print(format_output(symbol, signals, decision, reasons, score))
+        print(format_output(symbol, signals, decision, reasons, score, action))
         print("\n")
         
     # Final Summary

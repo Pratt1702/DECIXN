@@ -24,121 +24,97 @@ app.add_middleware(
 class TickerRequest(BaseModel):
     ticker: str
 
+class HoldingInput(BaseModel):
+    symbol: str
+    quantity: float
+    avg_cost: float
+    current_value: float
+    pnl: float
+
+class PortfolioInput(BaseModel):
+    holdings: list[HoldingInput]
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
 
-@app.get("/analyze/portfolio")
-def analyze_portfolio():
+def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     """
-    Reads the Kite holdings CSV (`holdings_kite.csv`), extracts the portfolio context 
-    (Avg Cost, Qty, P&L), and batches intelligence requests to decide whether to 
-    Average Down, Cut Losses, Ride Trend, or Book Profits.
+    Shared core logic for both GET (CSV) and POST (JSON) portfolio analysis.
+    Accepts a list of dicts with keys: symbol, quantity, avg_cost, pnl
     """
-    csv_path = "holdings_kite.csv"
-    if not os.path.exists(csv_path):
-        raise HTTPException(status_code=404, detail="Holdings CSV not found in backend directory.")
-        
     results = []
-    
-    with open(csv_path, mode='r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        header = next(reader, None) # skip header row
-        
-        for row in reader:
-            if not row or len(row) < 7:
+    for h in holdings_data:
+        try:
+            symbol = h["symbol"]
+            qty = float(h["quantity"])
+            avg_cost = float(h["avg_cost"])
+            pnl = float(h["pnl"])
+            if not symbol or qty <= 0:
                 continue
-                
-            try:
-                # Column 0: Instrument
-                symbol = row[0].replace('"', '').replace("'", '').strip()
-                if not symbol:
-                    continue
-                
-                # Column 1: Quantity
-                qty_str = row[1].replace('"', '').replace(',', '').strip()
-                qty = float(qty_str) if qty_str else 0.0
-                
-                # Column 2: Average Cost
-                avg_cost_str = row[2].replace('"', '').replace(',', '').strip()
-                avg_cost = float(avg_cost_str) if avg_cost_str else 0.0
-                
-                # Column 6: P&L
-                pnl_str = row[6].replace('"', '').replace(',', '').strip()
-                pnl = float(pnl_str) if pnl_str else 0.0
-                
-                res = analyze_single_holding(symbol, avg_cost, qty, pnl)
-                if res.get("success"):
-                    results.append(res)
-            except Exception as e:
-                # Log but continue batch processing
-                print(f"Failed to process holding {row}: {e}")
-                
+            res = analyze_single_holding(symbol, avg_cost, qty, pnl)
+            if res.get("success"):
+                results.append(res)
+        except Exception as e:
+            print(f"Failed to process holding {h}: {e}")
+
     if not results:
         return {"error": "No valid holdings analyzed."}
-        
-    # Portfolio Brain Aggregation Phase
+
     total_invested = sum(r['holding_context']['invested_value'] for r in results)
     total_value_live = sum(r['holding_context']['current_value'] for r in results)
     total_pnl = sum(r['holding_context']['current_pnl'] for r in results)
-    
+
     winners = sum(1 for r in results if r['holding_context']['current_pnl'] > 0)
     losers = len(results) - winners
     win_rate = f"{(winners / len(results) * 100):.1f}%"
-    
+
     cut_losses_count = sum(1 for r in results if "CUT LOSSES" in r['data']['portfolio_decision'])
     ride_trend_count = sum(1 for r in results if "RIDE TREND" in r['data']['portfolio_decision'])
-    
-    # Structural Weights
+
     for r in results:
         val = r['holding_context']['current_value']
-        # Weight percentage format (using live value as base)
         r['holding_context']['portfolio_weight_pct'] = round((val / total_value_live * 100) if total_value_live > 0 else 0.0, 2)
-        
-    # Risk and Health Insight Generation
+
     risk_level = "Low"
     health = "Strong"
     insight = "Portfolio is stable and assets are trending well."
     recommendations = []
-    
+
     if losers > winners:
         health = "Weak"
         insight = "Majority of holdings are currently sitting at a loss."
     elif cut_losses_count > 0:
         health = "Fair"
         insight = "Mixed performance with several dragging assets."
-        
-    # Dynamic bad stocks list
+
     bad_stocks = [r['symbol'].replace('.NS','') for r in results if "CUT LOSSES" in r['data']['portfolio_decision']]
     bad_str = f" like {', '.join(bad_stocks[:2])}" if bad_stocks else ""
-    
-    if (cut_losses_count / len(results)) >= 0.4:
+
+    if len(results) > 0 and (cut_losses_count / len(results)) >= 0.4:
         risk_level = "High"
         insight = "High concentration of capital in assets experiencing strong downtrends."
         recommendations.append(f"High urgency: Cut losses in deeply bearish stocks{bad_str} to preserve capital.")
     elif cut_losses_count > 0:
         risk_level = "Medium"
         recommendations.append(f"Consider trimming exposure to assets in confirmed downtrends{bad_str}.")
-        
+
     if losers > winners:
         recommendations.append("Review your entry strategies; win-rate is currently upside down.")
-        
+
     if ride_trend_count == 0:
         recommendations.append("Reallocate freed capital to stronger market leaders; currently lacking strong bullish momentum.")
     else:
         recommendations.append("Let your winners run. Use trailing stop-losses to lock in profits on uptrends.")
-        
-    # Prioritization Sorting
-    # 1. High Urgency first
-    # 2. Then by Worst P&L % -> Best P&L %
+
     def sort_key(r):
         u_map = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
         urgency = u_map.get(r['data'].get('urgency_score', "LOW"), 3)
         worst_pnl = r['holding_context'].get('pnl_pct', 0)
         return (urgency, worst_pnl)
-        
+
     results.sort(key=sort_key)
-                
+
     return {
         "portfolio_summary": {
             "health": health,
@@ -152,6 +128,54 @@ def analyze_portfolio():
         "recommended_actions": recommendations,
         "portfolio_analysis": results
     }
+
+@app.get("/analyze/portfolio")
+def analyze_portfolio():
+    """
+    Reads the Kite holdings CSV (holdings_kite.csv) as a fallback data source,
+    then delegates to the shared analysis pipeline.
+    """
+    csv_path = "holdings_kite.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=404, detail="Holdings CSV not found in backend directory.")
+
+    holdings_data = []
+    with open(csv_path, mode='r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        next(reader, None)  # skip header
+        for row in reader:
+            if not row or len(row) < 7:
+                continue
+            try:
+                symbol = row[0].replace('"', '').replace("'", '').strip()
+                qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
+                avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
+                pnl = float(row[6].replace('"', '').replace(',', '').strip() or 0)
+                cur_val = float(row[4].replace('"', '').replace(',', '').strip() or 0)
+                if symbol and qty > 0:
+                    holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": pnl, "current_value": cur_val})
+            except Exception as e:
+                print(f"Failed to parse CSV row {row}: {e}")
+
+    return _run_portfolio_analysis(holdings_data)
+
+@app.post("/analyze/portfolio")
+def analyze_portfolio_custom(payload: PortfolioInput):
+    """
+    Accepts a JSON array of holdings from the frontend (uploaded CSV session data),
+    bypassing the backend CSV file entirely. Same analysis pipeline is applied.
+    """
+    holdings_data = [
+        {
+            "symbol": h.symbol,
+            "quantity": h.quantity,
+            "avg_cost": h.avg_cost,
+            "pnl": h.pnl,
+            "current_value": h.current_value,
+        }
+        for h in payload.holdings
+    ]
+    return _run_portfolio_analysis(holdings_data)
 
 @app.get("/analyze/{ticker}")
 def analyze_ticker(ticker: str):

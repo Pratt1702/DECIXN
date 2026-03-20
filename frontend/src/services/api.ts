@@ -60,3 +60,21 @@ export const searchStocks = async (query: string) => {
   const response = await apiClient.get(`/search/${query}`);
   return response.data;
 };
+
+/**
+ * Posts uploaded CSV holdings to the backend for live AI analysis.
+ * Each element in `holdings` matches the shape stored in sessionStorage.
+ */
+export const analyzeCustomPortfolio = async (holdings: any[]) => {
+  const payload = {
+    holdings: holdings.map((h) => ({
+      symbol: h.symbol,
+      quantity: h.holding_context.quantity,
+      avg_cost: h.holding_context.avg_cost,
+      current_value: h.holding_context.current_value,
+      pnl: h.holding_context.current_pnl,
+    })),
+  };
+  const response = await apiClient.post('/analyze/portfolio', payload);
+  return response.data;
+};

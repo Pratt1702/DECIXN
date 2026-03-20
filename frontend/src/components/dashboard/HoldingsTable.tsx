@@ -12,26 +12,27 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   useEffect(() => {
     if (tableRef.current && holdings.length > 0) {
       const rows = tableRef.current.children;
-      gsap.fromTo(rows, 
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.4, stagger: 0.05, ease: "power2.out" }
+      gsap.fromTo(rows,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.25, stagger: 0.04, ease: "power1.out" }
       );
     }
   }, [holdings, sortField, sortOrder]);
 
   const sortedHoldings = [...holdings].sort((a, b) => {
-    let valA = a.holding_context[sortField];
-    let valB = b.holding_context[sortField];
-    if (valA === undefined) valA = 0;
-    if (valB === undefined) valB = 0;
-    
-    if (sortOrder === 'desc') return valA < valB ? 1 : -1;
-    return valA > valB ? 1 : -1;
+    if (sortField === 'symbol') {
+      const valA = a.symbol as string;
+      const valB = b.symbol as string;
+      return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    let valA = a.holding_context[sortField] ?? 0;
+    let valB = b.holding_context[sortField] ?? 0;
+    return sortOrder === 'desc' ? (valA < valB ? 1 : -1) : (valA > valB ? 1 : -1);
   });
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortOrder('desc'); }
+    else { setSortField(field); setSortOrder(field === 'symbol' ? 'asc' : 'desc'); }
   };
 
   return (
@@ -39,16 +40,16 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
       <table className="w-full text-left text-sm text-text-bold border-collapse">
         <thead className="border-b border-white/5 bg-white/[0.03] text-[10px] uppercase tracking-[0.2em] text-white/40 font-bold font-heading">
           <tr>
-            <th className="px-6 py-6 font-black uppercase tracking-[0.15em]">Company</th>
             {[
+              { label: 'Company', field: 'symbol' },
               { label: 'Qty', field: 'quantity' },
               { label: 'Avg Cost', field: 'avg_cost' },
               { label: 'Current Val', field: 'current_value' },
               { label: 'Returns %', field: 'pnl_pct' }
             ].map((col) => (
-              <th 
+              <th
                 key={col.field}
-                className="px-6 py-6 cursor-pointer hover:text-white transition-colors group" 
+                className="px-6 py-6 cursor-pointer hover:text-white transition-colors group"
                 onClick={() => handleSort(col.field)}
               >
                 <div className="flex items-center gap-1.5 whitespace-nowrap">

@@ -1,42 +1,51 @@
 import { useEffect, useState } from "react";
-import { getPortfolio } from "../services/api";
+import { getPortfolio, analyzeCustomPortfolio } from "../services/api";
 import { AIIntelligencePanel } from "../components/dashboard/AIIntelligencePanel";
 import { motion } from "framer-motion";
 import { Loader2, BellRing, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+const SESSION_KEY = "uploaded_holdings";
+
+const MOCK_DATA = {
+  portfolio_summary: {
+    health: "Weak", risk_level: "High", total_invested: 230071, total_value_live: 204832, total_pnl: -25239, win_rate: "20%",
+    insight: "Majority of holdings are currently sitting at a loss but showing recovery signs. Keep an eye on Tata Steel support levels."
+  },
+  recommended_actions: [
+    "Cut losses in deeply bearish stocks like Tata Steel to preserve capital if gap down occurs.",
+    "Let your winners run. High confidence in Karnataka Bank breakout.",
+  ],
+  portfolio_analysis: [
+    { symbol: "Karnataka Bank", holding_context: { quantity: 100, avg_cost: 170.71, current_value: 23132, pnl_pct: 35.5, current_pnl: 6061 }, data: { portfolio_decision: "RIDE TREND", risk_tag: "LOW", urgency_score: "LOW", reasons: ["Confirmed breakout above resistance", "Volume profile is strongly bullish"] } },
+    { symbol: "Tata Steel", holding_context: { quantity: 100, avg_cost: 250, current_value: 15000, pnl_pct: -40.0, current_pnl: -10000 }, data: { portfolio_decision: "CUT LOSSES", risk_tag: "HIGH", urgency_score: "HIGH", reasons: ["Bearish crossover on MACD", "Trading below 50 DMA"] } }
+  ]
+};
+
 export function Nudges() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isManual, setIsManual] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchHoldings() {
       try {
-        const res = await getPortfolio();
-        setData(res);
+        const sessionData = sessionStorage.getItem(SESSION_KEY);
+        if (sessionData) {
+          const parsed = JSON.parse(sessionData);
+          // POST to backend for live AI analysis of uploaded holdings
+          const res = await analyzeCustomPortfolio(parsed);
+          setData(res);
+          setIsManual(true);
+        } else {
+          // Fall back to backend CSV analysis
+          const res = await getPortfolio();
+          setData(res);
+        }
       } catch (err) {
         console.error("Failed to fetch, using mock data for demo", err);
-        setData({
-          portfolio_summary: {
-            health: "Weak",
-            risk_level: "High",
-            total_invested: 230071,
-            total_value_live: 204832,
-            total_pnl: -25239,
-            win_rate: "20%",
-            insight: "Majority of holdings are currently sitting at a loss but showing recovery signs. Keep an eye on Tata Steel support levels."
-          },
-          recommended_actions: [
-             "Cut losses in deeply bearish stocks like Tata Steel to preserve capital if gap down occurs.",
-             "Let your winners run. High confidence in Karnataka Bank breakout.",
-             "Consider rebalancing portfolio to include more large-cap IT stocks like Infosys given current oversold conditions."
-          ],
-          portfolio_analysis: [
-            { symbol: "Karnataka Bank", holding_context: { quantity: 100, avg_cost: 170.71, current_value: 23132, pnl_pct: 35.5, current_pnl: 6061 }, data: { portfolio_decision: "RIDE TREND", risk_tag: "LOW", urgency_score: "LOW", reasons: ["Confirmed breakout above resistance", "Volume profile is strongly bullish"] } },
-            { symbol: "Tata Steel", holding_context: { quantity: 100, avg_cost: 250, current_value: 15000, pnl_pct: -40.0, current_pnl: -10000 }, data: { portfolio_decision: "CUT LOSSES", risk_tag: "HIGH", urgency_score: "HIGH", reasons: ["Bearish crossover on MACD", "Trading below 50 DMA"] } }
-          ]
-        });
+        setData(MOCK_DATA);
       } finally {
         setLoading(false);
       }
@@ -60,8 +69,19 @@ export function Nudges() {
       className="space-y-8 max-w-5xl mx-auto"
     >
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-text-bold">Your Nudges</h1>
-        <p className="mt-2 text-text-muted">AI-driven actionable insights for your portfolio & assets.</p>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-text-bold">Your Nudges</h1>
+          {isManual && (
+            <span className="px-3 py-1 rounded-full bg-accent text-[10px] font-black text-bg-main uppercase tracking-tighter shadow-[0_0_20px_rgba(80,255,167,0.3)]">
+              Local Session
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-text-muted">
+          {isManual
+            ? "AI analysis generated from your uploaded portfolio CSV."
+            : "AI-driven actionable insights for your portfolio & assets."}
+        </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

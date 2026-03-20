@@ -14,9 +14,9 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-[#121212] border border-[#222222] rounded px-3 py-1.5 shadow-lg text-xs font-medium flex items-center gap-1.5">
-        <span className="text-[#f3f4f6]">₹{Number(data.price).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-        <span className="text-[#6b6375]">|</span>
+      <div className="bg-[#121212]/80 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2 shadow-2xl text-xs font-medium flex items-center gap-2">
+        <span className="text-[#f3f4f6] font-bold">₹{Number(data.price).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        <span className="text-white/20">|</span>
         <span className="text-[#9ca3af]">{data.date || 'Today'}</span>
       </div>
     );
@@ -41,6 +41,7 @@ export function StockDetails() {
         const res = await getTickerAnalysis(ticker); 
         setData({
           symbol: res.symbol,
+          companyName: res.data.companyName,
           price: res.data.price,
           decision: res.data.decision,
           confidence_score: res.data.confidence_score,
@@ -114,7 +115,14 @@ export function StockDetails() {
       </button>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight text-text-bold">{data?.symbol?.replace('.NS', '') || ticker}</h1>
+        <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-1">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-heading font-black tracking-tight text-text-bold drop-shadow-sm truncate max-w-full">
+               {data?.companyName || data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker?.replace('.NS', '').replace('.BO', '')}
+            </h1>
+            <span className="bg-[rgba(177,252,3,0.1)] text-[#b1fc03] border border-[#b1fc03]/20 px-3 py-1 rounded-full text-sm md:text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
+               {data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker?.replace('.NS', '').replace('.BO', '')}
+            </span>
+        </div>
         
         <div className="mt-2">
           {loading && !data ? (
@@ -140,7 +148,7 @@ export function StockDetails() {
       <div className="border-b border-border-main pb-4 mt-8">
           <div className="h-72 sm:h-80 w-full relative">
             {loading && !data ? (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-bg-surface/50 animate-pulse rounded-xl border border-border-main/40">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-[#121212]/40 backdrop-blur-xl animate-pulse rounded-2xl border border-white/5">
                  <Loader2 className="w-8 h-8 animate-spin text-text-muted/40 mb-3" />
                  <span className="text-sm text-text-muted">Loading chart data...</span>
               </div>

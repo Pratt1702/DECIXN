@@ -34,7 +34,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
           <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
             Support and Resistance <InfoTooltip content="Key computational price levels defined by Pivot Points where the stock historically encounters critical buying (Support) or massive selling (Resistance) pressure." align="left" />
           </h2>
-          <div className="bg-bg-surface border border-border-main rounded-xl p-6 lg:p-8 shadow-sm relative">
+          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 rounded-2xl p-6 lg:p-8 shadow-lg relative">
             
             <div className="space-y-5">
               <div className="flex justify-between text-sm text-text-muted"><span className="font-medium text-[#f3f4f6]">R3</span><span className="text-text-bold font-bold">{pivots.R3?.toFixed(2)}</span></div>
@@ -64,7 +64,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
           <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
             Indicators <InfoTooltip content="Mathematical oscillators built strictly on historical price, volume, and momentum. Evaluated by our AI layer to verify if a stock is overbought or oversold." align="left" />
           </h2>
-          <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 rounded-2xl overflow-hidden shadow-lg">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border-main text-[11px] text-text-muted uppercase tracking-widest bg-bg-surface">
                 <tr>
@@ -74,21 +74,21 @@ export function TechnicalIndicators({ data }: { data: any }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-main text-[#f3f4f6]">
-                <tr className="hover:bg-bg-main/30 transition-colors">
+                <tr className="hover:bg-white/5 transition-colors">
                   <td className="px-6 py-5 font-medium">RSI (14)</td>
                   <td className="px-6 py-5 text-right font-bold">{rsi > 0 ? `+${rsi.toFixed(2)}` : rsi.toFixed(2)}</td>
                   <td className={`px-6 py-5 font-bold ${rsi < 40 ? 'text-emerald-500' : rsi > 70 ? 'text-rose-500' : 'text-text-muted'}`}>
                     {rsi < 40 ? 'Near oversold' : rsi > 70 ? 'Overbought' : 'Neutral'}
                   </td>
                 </tr>
-                <tr className="hover:bg-bg-main/30 transition-colors">
+                <tr className="hover:bg-white/5 transition-colors">
                   <td className="px-6 py-5 font-medium">MACD (12, 26, 9)</td>
                   <td className="px-6 py-5 text-right font-bold">{macd > 0 ? `+${macd.toFixed(2)}` : macd.toFixed(2)}</td>
                   <td className={`px-6 py-5 font-bold ${macd > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {macd > 0 ? 'Bullish' : 'Bearish'}
                   </td>
                 </tr>
-                <tr className="hover:bg-bg-main/30 transition-colors">
+                <tr className="hover:bg-white/5 transition-colors">
                   <td className="px-6 py-5 font-medium">Beta</td>
                   <td className="px-6 py-5 text-right font-bold">+{beta.toFixed(2)}</td>
                   <td className="px-6 py-5 font-medium text-text-muted">Volatile like mkt</td>
@@ -104,7 +104,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
         <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
           Moving averages <InfoTooltip content="The trailing average stock price over designated lookback time frames (SMA: Simple, EMA: Exponential). Extensively used visually to identify broad trajectory changes." align="left" />
         </h2>
-        <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 rounded-2xl overflow-hidden shadow-lg">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border-main text-[11px] text-text-muted uppercase tracking-widest">
               <tr>
@@ -121,7 +121,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
                 const emaColor = currentPrice > ema ? 'text-emerald-400' : 'text-rose-400';
                 
                 return (
-                  <tr key={p} className="hover:bg-bg-main/40 transition-colors">
+                  <tr key={p} className="hover:bg-white/5 transition-colors">
                     <td className="px-8 py-5 font-medium">{p}</td>
                     <td className={`px-8 py-5 text-right font-bold tracking-wide ${smaColor}`}>{sma?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                     <td className={`px-8 py-5 text-right font-bold tracking-wide ${emaColor}`}>{ema?.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
@@ -140,19 +140,19 @@ export function TechnicalIndicators({ data }: { data: any }) {
              Fundamentals <InfoTooltip content="Core macro-financial metrics showcasing intrinsic enterprise valuation, sheer profitability profiles, and baseline dividend yields compared intensely against industry peers." align="left" />
            </h2>
            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-bg-surface border border-border-main p-5 rounded-xl">
+              <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">Market Cap</p>
                  <p className="text-2xl font-bold text-text-bold">₹{(data.fundamentals?.market_cap / 10000000 || 745300).toFixed(0)}Cr</p>
               </div>
-              <div className="bg-bg-surface border border-border-main p-5 rounded-xl">
+              <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">P/E Ratio</p>
                  <p className="text-2xl font-bold text-text-bold">{data.fundamentals?.pe_ratio?.toFixed(2) || '14.50'}</p>
               </div>
-              <div className="bg-bg-surface border border-border-main p-5 rounded-xl">
+              <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">Industry P/E</p>
                  <p className="text-2xl font-bold text-text-bold">{data.fundamentals?.industry_pe?.toFixed(2) || '17.20'}</p>
               </div>
-              <div className="bg-bg-surface border border-border-main p-5 rounded-xl">
+              <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
                  <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">Dividend Yield</p>
                  <p className="text-2xl font-bold text-text-bold">{data.fundamentals?.dividend_yield?.toFixed(2) || '1.30'}%</p>
               </div>
@@ -163,7 +163,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
            <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
              Delivery volume percentage <InfoTooltip content="The sheer scale of equity actively delivered to demat accounts vs intraday speculation. Robust, higher delivery explicitly outlines powerful longer-term institutional investor conviction." align="left" />
            </h2>
-           <div className="bg-bg-surface border border-border-main p-6 rounded-xl flex flex-col justify-between h-[232px]">
+           <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 p-6 rounded-2xl shadow-lg flex flex-col justify-between h-[232px]">
               <div className="space-y-4">
                  <div className="flex justify-between items-center text-sm font-medium">
                    <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 bg-indigo-400 rounded-full"/> <span className="text-[#f3f4f6]">Total traded volume</span></div>

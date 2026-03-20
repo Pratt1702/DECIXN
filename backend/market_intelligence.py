@@ -354,6 +354,8 @@ def analyze_single_ticker(symbol: str) -> dict:
         except:
             info = {}
             
+        company_name = info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', '')))
+            
         dy = info.get("dividendYield")
         fundamentals = {
             "market_cap": convert_numpy(info.get("marketCap", 0) or 0),
@@ -392,9 +394,10 @@ def analyze_single_ticker(symbol: str) -> dict:
         }
         
         return {
-            "symbol": symbol,
+            "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "data": {
+                "companyName": company_name,
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "decision": decision,
@@ -470,7 +473,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             return obj
 
         return {
-            "symbol": symbol,
+            "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "holding_context": {
                 "avg_cost": avg_cost,
@@ -481,6 +484,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "pnl_pct": convert_numpy(pnl_pct)
             },
             "data": {
+                "companyName": info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', ''))) if 'info' in locals() else symbol.replace('.NS', ''),
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,

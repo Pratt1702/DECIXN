@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Info } from "lucide-react";
 
 // Native CSS Group-Hover Tooltip 
@@ -33,7 +32,7 @@ export function AIIntelligencePanel({ data }: { data: any }) {
       </h2>
       <p className="text-sm text-text-muted mb-6">Based on AI heuristics and technicals</p>
 
-      <div className="bg-bg-surface border border-border-main rounded-xl p-8 shadow-sm">
+      <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-[#b1fc03]/20 transition-all duration-500 rounded-2xl p-8 shadow-lg">
         <div className="flex justify-between items-start mb-10">
            <div>
              <p className="text-sm text-text-muted mb-1">Based on technicals, this stock is</p>

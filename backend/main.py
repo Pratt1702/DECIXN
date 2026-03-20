@@ -1,14 +1,24 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from market_intelligence import analyze_single_ticker, analyze_single_holding
 import csv
 import os
+import requests
 
 app = FastAPI(
     title="Market Intelligence Engine API",
     description="An AI-driven technical analysis API for Indian stocks.",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 class TickerRequest(BaseModel):
@@ -154,6 +164,28 @@ def analyze_ticker(ticker: str):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))
         
     return result
+
+@app.get("/search/{query}")
+def search_stocks(query: str):
+    """
+    Provides real-time search autocomplete for symbols and company names matching the query.
+    """
+    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount=8&newsCount=0"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        results = []
+        for quote in data.get("quotes", []):
+            exchange = quote.get("exchange", "")
+            # Filter solely for Indian Equities to avoid gibberish Mutual Funds/Indices
+            if quote.get("quoteType") == "EQUITY" and exchange in ["NSI", "BSE"]:
+                sym = quote.get("symbol", "")
+                name = quote.get("shortname", quote.get("longname", sym))
+                results.append({"symbol": sym, "name": name})
+        return {"success": True, "results": results}
+    except Exception as e:
+        return {"success": False, "error": str(e), "results": []}
 
 if __name__ == "__main__":
     # uvicorn main:app --reload

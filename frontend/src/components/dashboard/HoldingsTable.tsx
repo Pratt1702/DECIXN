@@ -35,18 +35,18 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border-main bg-bg-surface shadow-sm">
+    <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500">
       <table className="w-full text-left text-sm text-text-bold">
-        <thead className="border-b border-border-main bg-bg-main/50 text-xs uppercase tracking-wider text-text-muted">
+        <thead className="border-b border-white/5 bg-white/5 text-xs uppercase tracking-wider text-text-muted font-heading">
           <tr>
             <th className="px-6 py-4">Company</th>
-            <th className="px-6 py-4 cursor-pointer hover:text-text-bold transition-colors" onClick={() => handleSort('quantity')}>Qty <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
-            <th className="px-6 py-4 cursor-pointer hover:text-text-bold transition-colors" onClick={() => handleSort('avg_cost')}>Avg Cost <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
-            <th className="px-6 py-4 cursor-pointer hover:text-text-bold transition-colors" onClick={() => handleSort('current_value')}>Current Val <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
-            <th className="px-6 py-4 cursor-pointer hover:text-text-bold transition-colors" onClick={() => handleSort('pnl_pct')}>Returns % <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
+            <th className="px-6 py-4 cursor-pointer hover:text-[#b1fc03] transition-colors" onClick={() => handleSort('quantity')}>Qty <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
+            <th className="px-6 py-4 cursor-pointer hover:text-[#b1fc03] transition-colors" onClick={() => handleSort('avg_cost')}>Avg Cost <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
+            <th className="px-6 py-4 cursor-pointer hover:text-[#b1fc03] transition-colors" onClick={() => handleSort('current_value')}>Current Val <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
+            <th className="px-6 py-4 cursor-pointer hover:text-[#b1fc03] transition-colors" onClick={() => handleSort('pnl_pct')}>Returns % <ArrowUpDown className="inline h-3 w-3 ml-1"/></th>
           </tr>
         </thead>
-        <tbody ref={tableRef} className="divide-y divide-border-main">
+        <tbody ref={tableRef} className="divide-y divide-white/5">
           {sortedHoldings.map((h, i) => {
             const ctx = h.holding_context;
             const isPos = ctx.current_pnl >= 0;
@@ -54,7 +54,7 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
               <tr 
                 key={i} 
                 onClick={() => navigate(`/stock/${h.symbol}`)}
-                className="hover:bg-bg-main/40 transition-colors group cursor-pointer"
+                className="hover:bg-white/5 transition-colors group cursor-pointer"
               >
                 <td className="px-6 py-4 font-medium">{h.symbol}</td>
                 <td className="px-6 py-4">{ctx.quantity}</td>

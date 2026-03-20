@@ -20,8 +20,8 @@ def fetch_data(symbol, period="100d"):
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
     except Exception as e:
-        print(f"Failed to fetch data for {symbol} ({e}). Using mock data fallback.")
-        return generate_mock_data()
+        print(f"Failed to fetch data for {symbol} ({e}).")
+        raise e
 
 def generate_mock_data(days=100):
     """Generate generic mock OHLCV data as fallback."""
@@ -275,7 +275,57 @@ def analyze_single_ticker(symbol: str) -> dict:
     Analyzes a single ticker and returns a deep, nested dictionary of all intelligence data.
     Suitable for API responses.
     """
-    if not symbol.upper().endswith('.NS'):
+    def get_multi_period_charts(sym_code):
+        charts = {}
+        try:
+            t = yf.Ticker(sym_code)
+            
+            # Fetch 5y data daily
+            df_5y = t.history(period="5y", interval="1d")
+            if not df_5y.empty:
+                def make_chart(df_sliced):
+                    return [{"date": d.strftime("%Y-%m-%d"), "price": float(p)} for d, p in zip(df_sliced.index, df_sliced['Close'])]
+                
+                charts['5Y'] = make_chart(df_5y)
+                charts['All'] = charts['5Y']
+                
+                three_years_ago = datetime.now() - timedelta(days=3*365)
+                charts['3Y'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(three_years_ago, tz=df_5y.index.tz)])
+                
+                one_year_ago = datetime.now() - timedelta(days=365)
+                charts['1Y'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(one_year_ago, tz=df_5y.index.tz)])
+                
+                six_months_ago = datetime.now() - timedelta(days=180)
+                charts['6M'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(six_months_ago, tz=df_5y.index.tz)])
+                
+                three_months_ago = datetime.now() - timedelta(days=90)
+                charts['3M'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(three_months_ago, tz=df_5y.index.tz)])
+                
+                one_month_ago = datetime.now() - timedelta(days=30)
+                charts['1M'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(one_month_ago, tz=df_5y.index.tz)])
+            else:
+                charts.update({'1M':[], '3M':[], '6M':[], '1Y':[], '3Y':[], '5Y':[], 'All':[]})
+                
+            # Fetch 1wk 1h data
+            df_1wk = t.history(period="5d", interval="1h")
+            if not df_1wk.empty:
+                charts['1W'] = [{"date": d.strftime("%b %d %H:%M"), "price": float(p)} for d, p in zip(df_1wk.index, df_1wk['Close'])]
+            else:
+                charts['1W'] = []
+                
+            # Fetch 1d 5m data
+            df_1d = t.history(period="1d", interval="5m")
+            if not df_1d.empty:
+                charts['1D'] = [{"date": d.strftime("%H:%M:%S"), "price": float(p)} for d, p in zip(df_1d.index, df_1d['Close'])]
+            else:
+                charts['1D'] = []
+                
+        except Exception as e:
+            print(f"Error fetching charts for {sym_code}: {e}")
+        return charts
+
+    symbol = symbol.upper().replace(' ', '')
+    if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
         symbol += '.NS'
     symbol = symbol.upper()
         
@@ -303,6 +353,8 @@ def analyze_single_ticker(symbol: str) -> dict:
             info = yf.Ticker(symbol).info
         except:
             info = {}
+            
+        company_name = info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', '')))
             
         dy = info.get("dividendYield")
         fundamentals = {
@@ -342,15 +394,17 @@ def analyze_single_ticker(symbol: str) -> dict:
         }
         
         return {
-            "symbol": symbol,
+            "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "data": {
+                "companyName": company_name,
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "decision": decision,
                 "confidence_score": score,
                 "reasons": reasons,
                 "chart_data": chart_data,
+                "charts": get_multi_period_charts(symbol),
                 "fundamentals": fundamentals,
                 "pivots": pivots,
                 "moving_averages": moving_averages,
@@ -379,7 +433,8 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
     """
     Analyzes a holding, applying advanced P&L-adjusted decision logic.
     """
-    if not symbol.upper().endswith('.NS'):
+    symbol = symbol.upper().replace(' ', '')
+    if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
         symbol += '.NS'
     symbol = symbol.upper()
         
@@ -418,7 +473,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             return obj
 
         return {
-            "symbol": symbol,
+            "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "holding_context": {
                 "avg_cost": avg_cost,
@@ -429,6 +484,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "pnl_pct": convert_numpy(pnl_pct)
             },
             "data": {
+                "companyName": info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', ''))) if 'info' in locals() else symbol.replace('.NS', ''),
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,

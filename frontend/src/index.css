@@ -1,5 +1,6 @@
-@import "tailwindcss";
 
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
 @theme {
   --color-bg-main: var(--bg);
   --color-bg-surface: var(--surface);
@@ -14,10 +15,10 @@
   --bg: #0a0a0a; /* Very dark background */
   --surface: #121212; /* Slightly Elevated for cards */
   --border: #222222; /* Subtle borders */
-  --accent: #aa3bff;
+  --accent: #b1fc03;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Noto Sans', system-ui, -apple-system, sans-serif;
+  --heading: 'Noto Sans', sans-serif;
 
   font: 18px/145% var(--sans);
   color-scheme: dark;
@@ -32,7 +33,21 @@
 body {
   margin: 0;
   background-color: var(--bg);
+  background-image: radial-gradient(circle at top, rgba(177, 252, 3, 0.05) 0%, transparent 40%);
   color: var(--text);
+  font-family: var(--sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--heading);
+  letter-spacing: -0.02em;
+}
+
+.glass-panel {
+  background: rgba(18, 18, 18, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #root {

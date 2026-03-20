@@ -33,57 +33,58 @@ calculate_indicators(df) → df with added columns
 | MA20 / MA50 | 20 / 50 | Aliases for SMA20/SMA50 (used in decision logic) |
 | Vol20 | 20-day | Rolling volume average (baseline for spike detection) |
 | RSI | 14-period | Wilder's Smoothing EMA. Filled with 50 on NaN startup. |
-| High20 | 20-day | Rolling max of **shifted** close (excludes today) — used as resistance |
+| High20 / Low20 | 20-day | Rolling channel boundaries used for breakout/reversal. |
 | MACD | 12/26/9 | MACD Line, Signal Line, Histogram |
+| **ATR** | 14-day | Average True Range — measure of volatility. |
+| **MA Slopes** | 3d / 5d | Percentage slope of MA20 and MA50 (momentum). |
+| **MA Distances** | — | Percentage distance of price from key averages. |
+
 
 ---
 
 ## 3. Signal Generation
 
-```
-generate_signals(df) → signals dict
-```
+Reads the **latest row** of the indicator dataframe. Signals are probabilistic.
 
-Reads the **latest row** of the indicator dataframe.
-
-| Signal | Condition | Type |
+| Signal | Logic | Type |
 |---|---|---|
-| `Breakout` | `Close > High20` | bool |
-| `Volume_Spike` | `Volume > 2 × Vol20` | bool |
-| `Overbought` | `RSI > 70` | bool |
-| `Oversold` | `RSI < 30` | bool |
-| `Trend = Bullish` | `Close > MA20 AND MA20 > MA50` | categorical |
-| `Trend = Bearish` | `Close < MA20 AND MA20 < MA50` | categorical |
-| `Trend = Neutral` | all other configurations | categorical |
+| `Breakout_Strength` | `(Close - High20) / High20` | ratio |
+| `Volume_Ratio` | `Volume / Vol20` | ratio |
+| `Trend_Strength` | `(MA20 - MA50) / MA50` | ratio |
+| `Gap_Pct` | `(Open - PrevClose) / PrevClose` | ratio |
+| `RSI_Divergence` | Price vs RSI trend (last 15 days) | bool |
+| `Volatility_Ratio` | `ATR / Close` | ratio |
 
-Also returns raw values: `Price`, `RSI`, `MA20`, `MA50`, `MACD dict`.
+Also returns binary flags (`Breakout`, `Volume_Spike`, etc.) for legacy UI support.
+
 
 ---
 
 ## 4. Discovery Mode — `make_decision(signals)`
 
-Used by `analyze_single_ticker`. Starts at **base score = 50**.
+Used by `analyze_single_ticker`. Starts at **base score = 40**. Uses **Confluence Logic**.
 
-### Step A — Trend
-| Trend | Score Δ | Decision |
+### Scoring Table
+| Factor | Condition | Weight |
 |---|---|---|
-| Bullish + Breakout + Volume Spike | +40 | **BUY** |
-| Bullish + Breakout only | +35 | **HOLD** |
-| Bullish, no breakout | +30 | **HOLD** |
-| Bearish | -20 | **REDUCE** |
-| Neutral | 0 | **WATCH** |
+| **Breakout** | Strength > 0 | Up to +25 |
+| **Volume** | Ratio > 1.2x | Up to +20 |
+| **Volume (Low)** | Ratio < 0.7x | -10 |
+| **RSI Healthy** | 40 < RSI < 65 | +10 |
+| **RSI Overbought** | RSI > 75 | -15 |
+| **Trend (Bullish)** | MA20 > MA50 | +15 |
+| **Momentum** | MA Slopes > 0.5% | +10 |
+| **Gap Up** | Gap > 1.5% | +10 |
+| **RSI Divergence** | Confirmed shift | +/- 15 |
 
-### Step B — RSI Override
-| RSI State | Score Δ | Decision Change |
+### Action Layer Mapping
+| Score Range | Decision | Action |
 |---|---|---|
-| Overbought (>70) | -15 | BUY → HOLD |
-| Oversold (<30) | +15 | Any → WATCH |
+| 80 - 100 | **STRONG BUY** | Initiate long position with high conviction |
+| 65 - 79 | **BUY** | Look for entry on minor pullbacks |
+| 45 - 64 | **HOLD** | Maintain current position; monitor trend |
+| < 45 | **REDUCE / WATCH** | Trim exposure or wait for clarity |
 
-### Step C — Edge: Volume Spike without Breakout (non-Bullish)
-- Score +5. No decision change. Flags unusual accumulation/distribution.
-
-### Step D — Clamp
-`score = max(0, min(100, int(score)))`
 
 ---
 

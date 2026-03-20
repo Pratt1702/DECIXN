@@ -74,7 +74,7 @@ export function Navbar() {
             className="flex cursor-pointer items-center gap-3 group" 
             onClick={() => navigate("/")}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#b1fc03] shadow-[0_0_15px_rgba(177,252,3,0.4)] group-hover:scale-105 group-active:scale-95 transition-all duration-300">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent group-hover:scale-105 group-active:scale-95 transition-all duration-300">
               <span className="font-heading font-bold text-black text-lg">E</span>
             </div>
             <span className="text-xl font-heading font-bold tracking-wider text-text-bold group-hover:text-white transition-colors">ETMarkets</span>
@@ -83,13 +83,13 @@ export function Navbar() {
           <div className="hidden ml-4 md:flex space-x-6">
             <button 
               onClick={() => navigate("/holdings")} 
-              className={`text-sm tracking-wide transition-all font-medium py-1.5 px-3 rounded-lg hover:bg-white/5 active:scale-95 ${location.pathname.includes("holdings") ? "text-[#b1fc03] bg-[rgba(177,252,3,0.1)]" : "text-text-muted hover:text-text-bold"}`}
+              className={`text-sm tracking-wide transition-all font-medium py-1.5 px-3 rounded-lg hover:bg-white/5 active:scale-95 ${location.pathname.includes("holdings") ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-bold"}`}
             >
               Holdings
             </button>
             <button 
               onClick={() => navigate("/nudges")} 
-              className={`text-sm tracking-wide transition-all font-medium py-1.5 px-3 rounded-lg hover:bg-white/5 active:scale-95 ${location.pathname.includes("nudges") ? "text-[#b1fc03] bg-[rgba(177,252,3,0.1)]" : "text-text-muted hover:text-text-bold"}`}
+              className={`text-sm tracking-wide transition-all font-medium py-1.5 px-3 rounded-lg hover:bg-white/5 active:scale-95 ${location.pathname.includes("nudges") ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-bold"}`}
             >
               Nudges
             </button>
@@ -99,17 +99,17 @@ export function Navbar() {
         {/* Middle Section: Centered Search */}
         <div className="flex-1 flex justify-center px-8" ref={dropdownRef}>
           <form onSubmit={handleSearch} className="relative flex w-full max-w-2xl items-center group">
-            <Search className="absolute left-3 h-4 w-4 text-text-muted group-focus-within:text-[#b1fc03] transition-colors" />
+            <Search className="absolute left-3 h-4 w-4 text-text-muted group-focus-within:text-accent transition-colors" />
             <input
               type="text"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
               onFocus={() => { if (search.trim()) setShowDropdown(true); }}
               placeholder="Search stocks..."
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-text-bold placeholder-text-muted outline-none focus:border-[#b1fc03]/50 focus:bg-white/10 focus:shadow-[0_0_15px_rgba(177,252,3,0.1)] transition-all duration-300 font-sans"
+              className="h-9 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-text-bold placeholder-text-muted outline-none focus:ring-2 focus:ring-accent focus:border-transparent focus:bg-white/10 transition-all duration-300 font-sans"
             />
             {isSearching && (
-              <Loader2 className="absolute right-3 h-4 w-4 text-[#b1fc03] animate-spin" />
+              <Loader2 className="absolute right-3 h-4 w-4 text-accent animate-spin" />
             )}
             
             {showDropdown && search.trim() && (
@@ -123,7 +123,7 @@ export function Navbar() {
                         className="flex justify-between items-center px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 transition-colors"
                       >
                          <span className="font-semibold text-text-bold truncate mr-4 text-sm">{s.name}</span>
-                         <span className="text-xs font-mono font-bold text-[#b1fc03] bg-[rgba(177,252,3,0.1)] px-2 py-0.5 rounded shrink-0">{s.symbol.replace('.NS', '').replace('.BO','')}</span>
+                         <span className="text-xs font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded shrink-0">{s.symbol.replace('.NS', '').replace('.BO','')}</span>
                       </div>
                     ))}
                   </div>
@@ -137,13 +137,13 @@ export function Navbar() {
 
         {/* Right Section: Icons */}
         <div className="flex items-center justify-end gap-5 text-text-muted shrink-0">
-          <button className="hover:text-[#b1fc03] hover:scale-110 active:scale-95 transition-all duration-300">
+          <button className="hover:text-accent hover:scale-110 active:scale-95 transition-all duration-300">
              <Bell className="h-5 w-5" />
           </button>
-          <button className="hover:text-[#b1fc03] hover:scale-110 active:scale-95 transition-all duration-300">
+          <button className="hover:text-accent hover:scale-110 active:scale-95 transition-all duration-300">
              <Settings className="h-5 w-5" />
           </button>
-          <div className="h-9 w-9 overflow-hidden rounded-xl bg-bg-surface border border-white/10 shadow-sm cursor-pointer hover:border-[#b1fc03]/50 hover:shadow-[0_0_10px_rgba(177,252,3,0.2)] transition-all duration-300 active:scale-95">
+          <div className="h-9 w-9 overflow-hidden rounded-xl bg-bg-surface border border-white/10 cursor-pointer hover:border-accent transition-all duration-300 active:scale-95">
             <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Felix`} alt="User" className="w-full h-full object-cover" />
           </div>
         </div>

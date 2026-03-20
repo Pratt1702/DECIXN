@@ -68,8 +68,8 @@ export function StockDetails() {
   if (data?.error) {
     return (
       <div className="flex flex-col h-[80vh] items-center justify-center space-y-5 text-center px-4">
-        <div className="w-20 h-20 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
-            <AlertTriangle className="w-10 h-10 text-rose-500" />
+        <div className="w-20 h-20 rounded-full bg-danger/10 flex items-center justify-center border border-danger/20">
+            <AlertTriangle className="w-10 h-10 text-danger" />
         </div>
         <div>
             <h2 className="text-3xl font-bold text-text-bold mb-2">Stock Not Found</h2>
@@ -100,7 +100,7 @@ export function StockDetails() {
   }
 
   const isPos = priceChange >= 0;
-  const strokeColor = isPos ? "#10b981" : "#f43f5e"; // emerald-500 or rose-500
+  const strokeColor = isPos ? "#10b981" : "#f43f5e"; // success or danger
 
   return (
     <motion.div 
@@ -119,7 +119,7 @@ export function StockDetails() {
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-heading font-black tracking-tight text-text-bold drop-shadow-sm truncate max-w-full">
                {data?.companyName || data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker?.replace('.NS', '').replace('.BO', '')}
             </h1>
-            <span className="bg-[rgba(177,252,3,0.1)] text-[#b1fc03] border border-[#b1fc03]/20 px-3 py-1 rounded-full text-sm md:text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
+            <span className="bg-accent/10 text-accent border border-accent/20 px-3 py-1 rounded-full text-sm md:text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
                {data?.symbol?.replace('.NS', '').replace('.BO', '') || ticker?.replace('.NS', '').replace('.BO', '')}
             </span>
         </div>
@@ -135,10 +135,32 @@ export function StockDetails() {
               <p className="text-4xl font-bold tracking-tight text-text-bold">
                 ₹{currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
               </p>
-              <div className={`flex items-center gap-1.5 font-medium mt-1 text-sm ${isPos ? 'text-emerald-500' : 'text-rose-500'}`}>
+              <div className={`flex items-center gap-1.5 font-medium mt-1 text-sm ${isPos ? 'text-success' : 'text-danger'}`}>
                 <span>{isPos ? '+' : ''}{priceChange.toFixed(2)} ({isPos ? '+' : ''}{priceChangePct.toFixed(2)}%)</span>
                 <span className="text-text-muted ml-1">{period}</span>
               </div>
+              
+              {/* Core Fundamentals Badge Row */}
+              {data?.fundamentals && (
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 px-1">
+                  <div className="flex items-center gap-1.5 text-sm">
+                     <span className="text-text-muted font-medium">P/E:</span>
+                     <span className="font-bold font-mono tracking-wide text-accent">{data.fundamentals.pe_ratio?.toFixed(2) || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                     <span className="text-text-muted font-medium">RSI:</span>
+                     <span className={`font-bold font-mono tracking-wide ${data.indicators?.rsi_14 > 70 ? 'text-danger' : data.indicators?.rsi_14 < 30 ? 'text-success' : 'text-white'}`}>{data.indicators?.rsi_14?.toFixed(2) || '-'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                     <span className="text-text-muted font-medium">MACD:</span>
+                     <span className={`font-bold font-mono tracking-wide ${data.indicators?.macd?.MACD_Line > 0 ? 'text-success' : 'text-danger'}`}>{data.indicators?.macd?.MACD_Line > 0 ? '+' : ''}{data.indicators?.macd?.MACD_Line?.toFixed(2) || '-'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                     <span className="text-text-muted font-medium">Beta:</span>
+                     <span className="font-bold font-mono tracking-wide text-white">{data.fundamentals.beta?.toFixed(2) || '-'}</span>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

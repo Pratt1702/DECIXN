@@ -47,7 +47,7 @@ export function Nudges() {
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-info" />
       </div>
     );
   }
@@ -78,7 +78,7 @@ export function Nudges() {
                if (!dec.includes("CUT") && !dec.includes("RIDE") && !dec.includes("AVERAGE") && !dec.includes("BOOK")) return null;
                
                const isRed = dec.includes("CUT") || dec.includes("REDUCE");
-               const badgeClr = isRed ? "bg-rose-500/10 text-rose-500 border-rose-500/20" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+               const badgeClr = isRed ? "bg-danger/10 text-danger border-danger/20" : "bg-success/10 text-success border-success/20";
                
                return (
                  <div key={i} className="bg-bg-surface border border-border-main p-6 rounded-xl shadow-sm hover:border-[#4b5563] transition-colors cursor-pointer group" onClick={() => navigate(`/stock/${item.symbol}`)}>

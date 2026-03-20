@@ -7,6 +7,11 @@
   --color-border-main: var(--border);
   --color-text-muted: var(--text);
   --color-text-bold: var(--text-h);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-secondary: var(--secondary);
 }
 
 :root {
@@ -15,7 +20,11 @@
   --bg: #0a0a0a; /* Very dark background */
   --surface: #121212; /* Slightly Elevated for cards */
   --border: #222222; /* Subtle borders */
-  --accent: #b1fc03;
+  --accent: #50ffa7;
+  --success: #10b981;
+  --danger: #e13451;
+  --info: #818cf8;
+  --secondary: #38bdf8;
 
   --sans: 'Noto Sans', system-ui, -apple-system, sans-serif;
   --heading: 'Noto Sans', sans-serif;

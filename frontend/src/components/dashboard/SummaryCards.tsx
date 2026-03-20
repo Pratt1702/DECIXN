@@ -12,23 +12,23 @@ export function SummaryCards({ invested, current, pnl }: SummaryProps) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500 group">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-accent/20 transition-all duration-500 group">
         <h3 className="text-sm font-medium text-text-muted">Current Value</h3>
         <p className="mt-2 text-3xl font-bold tracking-tight text-text-bold">₹{current.toLocaleString('en-IN')}</p>
       </motion.div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500 group">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-accent/20 transition-all duration-500 group">
         <h3 className="text-sm font-medium text-text-muted">Invested Value</h3>
         <p className="mt-2 text-3xl font-bold tracking-tight text-text-bold">₹{invested.toLocaleString('en-IN')}</p>
       </motion.div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500 group">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-accent/20 transition-all duration-500 group">
         <h3 className="text-sm font-medium text-text-muted">Total Returns</h3>
-        <p className={`mt-2 text-3xl font-bold tracking-tight ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+        <p className={`mt-2 text-3xl font-bold tracking-tight ${isPositive ? 'text-success' : 'text-danger'}`}>
           {isPositive ? '+' : '-'}₹{Math.abs(pnl).toLocaleString('en-IN')}
         </p>
       </motion.div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-[#b1fc03]/20 transition-all duration-500 group">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="rounded-2xl border border-white/5 bg-[#121212]/40 backdrop-blur-xl p-6 shadow-lg hover:border-accent/20 transition-all duration-500 group">
         <h3 className="text-sm font-medium text-text-muted">Returns (%)</h3>
-        <p className={`mt-2 text-3xl font-bold tracking-tight ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+        <p className={`mt-2 text-3xl font-bold tracking-tight ${isPositive ? 'text-success' : 'text-danger'}`}>
           {isPositive ? '+' : ''}{pnlPct.toFixed(2)}%
         </p>
       </motion.div>

@@ -168,7 +168,7 @@ export function StockDetails() {
   return (
     <div
       ref={containerRef}
-      className="space-y-10 max-w-4xl mx-auto pb-12 overflow-hidden"
+      className="space-y-10 max-w-4xl mx-auto pb-12"
     >
       <button
         onClick={() => navigate(-1)}

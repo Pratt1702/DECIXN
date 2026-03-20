@@ -228,7 +228,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
               </thead>
               <tbody className="divide-y divide-border-main text-[#f3f4f6]">
                 <tr className="hover:bg-white/5 transition-colors">
-                  <td className="px-5 py-4 font-medium uppercase tracking-wider">
+                  <td className="px-5 py-4 font-medium">
                     RSI (14)
                   </td>
                   <td className="px-5 py-4 text-right font-bold font-mono">
@@ -245,7 +245,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
                   </td>
                 </tr>
                 <tr className="hover:bg-white/5 transition-colors">
-                  <td className="px-5 py-4 font-medium uppercase tracking-wider">
+                  <td className="px-5 py-4 font-medium">
                     MACD
                   </td>
                   <td className="px-5 py-4 text-right font-bold font-mono">
@@ -259,13 +259,13 @@ export function TechnicalIndicators({ data }: { data: any }) {
                   </td>
                 </tr>
                 <tr className="hover:bg-white/5 transition-colors border-b-0">
-                  <td className="px-5 py-4 font-medium uppercase tracking-wider">
+                  <td className="px-5 py-4 font-medium">
                     Volatility (Beta)
                   </td>
                   <td className="px-5 py-4 text-right font-bold font-mono">
                     {beta.toFixed(2)}
                   </td>
-                  <td className="px-5 py-4 text-right font-bold text-text-muted uppercase tracking-tighter">
+                  <td className="px-5 py-4 text-right font-bold text-text-muted">
                     Neutral
                   </td>
                 </tr>

@@ -36,6 +36,7 @@ export function StockDetails() {
     async function fetchTicker() {
       if (!ticker) return;
       setLoading(true);
+      setData(null);
       try {
         const res = await getTickerAnalysis(ticker); 
         setData({
@@ -61,14 +62,7 @@ export function StockDetails() {
     fetchTicker();
   }, [ticker]);
 
-  if (loading && !data) {
-    return (
-      <div className="flex flex-col h-[60vh] items-center justify-center space-y-4">
-        <Loader2 className="w-8 h-8 animate-spin text-[#d1d5db]" />
-        <p className="text-text-muted animate-pulse">Analyzing real-time market data...</p>
-      </div>
-    );
-  }
+  // Skeletons are now rendered inline below for better perceived performance.
 
   if (data?.error) {
     return (
@@ -123,39 +117,55 @@ export function StockDetails() {
         <h1 className="text-3xl font-bold tracking-tight text-text-bold">{data?.symbol?.replace('.NS', '') || ticker}</h1>
         
         <div className="mt-2">
-          <p className="text-4xl font-bold tracking-tight text-text-bold">
-            ₹{currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-          </p>
-          <div className={`flex items-center gap-1.5 font-medium mt-1 text-sm ${isPos ? 'text-emerald-500' : 'text-rose-500'}`}>
-            <span>{isPos ? '+' : ''}{priceChange.toFixed(2)} ({isPos ? '+' : ''}{priceChangePct.toFixed(2)}%)</span>
-            <span className="text-text-muted ml-1">{period}</span>
-          </div>
+          {loading && !data ? (
+            <div className="space-y-4 py-2">
+              <div className="h-10 w-32 bg-border-main/40 animate-pulse rounded-md"></div>
+              <div className="h-5 w-48 bg-border-main/40 animate-pulse rounded-md"></div>
+            </div>
+          ) : (
+            <>
+              <p className="text-4xl font-bold tracking-tight text-text-bold">
+                ₹{currentPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              </p>
+              <div className={`flex items-center gap-1.5 font-medium mt-1 text-sm ${isPos ? 'text-emerald-500' : 'text-rose-500'}`}>
+                <span>{isPos ? '+' : ''}{priceChange.toFixed(2)} ({isPos ? '+' : ''}{priceChangePct.toFixed(2)}%)</span>
+                <span className="text-text-muted ml-1">{period}</span>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
       {/* Interactive Chart Area */}
       <div className="border-b border-border-main pb-4 mt-8">
           <div className="h-72 sm:h-80 w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={currentChart}>
-                <YAxis domain={['dataMin', 'dataMax']} hide />
-                <Tooltip 
-                  content={<CustomTooltip />} 
-                  cursor={{ stroke: '#2e303a', strokeWidth: 1, strokeDasharray: "4 4" }} 
-                  isAnimationActive={false}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="price" 
-                  stroke={strokeColor} 
-                  strokeWidth={2} 
-                  dot={false}
-                  activeDot={{ r: 4, fill: strokeColor, stroke: '#121212', strokeWidth: 2 }}
-                  isAnimationActive={true}
-                  animationDuration={1500}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {loading && !data ? (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-bg-surface/50 animate-pulse rounded-xl border border-border-main/40">
+                 <Loader2 className="w-8 h-8 animate-spin text-text-muted/40 mb-3" />
+                 <span className="text-sm text-text-muted">Loading chart data...</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={currentChart}>
+                  <YAxis domain={['dataMin', 'dataMax']} hide />
+                  <Tooltip 
+                    content={<CustomTooltip />} 
+                    cursor={{ stroke: '#2e303a', strokeWidth: 1, strokeDasharray: "4 4" }} 
+                    isAnimationActive={false}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="price" 
+                    stroke={strokeColor} 
+                    strokeWidth={2} 
+                    dot={false}
+                    activeDot={{ r: 4, fill: strokeColor, stroke: '#121212', strokeWidth: 2 }}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
           
           {/* Ranges Selection */}
@@ -180,8 +190,17 @@ export function StockDetails() {
       </div>
 
       <div className="pt-2">
-          <AIIntelligencePanel data={data} />
-          <TechnicalIndicators data={data} />
+          {loading && !data ? (
+             <div className="space-y-6 mt-4">
+                 <div className="h-44 w-full bg-border-main/30 animate-pulse rounded-xl border border-border-main/20"></div>
+                 <div className="h-72 w-full bg-border-main/30 animate-pulse rounded-xl border border-border-main/20"></div>
+             </div>
+          ) : (
+             <>
+                 <AIIntelligencePanel data={data} />
+                 <TechnicalIndicators data={data} />
+             </>
+          )}
       </div>
     </motion.div>
   );

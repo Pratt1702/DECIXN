@@ -107,26 +107,38 @@ def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     elif cut_losses_count > 0:
         health = "Fair"
 
-    # Dynamic Insight Generation
-    if bearish_count > bullish_count and bad_stocks:
-        if len(bad_stocks) > 1:
-            bad_str = f"{' and '.join(bad_stocks[:2])} together represent {round(bad_stocks_weights)}% of capital"
+    # 11. Dynamic Insight Generation (Realistic & Grounded)
+    if total_pnl < -1000:  # Significant loss
+        bad_count = len([r for r in results if r['holding_context']['current_pnl'] < 0])
+        insight = f"Portfolio is underwater (₹{abs(total_pnl):.0f} loss). {bad_count} of {len(results)} positions are currently losing value."
+        if trapped_capital_pct > 30:
+            insight += f" Efficient capital is low ({working_capital_pct}%); consider rotating out of laggards."
+    
+    elif bearish_count > bullish_count:
+        if bad_stocks:
+            if len(bad_stocks) > 1:
+                bad_str = f"{' and '.join(bad_stocks[:2])} together represent {round(bad_stocks_weights)}% of capital"
+            else:
+                bad_str = f"{bad_stocks[0]} represents {round(bad_stocks_weights)}% of capital"
+            insight = f"{bearish_count} of {len(results)} holdings are in confirmed downtrends. {bad_str} — consider de-risking these positions."
         else:
-            bad_str = f"{bad_stocks[0]} represents {round(bad_stocks_weights)}% of capital"
-        insight = f"{bearish_count} of {len(results)} holdings are in confirmed downtrends. {bad_str} — consider de-risking these positions first."
+            insight = f"Market momentum is weak across {bearish_count} holdings. Stability is key — wait for trend reversals."
+
     elif bullish_count > bearish_count:
-        insight = f"{bullish_count} of {len(results)} holdings are riding bullish trends. Capital is working efficiently."
+        insight = f"{bullish_count} of {len(results)} holdings are riding bullish trends. Capital efficiency is high ({working_capital_pct}%)."
+    
     elif cut_losses_count > 0:
         insight = f"Mixed performance with some dragging assets. Consider reviewing {bad_stocks[0]}." if bad_stocks else "Mixed performance with some dragging assets."
+    
     else:
         insight = "Portfolio is stable and assets are trending well."
 
     bad_str = f" like {', '.join(bad_stocks[:2])}" if bad_stocks else ""
 
-    if len(results) > 0 and (cut_losses_count / len(results)) >= 0.4:
+    if len(results) > 0 and (cut_losses_count / len(results)) >= 0.3:
         risk_level = "High"
         recommendations.append(f"High urgency: Cut losses in deeply bearish stocks{bad_str} to preserve capital.")
-    elif cut_losses_count > 0:
+    elif cut_losses_count > 0 or total_pnl < -5000:
         risk_level = "Medium"
         recommendations.append(f"Consider trimming exposure to assets in confirmed downtrends{bad_str}.")
 

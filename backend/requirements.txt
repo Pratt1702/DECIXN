@@ -3,3 +3,6 @@ pandas
 numpy
 fastapi
 uvicorn
+httpx
+beautifulsoup4
+lxml

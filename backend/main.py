@@ -6,6 +6,7 @@ from market_intelligence import analyze_single_ticker, analyze_single_holding, g
 import csv
 import os
 import requests
+import yfinance as yf
 
 app = FastAPI(
     title="Market Intelligence Engine API",

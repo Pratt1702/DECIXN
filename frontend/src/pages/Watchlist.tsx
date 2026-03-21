@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { getBatchQuotes } from "../services/api";
-import { Loader2, Plus, Edit2, Bookmark, ArrowRight, Search } from "lucide-react";
+import { Loader2, Plus, Edit2, Bookmark, ArrowRight, Search, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
+import { AddStockModal } from "../components/dashboard/AddStockModal";
 
 export function Watchlist() {
   const { watchlists, items, loading: storeLoading, fetchWatchlists } = useWatchlistStore();
@@ -16,6 +17,12 @@ export function Watchlist() {
   const [search, setSearch] = useState("");
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [watchlistData, setWatchlistData] = useState<any[]>([]);
+
+  // Modals & Inline Creation
+  const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const { createWatchlist } = useWatchlistStore();
 
   useEffect(() => {
     if (user) fetchWatchlists(user.id);
@@ -117,6 +124,48 @@ export function Watchlist() {
                 </button>
               );
             })}
+            
+            {/* INLINE NEW WATCHLIST CREATOR */}
+            {isCreatingList ? (
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b-[3px] border-transparent">
+                <input
+                  type="text"
+                  autoFocus
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  placeholder="List name..."
+                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm font-bold text-text-bold focus:outline-none focus:border-accent/50 focus:bg-white/10 w-36 transition-all placeholder:text-[#9ca3af]/50"
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter" && newListName.trim() && user) {
+                      const newList = await createWatchlist(user.id, newListName.trim());
+                      if (newList) setActiveTab(newList.id);
+                      setIsCreatingList(false);
+                      setNewListName("");
+                    }
+                    if (e.key === "Escape") {
+                      setIsCreatingList(false);
+                      setNewListName("");
+                    }
+                  }}
+                />
+                <button 
+                  onClick={() => {
+                    setIsCreatingList(false);
+                    setNewListName("");
+                  }}
+                  className="p-1.5 text-text-muted hover:text-white hover:bg-white/10 transition-colors border border-transparent rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsCreatingList(true)}
+                className="px-4 py-3 text-sm font-bold text-text-muted hover:text-text-bold hover:bg-white/5 transition-all flex items-center gap-2 border-b-[3px] border-transparent"
+              >
+                <Plus className="w-4 h-4" /> Watchlist
+              </button>
+            )}
           </div>
 
           {/* TOOLBAR */}
@@ -134,8 +183,9 @@ export function Watchlist() {
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <button 
-                onClick={() => navigate("/explore")}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all"
+                onClick={() => setIsAddStockModalOpen(true)}
+                disabled={!activeTab}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4 text-text-muted" /> Add stocks
               </button>
@@ -281,6 +331,13 @@ export function Watchlist() {
           </div>
         </div>
       )}
+
+      {/* MODALS */}
+      <AddStockModal 
+        isOpen={isAddStockModalOpen} 
+        onClose={() => setIsAddStockModalOpen(false)} 
+        watchlistId={activeTab} 
+      />
     </motion.div>
   );
 }

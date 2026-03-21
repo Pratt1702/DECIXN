@@ -334,6 +334,23 @@ export function Insights() {
                           )}
 
                         </div>
+                        <div className="flex gap-6 mt-4 pt-3 border-t border-white/5">
+                           <div className="flex flex-col gap-1">
+                              <span className="text-[9px] text-text-muted uppercase tracking-widest font-bold">Avg Cost</span>
+                              <span className="text-sm font-black text-[#e5e7eb]">₹{item.holding_context?.avg_cost?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</span>
+                           </div>
+                           <div className="flex flex-col gap-1">
+                              <span className="text-[9px] text-text-muted uppercase tracking-widest font-bold">LTP</span>
+                              <span className="text-sm font-black text-[#e5e7eb]">₹{item.data?.price?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</span>
+                           </div>
+                           <div className="flex flex-col gap-1">
+                              <span className="text-[9px] text-text-muted uppercase tracking-widest font-bold">Return</span>
+                              <span className={`text-sm font-black ${item.holding_context?.pnl_pct >= 0 ? 'text-success' : 'text-danger'}`}>
+                                 {item.holding_context?.pnl_pct > 0 ? '+' : ''}{item.holding_context?.pnl_pct?.toFixed(2) || '0.00'}%
+                              </span>
+                           </div>
+                        </div>
+
                       </div>
                       <div className="flex flex-col items-end">
                         <span
@@ -341,7 +358,7 @@ export function Insights() {
                         >
                           {item.data?.severity && item.data.severity !== 'MODERATE' ? `${item.data.severity} ` : ''}{dec}
                         </span>
-                        {item.data?.portfolio_tag && (
+                        {item.data?.portfolio_tag && item.data.portfolio_tag !== 'NEUTRAL' && (
                            <span className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${item.data.portfolio_tag.includes('TOP') ? 'text-success' : 'text-danger'}`}>
                               {item.data.portfolio_tag}
                            </span>
@@ -367,29 +384,31 @@ export function Insights() {
                         </div>
                       )}
 
-                      <div>
-                        <div className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mb-3">Analysis</div>
-                        <ul className="space-y-2.5">
-                          {item.data?.pattern && item.data.pattern !== 'None' && (
-                             <li className="flex gap-3 text-sm">
-                                <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-white/60" />
-                                <span className="text-text-muted">Pattern Detected:</span>
-                                <span className={`font-bold ${item.data.pattern.includes('Breakout') || item.data.pattern.includes('Reversal') ? 'text-success' : 'text-danger'}`}>
-                                   {item.data.pattern}
-                                </span>
-                             </li>
-                          )}
-                          {item.data?.reasons?.map((r: string, idx: number) => (
-                            <li
-                              key={idx}
-                              className="flex gap-3 text-sm text-[#9ca3af]"
-                            >
-                              <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              {r}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      {((item.data?.pattern && item.data.pattern !== 'None' && item.data.pattern !== 'None Detected') || (item.data?.reasons?.length > 0)) && (
+                        <div>
+                          <div className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mb-3">Analysis</div>
+                          <ul className="space-y-2.5">
+                            {item.data?.pattern && item.data.pattern !== 'None' && item.data.pattern !== 'None Detected' && (
+                               <li className="flex gap-3 text-sm">
+                                  <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-white/60" />
+                                  <span className="text-text-muted">Pattern Detected:</span>
+                                  <span className={`font-bold ${item.data.pattern.includes('Breakout') || item.data.pattern.includes('Reversal') ? 'text-success' : 'text-danger'}`}>
+                                     {item.data.pattern}
+                                  </span>
+                               </li>
+                            )}
+                            {item.data?.reasons?.map((r: string, idx: number) => (
+                              <li
+                                key={idx}
+                                className="flex gap-3 text-sm text-[#9ca3af]"
+                              >
+                                <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                {r}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 );

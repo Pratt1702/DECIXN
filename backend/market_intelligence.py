@@ -302,6 +302,13 @@ def make_decision(signals):
         "None Detected": 45
     }
     pattern = signals.get('Pattern', 'None Detected')
+    
+    # Context-aware pattern renaming
+    if pattern == "Mean Reversion (Oversold)" and signals.get('Trend') == 'Bearish':
+        pattern = "Oversold in Downtrend (High Risk)"
+    elif pattern == "Overextended (Risk Zone)" and signals.get('Trend') == 'Bullish':
+        pattern = "Overextended Uptrend (Caution)"
+
     pattern_success = success_rates.get(pattern, 45)
 
     # 1. Normalized Breakout Strength (Threshold: 3% is full strength)
@@ -333,8 +340,12 @@ def make_decision(signals):
         confluence_score -= 15
         reasons.append(f"High Risk: RSI at {rsi:.1f} (Overbought) — expect short-term exhaustion")
     elif rsi < 30:
-        confluence_score += 15
-        reasons.append(f"Opportunity: RSI at {rsi:.1f} (Oversold) — historically a recovery zone")
+        if signals['Trend'] == 'Bearish':
+            confluence_score += 5
+            reasons.append(f"Oversold Bounce Risk: RSI at {rsi:.1f}, but strong bearish structure typically overwrites recovery odds. Proceed with caution.")
+        else:
+            confluence_score += 15
+            reasons.append(f"Opportunity: RSI at {rsi:.1f} (Oversold) — historically a high-probability recovery zone.")
     
     # 4. Trend & MA Proximity (Pullback logic)
     dist_ma20 = signals.get('Dist_MA20', 0)
@@ -394,6 +405,8 @@ def make_decision(signals):
 
     # Actionable Watch Condition
     watch_desc = f"{signals['Watch_Type']} at ₹{signals['Watch_Price']:.2f}"
+    
+    action = f"Observe price action around key levels. {watch_desc}."
 
     if score >= 78:
         decision = "STRONG BUY"
@@ -475,8 +488,8 @@ def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty
             priority = "LOW"
         elif trend == 'Bearish':
             decision = "REDUCE / EXIT"
-            reasons.append(f"Defined downtrend ({trend_days} days). Capital preservation is priority.")
-            action = "Sell to preserve remaining capital. Do NOT average down in a bearish trend."
+            reasons.append("Capital preservation is priority. Consider reducing exposure to limit drawdowns.")
+            action = "Sell to preserve remaining capital. Do NOT average down against a confirmed technical downtrend."
             priority = "HIGH" # Exit signals always High Priority
             risk_level = "HIGH"
 
@@ -804,7 +817,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
 
 
                 "risk_tag": risk_tag,
-                "reasons": reasons,
+                "reasons": mkt_reasons + reasons,
 
                 "benchmark_comparison": benchmark_comparison,
                 "signals": {

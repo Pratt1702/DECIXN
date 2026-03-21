@@ -94,12 +94,20 @@ Based on momentum slope and pattern:
 - **Positional Trend**: Steady trend-following setup.
 
 ### Action Layer Mapping
-| Score Range | Priority | Decision | Action |
+| Score Range | Priority | Decision | Action & Severity |
 |---|---|---|---|
 | 78 - 100 | **HIGH** | **STRONG BUY** | Initiate position for specific Trade Type. |
 | 65 - 77 | **MEDIUM**| **BUY** | Add on pullbacks for established strategy. |
 | 45 - 64 | **LOW**   | **HOLD** | Monitor sustainability; no new entry signal. |
-| < 30    | **HIGH**  | **REDUCE** | Exit or hedge; bearish pressure too high. |
+| 30 - 44 | **LOW**   | **WATCH** | Observe price action around key levels; neutral gap zone. |
+| 15 - 29 | **HIGH**  | **REDUCE / SELL** | Exit or hedge. Assigned **STRONG** Severity. |
+| < 15    | **HIGH**  | **REDUCE / SELL** | Capital destruction risk. Assigned **CRITICAL** Severity. |
+
+### Context-Aware Pattern Translation
+The AI pattern engine is structurally aware of trend paradigms and prevents contradictory signals (e.g., calling an oversold collapse a "Buy"). It actively renames outputs dynamically:
+- `Mean Reversion (Oversold)` + `Bearish Trend` → **"Oversold in Downtrend (High Risk)"**
+- `Overextended (Risk Zone)` + `Bullish Trend` → **"Overextended Uptrend (Caution)"**
+Furthermore, RSI Oversold opportunities dynamically switch from "Historically high-probability" to "Strong bearish structure overwrites recovery odds" based on momentum context.
 
 
 ---
@@ -140,6 +148,16 @@ The engine separates **Potential** (Priority) from **Danger** (Risk).
 - **HIGH RISK**: Triggered by **Volatility Spikes** (ATR > 4.5% of price) or **Fatal Overextension** (Price > 8% away from MA20).
 - **MEDIUM RISK**: Triggered by **Overbought RSI** or **Trend Reversal** on moderate volume.
 - **LOW RISK**: Controlled volatility with price hugging key moving averages.
+
+### Severity Layer
+- Differentiates urgency within "SELL" and "REDUCE" classifications.
+- Defines if an exit should be orchestrated gracefully (**MODERATE**), promptly (**STRONG**), or immediately due to broken structures (**CRITICAL**).
+
+### Portfolio Context Tagging
+- Flags severe capital deviations to highlight portfolio contributors automatically.
+- **TOP PERFORMER**: Total PnL strictly > +15%.
+- **DRAGGING PORTFOLIO**: Total PnL strictly < -15%.
+- Defaults to **NEUTRAL** (and is omitted from UI visually) for non-outliers.
 
 ---
 
@@ -212,9 +230,12 @@ Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list o
       },
       "data": {
         "price": 74.71, "trend": "Bearish",
-        "portfolio_decision": "CUT LOSSES / REDUCE",
-        "urgency_score": "HIGH", "risk_tag": "HIGH",
-        "reasons": ["...", "..."],
+        "portfolio_decision": "REDUCE / EXIT",
+        "portfolio_action": "Sell to preserve remaining capital.",
+        "urgency_score": "HIGH", "risk_tag": "HIGH", "severity": "STRONG",
+        "portfolio_tag": "DRAGGING PORTFOLIO",
+        "watch_condition": "Support at MA20 at ₹71.20",
+        "reasons": ["AI Alert: Oversold BUT still in strong downtrend...", "Defined downtrend (27 days). Capital preservation is priority."],
         "benchmark_comparison": { "relative_strength": -12.4, "status": "UNDERPERFORMING" },
         "signals": { "breakout": false, "volume_spike": false, "overbought": false, "oversold": false, "trend_days": 5 }
       }

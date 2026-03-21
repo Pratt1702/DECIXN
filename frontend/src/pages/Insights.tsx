@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
+import { usePortfolioStore } from "../store/usePortfolioStore";
 
 const SESSION_KEY = "uploaded_holdings";
 
@@ -159,40 +160,104 @@ export function Insights() {
   }, []);
 
   const navigate = useNavigate();
-  const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
-
+  const {
+    setData: setStoreData,
+    shouldRefresh,
+    data: cachedData,
+  } = usePortfolioStore();
+  const [progress, setProgress] = useState<{ current: number; total: number }>({
+    current: 0,
+    total: 0,
+  });
   useEffect(() => {
+    let interval: any = null;
+    let isMounted = true;
+
     async function fetchHoldings() {
-      let interval: any = null;
       try {
         const sessionData = sessionStorage.getItem(SESSION_KEY);
+
+        // Setup Animation Synchronization
+        let animatedCurrent = 0;
+        let animationTarget = 0;
+        let animationCompleteResolve: () => void;
+        const animationPromise = new Promise<void>((resolve) => {
+          animationCompleteResolve = resolve;
+        });
+
+        const startAnimation = (total: number) => {
+          animationTarget = total;
+          if (total === 0) {
+            animationCompleteResolve();
+            return;
+          }
+          interval = setInterval(() => {
+            animatedCurrent += 5;
+            setProgress({
+              current: Math.min(animatedCurrent, animationTarget),
+              total: animationTarget,
+            });
+            if (animatedCurrent >= animationTarget) {
+              clearInterval(interval);
+              animationCompleteResolve();
+            }
+          }, 1000);
+        };
+
         if (sessionData && sessionData !== "undefined") {
           const parsed = JSON.parse(sessionData);
-          setProgress({ current: 0, total: parsed.length });
-          
-          interval = setInterval(() => {
-            setProgress(prev => {
-              const next = prev.current + 5;
-              return { ...prev, current: Math.min(next, prev.total) };
-            });
-          }, 800);
+          const currentHash =
+            sessionData.length.toString() + (parsed[0]?.symbol || "");
 
-          const res = await analyzeCustomPortfolio(parsed);
-          setData(res);
+          if (!shouldRefresh(currentHash) && cachedData) {
+            setData(cachedData);
+            setLoading(false);
+            return;
+          }
+
+          setLoading(true);
+          startAnimation(parsed.length);
+
+          const dataPromise = analyzeCustomPortfolio(parsed);
+
+          // WAIT FOR BOTH: API and Animation
+          const [res] = await Promise.all([dataPromise, animationPromise]);
+
+          if (isMounted) {
+            setData(res);
+            setStoreData(res, currentHash);
+          }
         } else {
+          // Standard load
+          if (!shouldRefresh() && cachedData) {
+            setData(cachedData);
+            setLoading(false);
+            return;
+          }
+
+          setLoading(true);
           const res = await getPortfolio();
-          setData(res);
+          if (isMounted) {
+            setData(res);
+            setStoreData(res);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch, using mock data for demo", err);
-        setData(MOCK_DATA);
+        if (isMounted) setData(MOCK_DATA);
       } finally {
+        if (isMounted) setLoading(false);
         if (interval) clearInterval(interval);
-        setLoading(false);
       }
     }
+
     fetchHoldings();
-  }, []);
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [shouldRefresh, cachedData, setStoreData]);
 
   const urgencyMap: any = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
@@ -250,22 +315,27 @@ export function Insights() {
       <div className="py-32 flex flex-col justify-center items-center gap-6">
         <div className="relative">
           <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
-          <Loader2 className="w-12 h-12 animate-spin text-accent absolute top-0 left-0" style={{ animationDuration: '3s' }} />
+          <Loader2
+            className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+            style={{ animationDuration: "3s" }}
+          />
         </div>
         <div className="text-center space-y-2">
           <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
             Heavy Analysis In Progress
           </p>
           <p className="text-text-muted text-sm font-medium tracking-wide">
-            {progress.total > 0 
-              ? `Processing Batch: ${progress.current} of ${progress.total} assets analyzed...` 
+            {progress.total > 0
+              ? `Processing Batch: ${Math.floor(progress.current)} of ${progress.total} assets analyzed...`
               : "Fetching latest market signals & trend data..."}
           </p>
           {progress.total > 0 && (
             <div className="w-64 h-1.5 bg-white/5 rounded-full mx-auto mt-6 overflow-hidden border border-white/5">
-              <div 
-                className="h-full bg-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] transition-all duration-700 ease-out" 
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              <div
+                className="h-full bg-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] transition-all duration-700 ease-out"
+                style={{
+                  width: `${(progress.current / progress.total) * 100}%`,
+                }}
               />
             </div>
           )}

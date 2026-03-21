@@ -6,10 +6,13 @@ import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Trash2, BarChart3 } from "lucide-react";
 
+import { usePortfolioStore } from "../store/usePortfolioStore";
+
 const SESSION_KEY = "uploaded_holdings";
 
 export function Holdings() {
   const [data, setData] = useState<any>(null);
+  const { setData: setStoreData, shouldRefresh, data: cachedData } = usePortfolioStore();
   const [loading, setLoading] = useState(true);
   const [isManual, setIsManual] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
@@ -63,20 +66,33 @@ export function Holdings() {
   const loadData = useCallback(async () => {
     const sessionData = sessionStorage.getItem(SESSION_KEY);
     
-    // Check for both null AND the literal string "undefined" which can sometimes happen
+    // Priority 1: Uploaded session data (Current CSV)
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
+        // Create a simple hash/identifier for this CSV session
+        const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
+        
+        // If store has valid, non-expired data for THIS CSV, use it
+        if (!shouldRefresh(currentHash) && cachedData) {
+          setData(cachedData);
+          setIsManual(true);
+          setLoading(false);
+          return;
+        }
+
         if (Array.isArray(parsed)) {
           const sessionSummary = sessionStorage.getItem("portfolio_summary");
           const summaryParsed = (sessionSummary && sessionSummary !== "undefined") 
             ? JSON.parse(sessionSummary) 
             : calculateSummary(parsed);
 
-          setData({
+          const result = {
             portfolio_analysis: parsed,
             portfolio_summary: summaryParsed,
-          });
+          };
+          setData(result);
+          setStoreData(result, currentHash);
           setIsManual(true);
           setLoading(false);
           return;
@@ -87,14 +103,23 @@ export function Holdings() {
       }
     }
 
+    // Priority 2: Standard API/Mock data
+    if (!shouldRefresh() && cachedData) {
+       setData(cachedData);
+       setIsManual(false);
+       setLoading(false);
+       return;
+    }
+
     try {
       setLoading(true);
       const res = await getPortfolio();
       setData(res);
+      setStoreData(res);
       setIsManual(false);
     } catch (err) {
       console.error("Failed to fetch, using mock data for demo", err);
-      const mockData = {
+      const mockResult = {
         portfolio_summary: {
           health: "Weak",
           risk_level: "High",
@@ -107,41 +132,24 @@ export function Holdings() {
         portfolio_analysis: [
           {
             symbol: "Karnataka Bank",
-            holding_context: {
-              quantity: 100,
-              avg_cost: 170.71,
-              current_value: 23132,
-              pnl_pct: 35.5,
-              current_pnl: 6061,
-            },
+            holding_context: { quantity: 100, avg_cost: 170.71, current_value: 23132, pnl_pct: 35.5, current_pnl: 6061 },
           },
           {
             symbol: "Coal India",
-            holding_context: {
-              quantity: 200,
-              avg_cost: 450,
-              current_value: 79000,
-              pnl_pct: -12.22,
-              current_pnl: -11000,
-            },
+            holding_context: { quantity: 200, avg_cost: 450, current_value: 79000, pnl_pct: -12.22, current_pnl: -11000 },
           },
           {
             symbol: "Tata Steel",
-            holding_context: {
-              quantity: 100,
-              avg_cost: 250,
-              current_value: 15000,
-              pnl_pct: -40.0,
-              current_pnl: -10000,
-            },
+            holding_context: { quantity: 100, avg_cost: 250, current_value: 15000, pnl_pct: -40.0, current_pnl: -10000 },
           },
         ],
       };
-      setData(mockData);
+      setData(mockResult);
+      setStoreData(mockResult);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [shouldRefresh, cachedData, setStoreData]);
 
   useEffect(() => {
     loadData();
@@ -151,31 +159,59 @@ export function Holdings() {
     let interval: NodeJS.Timeout | null = null;
     try {
       setLoading(true);
-      setProgress({ current: 0, total: newHoldings.length });
       
-      interval = setInterval(() => {
-        setProgress((prev: { current: number; total: number }) => ({ 
-          ...prev, 
-          current: Math.min(prev.current + 1, prev.total) 
-        }));
-      }, 1000);
+      // Setup Animation Synchronization
+      let animatedCurrent = 0;
+      const animationTarget = newHoldings.length;
+      let animationCompleteResolve: () => void;
+      const animationPromise = new Promise<void>((resolve) => {
+        animationCompleteResolve = resolve;
+      });
 
-      const res = await analyzeCustomPortfolio(newHoldings);
-      if (interval) clearInterval(interval);
+      setProgress({ current: 0, total: animationTarget });
       
+      const startAnimation = () => {
+        if (animationTarget === 0) {
+          animationCompleteResolve();
+          return;
+        }
+        interval = setInterval(() => {
+          animatedCurrent += 5;
+          setProgress({ 
+            current: Math.min(animatedCurrent, animationTarget), 
+            total: animationTarget 
+          });
+          if (animatedCurrent >= animationTarget) {
+            if (interval) clearInterval(interval);
+            animationCompleteResolve();
+          }
+        }, 1000);
+      };
+
+      startAnimation();
+
+      const dataPromise = analyzeCustomPortfolio(newHoldings);
+      
+      // WAIT FOR BOTH: API and Animation
+      const [res] = await Promise.all([dataPromise, animationPromise]);
+      
+      const currentHash = JSON.stringify(newHoldings).length.toString() + (newHoldings[0]?.symbol || "");
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(res.portfolio_analysis));
       sessionStorage.setItem("portfolio_summary", JSON.stringify(res.portfolio_summary));
+      
       setData(res);
+      setStoreData(res, currentHash);
       setIsManual(true);
     } catch (err) {
       console.error("Failed to fetch custom portfolio analysis", err);
       if (interval) clearInterval(interval);
       // Fallback to local calculation if backend fails
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
-      setData({
+      const fallback = {
         portfolio_analysis: newHoldings,
         portfolio_summary: calculateSummary(newHoldings),
-      });
+      };
+      setData(fallback);
       setIsManual(true);
     } finally {
       setLoading(false);
@@ -201,7 +237,7 @@ export function Holdings() {
           </p>
           <p className="text-text-muted text-sm font-medium tracking-wide">
             {progress.total > 0 
-              ? `Processing Asset ${progress.current} of ${progress.total}...` 
+              ? `Processing Asset ${Math.floor(progress.current)} of ${progress.total}...` 
               : "Fetching live market intelligence..."}
           </p>
           {progress.total > 0 && (

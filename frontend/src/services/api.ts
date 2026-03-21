@@ -98,8 +98,8 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
       symbol: h.symbol,
       quantity: h.holding_context.quantity,
       avg_cost: h.holding_context.avg_cost,
-      current_value: h.holding_context.current_value,
-      pnl: h.holding_context.current_pnl,
+      current_value: 0, // Recalculated by backend
+      pnl: 0,           // Recalculated by backend
     })),
   };
   const response = await apiClient.post('/analyze/portfolio', payload);

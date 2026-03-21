@@ -71,8 +71,8 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
               >
                 <td className="px-6 py-4 font-black text-text-bold tracking-tight">{h.symbol}</td>
                 <td className="px-6 py-4 text-text-muted font-bold tabular-nums">{ctx.quantity}</td>
-                <td className="px-6 py-4 text-text-muted font-bold tabular-nums">₹{ctx.avg_cost.toLocaleString("en-IN")}</td>
-                <td className="px-6 py-4 text-text-bold font-black tabular-nums">₹{ctx.current_value.toLocaleString("en-IN")}</td>
+                <td className="px-6 py-4 text-text-muted font-bold tabular-nums">₹{ctx.avg_cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="px-6 py-4 text-text-bold font-black tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className={`px-6 py-4 font-black tabular-nums ${isPos ? "text-success" : "text-danger"}`}>
                   <div className="flex items-center gap-1.5">
                     {isPos ? <ArrowUpRight className="h-4 w-4 stroke-[3]" /> : <ArrowDownRight className="h-4 w-4 stroke-[3]" />}

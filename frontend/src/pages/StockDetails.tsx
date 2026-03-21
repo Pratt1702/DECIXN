@@ -667,7 +667,7 @@ export function StockDetails() {
                       <AnimatedNumber
                         value={holdingPnlPct}
                         showPlusSign
-                        decimals={0}
+                        decimals={2}
                         className="inline-block"
                       />
                       %)

@@ -12,6 +12,22 @@ from services.decision_engine import make_decision, make_holding_decision
 
 warnings.filterwarnings('ignore')
 
+def sanitize_data(obj):
+    """Recursively clean data for JSON serialization, handling NaN and Inf."""
+    if isinstance(obj, dict):
+        return {k: sanitize_data(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_data(i) for i in obj]
+    elif isinstance(obj, (np.floating, float)):
+        if np.isnan(obj) or np.isinf(obj):
+            return 0.0
+        return float(obj)
+    elif isinstance(obj, (np.integer, int)):
+        return int(obj)
+    elif isinstance(obj, (bool, np.bool_)):
+        return bool(obj)
+    return obj
+
 def format_output(symbol, signals, decision, reasons, score, action):
     """
     5. Output Format
@@ -283,19 +299,23 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
     """
     Analyzes a holding with P&L-adjusted decisions.
     """
-    symbol = symbol.upper().replace(' ', '')
+    # Common mappings for Indian market
+    mappings = {
+        "LIT": "LT", "LNT": "LT", "L&T": "LT",
+        "M&M": "M&M", "MAM": "M&M",
+        "TATASTEEL": "TATASTEEL", "TATAPOWER": "TATAPOWER",
+        "TATA MOTORS": "TATAMOTORS", "TATAMOTORS": "TATAMOTORS",
+        "RELIANCE": "RELIANCE", "RIL": "RELIANCE",
+        "HDFC": "HDFCBANK", "HDFCBANK": "HDFCBANK",
+        "ICICI": "ICICIBANK", "ICICIBANK": "ICICIBANK",
+        "SBIN": "SBIN", "SBI": "SBIN",
+        "KOTAK": "KOTAKBANK", "KOTAKBANK": "KOTAKBANK",
+    }
+    symbol = mappings.get(symbol, symbol)
+    
     if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
         symbol += '.NS'
     symbol = symbol.upper()
-
-    def convert_numpy(obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, (bool, np.bool_)):
-            return bool(obj)
-        return obj
 
     original_symbol = symbol.replace('.NS', '').replace('.BO', '')
     symbols_to_try = [f"{original_symbol}.NS", f"{original_symbol}.BO"]
@@ -378,25 +398,25 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         urgency_score = priority 
         risk_tag = risk_level
 
-        return {
+        return sanitize_data({
             "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "holding_context": {
                 "avg_cost": avg_cost,
                 "quantity": qty,
-                "invested_value": convert_numpy(total_invested),
-                "current_value": convert_numpy(current_value),
-                "current_pnl": convert_numpy(live_pnl),
-                "pnl_pct": convert_numpy(pnl_pct),
-                "52w_low": convert_numpy(fifty_two_week_low) if fifty_two_week_low else None,
-                "52w_high": convert_numpy(fifty_two_week_high) if fifty_two_week_high else None,
+                "invested_value": total_invested,
+                "current_value": current_value,
+                "current_pnl": live_pnl,
+                "pnl_pct": pnl_pct,
+                "52w_low": fifty_two_week_low if fifty_two_week_low else None,
+                "52w_high": fifty_two_week_high if fifty_two_week_high else None,
             },
             "data": {
                 "companyName": company_name,
                 "sector": sector,
                 "industry": industry,
                 "quote_type": quote_type,
-                "price": convert_numpy(signals['Price']),
+                "price": signals['Price'],
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,
                 "portfolio_action": action,
@@ -412,27 +432,27 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "reasons": mkt_reasons + reasons,
                 "benchmark_comparison": benchmark_comparison,
                 "signals": {
-                    "breakout": convert_numpy(signals['Breakout']),
-                    "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),
-                    "volume_spike": convert_numpy(signals['Volume_Spike']),
-                    "volume_ratio": convert_numpy(signals.get('Volume_Ratio', 1.0)),
-                    "volatility_ratio": convert_numpy(signals.get('Volatility_Ratio', 0)),
-                    "overbought": convert_numpy(signals['Overbought']),
-                    "oversold": convert_numpy(signals['Oversold']),
-                    "macd_turning_bullish": convert_numpy(signals['MACD_Turning_Bullish']),
-                    "macd_turning_bearish": convert_numpy(signals['MACD_Turning_Bearish']),
-                    "trend_days": convert_numpy(signals['Trend_Days']),
-                    "trend_strength": convert_numpy(signals.get('Trend_Strength', 0)),
-                    "rsi_divergence": convert_numpy(signals.get('RSI_Divergence', False))
+                    "breakout": signals['Breakout'],
+                    "breakout_strength": signals.get('Breakout_Strength', 0),
+                    "volume_spike": signals['Volume_Spike'],
+                    "volume_ratio": signals.get('Volume_Ratio', 1.0),
+                    "volatility_ratio": signals.get('Volatility_Ratio', 0),
+                    "overbought": signals['Overbought'],
+                    "oversold": signals['Oversold'],
+                    "macd_turning_bullish": signals['MACD_Turning_Bullish'],
+                    "macd_turning_bearish": signals['MACD_Turning_Bearish'],
+                    "trend_days": signals['Trend_Days'],
+                    "trend_strength": signals.get('Trend_Strength', 0),
+                    "rsi_divergence": signals.get('RSI_Divergence', False)
                 }
             }
-        }
+        })
     except Exception as e:
-        return {
+        return sanitize_data({
             "symbol": symbol,
             "success": False,
             "error": str(e)
-        }
+        })
 
 def run_market_intelligence(stocks):
     results = {}

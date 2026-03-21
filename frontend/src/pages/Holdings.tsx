@@ -12,7 +12,7 @@ const SESSION_KEY = "uploaded_holdings";
 
 export function Holdings() {
   const [data, setData] = useState<any>(null);
-  const { setData: setStoreData, shouldRefresh, data: cachedData } = usePortfolioStore();
+  const { setData: setStoreData, shouldRefresh, data: cachedData, clearData } = usePortfolioStore();
   const [loading, setLoading] = useState(true);
   const [isManual, setIsManual] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
@@ -220,8 +220,23 @@ export function Holdings() {
   };
 
   const clearManualData = () => {
+    // 1. Clear session data
     sessionStorage.removeItem(SESSION_KEY);
-    loadData();
+    sessionStorage.removeItem("portfolio_summary");
+    
+    // 2. Clear Zustand store (persistent)
+    clearData();
+    
+    // 3. Clear API cache specifically
+    localStorage.removeItem("decixn_portfolio");
+    localStorage.removeItem("decixn_portfolio_time");
+    
+    // 4. Force a fresh data load
+    setData(null);
+    setLoading(true);
+    setTimeout(() => {
+        loadData();
+    }, 100);
   };
 
   if (loading) {

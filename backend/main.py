@@ -44,47 +44,69 @@ def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     Accepts a list of dicts with keys: symbol, quantity, avg_cost, pnl
     """
     results = []
+    print(f"DEBUG: Processing portfolio with {len(holdings_data)} holdings.")
+    
     for h in holdings_data:
         try:
             symbol = h["symbol"]
             qty = float(h["quantity"])
             avg_cost = float(h["avg_cost"])
-            pnl = float(h["pnl"])
+            pnl = float(h.get("pnl", 0.0))
             if not symbol or qty <= 0:
                 continue
+                
             res = analyze_single_holding(symbol, avg_cost, qty, pnl)
             if res.get("success"):
                 results.append(res)
+                print(f"DEBUG: Analyzed {symbol} successfully.")
+            else:
+                print(f"DEBUG: Analysis failed for {symbol}: {res.get('error')}")
         except Exception as e:
-            print(f"Failed to process holding {h}: {e}")
+            print(f"DEBUG: Critical failure on holding {h}: {e}")
 
     if not results:
-        return {"error": "No valid holdings analyzed."}
+        print("DEBUG: All holdings failed or portfolio is empty.")
+        return {
+            "portfolio_summary": {
+                "health": "N/A",
+                "risk_level": "Unknown",
+                "total_invested": 0,
+                "total_value_live": 0,
+                "total_pnl": 0,
+                "win_rate": "0%",
+                "insight": "Could not fetch live market data for any symbols. Please check ticker symbols.",
+                "working_capital_pct": 0,
+                "trapped_capital_pct": 0
+            },
+            "recommended_actions": ["No valid data to generate recommendations. Ensure symbols are correct."],
+            "portfolio_analysis": []
+        }
 
-    total_invested = sum(r['holding_context']['invested_value'] for r in results)
-    total_value_live = sum(r['holding_context']['current_value'] for r in results)
-    total_pnl = sum(r['holding_context']['current_pnl'] for r in results)
+    total_invested = sum(r['holding_context'].get('invested_value', 0) for r in results)
+    total_value_live = sum(r['holding_context'].get('current_value', 0) for r in results)
+    total_pnl = sum(r['holding_context'].get('current_pnl', 0) for r in results)
 
-    winners = sum(1 for r in results if r['holding_context']['current_pnl'] > 0)
+    winners = sum(1 for r in results if r['holding_context'].get('current_pnl', 0) > 0)
     losers = len(results) - winners
-    win_rate = f"{(winners / len(results) * 100):.1f}%"
+    win_rate = f"{(winners / len(results) * 100):.1f}%" if results else "0%"
 
-    cut_losses_count = sum(1 for r in results if "CUT LOSSES" in r['data']['portfolio_decision'])
-    ride_trend_count = sum(1 for r in results if "RIDE TREND" in r['data']['portfolio_decision'])
+    cut_losses_count = sum(1 for r in results if "CUT LOSSES" in r.get('data', {}).get('portfolio_decision', ''))
+    ride_trend_count = sum(1 for r in results if "RIDE TREND" in r.get('data', {}).get('portfolio_decision', ''))
 
     working_capital = 0.0
     trapped_capital = 0.0
     recommendations = []
 
     for r in results:
-        val = r['holding_context']['current_value']
+        h_ctx = r.get('holding_context', {})
+        val = h_ctx.get('current_value', 0)
         weight = round((val / total_value_live * 100) if total_value_live > 0 else 0.0, 2)
-        r['holding_context']['portfolio_weight_pct'] = weight
+        h_ctx['portfolio_weight_pct'] = weight
         if weight > 25:
             sym = r['symbol'].replace('.NS','')
-            recommendations.append(f"Consider trimming {sym} — {weight}% of portfolio is overweight in a single position.")
+            recommendations.append(f"Consider trimming {sym} — {weight}% of portfolio is overweight.")
 
-        trend = r['data'].get('trend', '')
+        trend = r.get('data', {}).get('trend', '')
         if trend == 'Bullish':
             working_capital += val
         elif trend == 'Bearish':
@@ -96,64 +118,44 @@ def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     risk_level = "Low"
     health = "Strong"
 
-    bearish_count = sum(1 for r in results if r['data'].get('trend') == 'Bearish')
-    bullish_count = sum(1 for r in results if r['data'].get('trend') == 'Bullish')
+    bearish_count = sum(1 for r in results if r.get('data', {}).get('trend') == 'Bearish')
+    bullish_count = sum(1 for r in results if r.get('data', {}).get('trend') == 'Bullish')
     
-    bad_stocks = [r['symbol'].replace('.NS','') for r in results if "CUT LOSSES" in r['data']['portfolio_decision']]
-    bad_stocks_weights = sum(r['holding_context']['portfolio_weight_pct'] for r in results if "CUT LOSSES" in r['data']['portfolio_decision'])
+    bad_stocks = [r['symbol'].replace('.NS','') for r in results if "CUT LOSSES" in r.get('data', {}).get('portfolio_decision', '')]
+    bad_stocks_weights = sum(r['holding_context'].get('portfolio_weight_pct', 0) for r in results if "CUT LOSSES" in r.get('data', {}).get('portfolio_decision', ''))
 
+    if total_pnl < 0:
+        health = "Weak" if total_pnl < -10000 else "Fair"
+    
     if losers > winners:
         health = "Weak"
     elif cut_losses_count > 0:
         health = "Fair"
 
-    # 11. Dynamic Insight Generation (Realistic & Grounded)
-    if total_pnl < -1000:  # Significant loss
+    if total_pnl < -1000:
         bad_count = len([r for r in results if r['holding_context']['current_pnl'] < 0])
-        insight = f"Portfolio is underwater (₹{abs(total_pnl):.0f} loss). {bad_count} of {len(results)} positions are currently losing value."
-        if trapped_capital_pct > 30:
-            insight += f" Efficient capital is low ({working_capital_pct}%); consider rotating out of laggards."
-    
+        insight = f"Portfolio underwater (₹{abs(total_pnl):.0f} loss). {bad_count} of {len(results)} positions in red."
     elif bearish_count > bullish_count:
-        if bad_stocks:
-            if len(bad_stocks) > 1:
-                bad_str = f"{' and '.join(bad_stocks[:2])} together represent {round(bad_stocks_weights)}% of capital"
-            else:
-                bad_str = f"{bad_stocks[0]} represents {round(bad_stocks_weights)}% of capital"
-            insight = f"{bearish_count} of {len(results)} holdings are in confirmed downtrends. {bad_str} — consider de-risking these positions."
-        else:
-            insight = f"Market momentum is weak across {bearish_count} holdings. Stability is key — wait for trend reversals."
-
+        insight = f"Bearish momentum across {bearish_count} holdings. Risk management is priority."
     elif bullish_count > bearish_count:
-        insight = f"{bullish_count} of {len(results)} holdings are riding bullish trends. Capital efficiency is high ({working_capital_pct}%)."
-    
-    elif cut_losses_count > 0:
-        insight = f"Mixed performance with some dragging assets. Consider reviewing {bad_stocks[0]}." if bad_stocks else "Mixed performance with some dragging assets."
-    
+        insight = f"{bullish_count} holdings trending well. Capital efficiency: {working_capital_pct}%."
     else:
-        insight = "Portfolio is stable and assets are trending well."
-
-    bad_str = f" like {', '.join(bad_stocks[:2])}" if bad_stocks else ""
+        insight = "Mixed performance. Review individual trends for adjustments."
 
     if len(results) > 0 and (cut_losses_count / len(results)) >= 0.3:
         risk_level = "High"
-        recommendations.append(f"High urgency: Cut losses in deeply bearish stocks{bad_str} to preserve capital.")
     elif cut_losses_count > 0 or total_pnl < -5000:
         risk_level = "Medium"
-        recommendations.append(f"Consider trimming exposure to assets in confirmed downtrends{bad_str}.")
 
+    if winners > 0:
+        recommendations.append("Let winners run with trailing stop-losses.")
     if losers > winners:
-        recommendations.append("Review your entry strategies; win-rate is currently upside down.")
-
-    if ride_trend_count == 0:
-        recommendations.append("Reallocate freed capital to stronger market leaders; currently lacking strong bullish momentum.")
-    else:
-        recommendations.append("Let your winners run. Use trailing stop-losses to lock in profits on uptrends.")
+        recommendations.append("Review win-rate; entries might need refinement.")
 
     def sort_key(r):
         u_map = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
-        urgency = u_map.get(r['data'].get('urgency_score', "LOW"), 3)
-        worst_pnl = r['holding_context'].get('pnl_pct', 0)
+        urgency = u_map.get(r.get('data', {}).get('urgency_score', "LOW"), 3)
+        worst_pnl = r.get('holding_context', {}).get('pnl_pct', 0)
         return (urgency, worst_pnl)
 
     results.sort(key=sort_key)
@@ -189,17 +191,20 @@ def analyze_portfolio():
         reader = csv.reader(f)
         next(reader, None)  # skip header
         for row in reader:
-            if not row or len(row) < 7:
+            if not row or len(row) < 3:
                 continue
             try:
                 symbol = row[0].replace('"', '').replace("'", '').strip()
                 qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
                 avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
-                # row[3] is LTP, row[4] is Invested, row[5] is Cur. Val, row[6] is P&L
-                cur_val = float(row[5].replace('"', '').replace(',', '').strip() or 0)
-                pnl = float(row[6].replace('"', '').replace(',', '').strip() or 0)
+                
                 if symbol and qty > 0:
-                    holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": pnl, "current_value": cur_val})
+                    holdings_data.append({
+                        "symbol": symbol, 
+                        "quantity": qty, 
+                        "avg_cost": avg_cost, 
+                        "pnl": 0.0  # Force recalculation by providing zero fallback
+                    })
             except Exception as e:
                 print(f"Failed to parse CSV row {row}: {e}")
 

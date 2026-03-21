@@ -67,31 +67,15 @@ export function CSVUpload({ onDataParsed }: CSVUploadProps) {
             getVal(/Avg.*cost|Average.*Cost|Price|Buy/i)
           );
 
-          let totalValue = parseSafeNum(
-            getVal(/Cur.*val|Market.*Value|Current.*Value|Invested/i)
-          );
-          const ltp = parseSafeNum(getVal(/LTP|Last.*Price|CMP/i));
-
-          const kiteCurVal = parseSafeNum(row["Cur. val"]);
-          if (kiteCurVal > 0) totalValue = kiteCurVal;
-          else if (totalValue === 0 && ltp > 0) totalValue = ltp * quantity;
-
-          const pnlValue = getVal(/P&L|PnL|Profit/i);
-          const pnl =
-            pnlValue !== null
-              ? parseSafeNum(pnlValue)
-              : totalValue - quantity * avgCost;
-          const pnlPct =
-            quantity * avgCost !== 0 ? (pnl / (quantity * avgCost)) * 100 : 0;
 
           return {
             symbol: symbolStr,
             holding_context: {
               quantity,
               avg_cost: avgCost,
-              current_value: totalValue,
-              pnl_pct: pnlPct,
-              current_pnl: pnl,
+              current_value: 0,
+              pnl_pct: 0,
+              current_pnl: 0,
             },
           };
         }).filter(

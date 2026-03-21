@@ -13,7 +13,7 @@ def fetch_data(symbol, period="100d"):
     try:
         ticker = yf.Ticker(symbol)
         df = ticker.history(period=period)
-        if df.empty or len(df) < 50:
+        if df.empty or len(df) < 2:
             raise ValueError("Insufficient data fetched")
         
         # Keep only required columns

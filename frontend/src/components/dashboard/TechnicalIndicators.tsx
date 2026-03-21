@@ -100,7 +100,7 @@ export function YearlyRangeBar({ data }: { data: any }) {
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest text-white/20">
             {loading ? "---" : (
-              <AnimatedNumber value={pct} suffix="% Distance from low" decimals={0} className="inline-block" />
+              <AnimatedNumber value={pct} suffix="% Distance from low" decimals={2} className="inline-block" />
             )}
           </div>
         </div>

@@ -522,7 +522,7 @@ export function Insights() {
                             val: item.holding_context?.current_value || 0,
                             prefix: "₹",
                             suffix: "",
-                            dec: 0,
+                            dec: 2,
                           },
                         ].map((stat) => (
                           <div

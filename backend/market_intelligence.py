@@ -174,7 +174,9 @@ def analyze_single_ticker(symbol: str) -> dict:
         def convert_numpy(obj):
             if isinstance(obj, np.integer):
                 return int(obj)
-            elif isinstance(obj, np.floating):
+            elif isinstance(obj, (np.floating, float)):
+                if np.isnan(obj) or np.isinf(obj):
+                    return 0.0
                 return float(obj)
             elif isinstance(obj, (bool, np.bool_)):
                 return bool(obj)
@@ -241,7 +243,7 @@ def analyze_single_ticker(symbol: str) -> dict:
             "ema_200d": convert_numpy(latest_df['EMA200'])
         }
         
-        return {
+        return sanitize_data({
             "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "data": {
@@ -287,13 +289,14 @@ def analyze_single_ticker(symbol: str) -> dict:
                     "macd": clean_macd
                 }
             }
-        }
+        })
     except Exception as e:
-        return {
+        return sanitize_data({
             "symbol": symbol,
             "success": False,
             "error": str(e)
-        }
+        })
+
 
 def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
     """

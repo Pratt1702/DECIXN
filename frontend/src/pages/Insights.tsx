@@ -306,6 +306,20 @@ export function Insights() {
                             )}
                           </span>
                         </p>
+                        <div className="flex gap-4 mt-2.5">
+                          <p className="text-[11px] uppercase tracking-wider">
+                             <span className="text-text-muted font-bold">Priority :</span>{' '}
+                             <span className={`font-black ${item.data?.priority === 'HIGH' ? 'text-amber-500' : item.data?.priority === 'MEDIUM' ? 'text-[#9ca3af]' : 'text-[#6b7280]'}`}>
+                                {item.data?.priority || 'LOW'}
+                             </span>
+                          </p>
+                          <p className="text-[11px] uppercase tracking-wider">
+                             <span className="text-text-muted font-bold">Risk :</span>{' '}
+                             <span className={`font-black ${item.data?.risk_level === 'HIGH' ? 'text-danger' : item.data?.risk_level === 'MEDIUM' ? 'text-amber-500' : 'text-success'}`}>
+                                {item.data?.risk_level || 'LOW'}
+                             </span>
+                          </p>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <span
@@ -313,16 +327,17 @@ export function Insights() {
                         >
                           {dec}
                         </span>
-                        {/* <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
-                            {item.data?.urgency_score} URGENCY
-                          </span>
-                        </div> */}
                       </div>
                     </div>
                     <div className="border-t border-border-main border-dashed pt-4">
                       <div className="flex flex-col gap-4">
                         <ul className="space-y-3 flex-1">
+                          {item.data?.pattern && item.data.pattern !== 'None' && (
+                             <li className="flex gap-3 text-sm text-accent font-bold mb-1">
+                                <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-accent" />
+                                Pattern Detected: {item.data.pattern}
+                             </li>
+                          )}
                           {item.data?.reasons?.map((r: string, idx: number) => (
                             <li
                               key={idx}
@@ -367,9 +382,12 @@ export function Insights() {
                     : 50,
               decision: `${data?.portfolio_summary?.health} Portfolio Status`,
               action: data?.portfolio_summary?.insight,
+              priority: data?.portfolio_summary?.risk_level === "High" ? "HIGH" : "MEDIUM",
+              risk_level: data?.portfolio_summary?.risk_level?.toUpperCase() || "MEDIUM",
               reasons: data?.recommended_actions || [],
             }}
           />
+
         </div>
       </div>
     </motion.div>

@@ -34,6 +34,9 @@ class HoldingInput(BaseModel):
 class PortfolioInput(BaseModel):
     holdings: list[HoldingInput]
 
+class BatchQuotesRequest(BaseModel):
+    symbols: list[str]
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
@@ -246,6 +249,68 @@ def analyze_ticker(ticker: str):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))
         
     return result
+
+@app.post("/quotes/batch")
+def get_batch_quotes(payload: BatchQuotesRequest):
+    """
+    Fetches lightweight batch quotes for multiple symbols to power watchlists efficiently.
+    """
+    if not payload.symbols:
+        return {"success": True, "results": []}
+    
+    stock_data = []
+    
+    for original in payload.symbols:
+        sym = original.upper().replace(' ', '')
+        if not sym.endswith('.NS') and not sym.endswith('.BO'):
+            sym += '.NS'
+            
+        try:
+            t = yf.Ticker(sym)
+            hist = t.history(period="2d")
+            
+            if len(hist) >= 2:
+                prev_close = float(hist['Close'].iloc[-2])
+                curr_price = float(hist['Close'].iloc[-1])
+                vol = float(hist['Volume'].iloc[-1])
+            elif len(hist) == 1:
+                prev_close = float(hist['Close'].iloc[0])
+                curr_price = float(hist['Close'].iloc[0])
+                vol = float(hist['Volume'].iloc[0])
+            else:
+                continue
+                
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100 if prev_close > 0 else 0
+            
+            trend = "Bullish" if change_pct > 0 else ("Bearish" if change_pct < 0 else "Neutral")
+            
+            try:
+                info = t.info
+                company_name = info.get('shortName', info.get('longName', original))
+                fifty_two_low = info.get('fiftyTwoWeekLow', curr_price * 0.8)
+                fifty_two_high = info.get('fiftyTwoWeekHigh', curr_price * 1.2)
+            except:
+                company_name = original
+                fifty_two_low = curr_price * 0.8
+                fifty_two_high = curr_price * 1.2
+                
+            stock_data.append({
+                "symbol": original,
+                "companyName": company_name,
+                "price": curr_price,
+                "change": change,
+                "changePercent": change_pct,
+                "volume": vol,
+                "trend": trend,
+                "fifty_two_week_low": fifty_two_low,
+                "fifty_two_week_high": fifty_two_high
+            })
+        except Exception as e:
+            print(f"Error fetching quote for {original}: {e}")
+            continue
+
+    return {"success": True, "results": stock_data}
 
 @app.get("/search/{query}")
 def search_stocks(query: str):

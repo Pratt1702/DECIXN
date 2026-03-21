@@ -111,3 +111,8 @@ export const getMarketOverview = async () => {
   return response.data;
 };
 
+export const getBatchQuotes = async (symbols: string[]) => {
+  const response = await apiClient.post('/quotes/batch', { symbols });
+  return response.data;
+};
+

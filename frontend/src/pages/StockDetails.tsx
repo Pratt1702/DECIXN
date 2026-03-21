@@ -71,20 +71,31 @@ export function StockDetails() {
       try {
         const port = await getPortfolio();
         if (port && port.portfolio_analysis && ticker) {
-          const normalizedTicker = ticker
+          const cleanTicker = ticker
             .toLowerCase()
-            .replace(".ns", "")
-            .replace(".bo", "");
+            .trim()
+            .split('.')[0] // Strip .NS, .BO, etc reliably
+            .replace(/\s+/g, "");
+
           const match = port.portfolio_analysis.find((h: any) => {
-            const hSym = h.symbol.toLowerCase().replace(/\s+/g, "");
-            const dataName = (data?.companyName || "")
+            if (!h.symbol) return false;
+            
+            const hSymClean = h.symbol
               .toLowerCase()
+              .trim()
+              .split('.')[0]
               .replace(/\s+/g, "");
+
+            const dataNameClean = (data?.companyName || "")
+              .toLowerCase()
+              .trim()
+              .replace(/\s+/g, "");
+
             return (
-              hSym === normalizedTicker ||
-              hSym === dataName ||
-              (dataName && dataName.includes(hSym)) ||
-              normalizedTicker.includes(hSym)
+              hSymClean === cleanTicker ||
+              hSymClean === dataNameClean ||
+              (dataNameClean && dataNameClean.includes(hSymClean)) ||
+              cleanTicker.includes(hSymClean)
             );
           });
           setHolding(match);

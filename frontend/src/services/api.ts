@@ -29,6 +29,17 @@ const MOCK_PORTFOLIO = {
 };
 
 export const getPortfolio = async () => {
+  // Priority 1: Check session storage for custom uploaded holdings
+  const sessionHoldings = sessionStorage.getItem('uploaded_holdings');
+  if (sessionHoldings) {
+    const sessionSummary = sessionStorage.getItem('portfolio_summary');
+    return {
+      portfolio_analysis: JSON.parse(sessionHoldings),
+      portfolio_summary: sessionSummary ? JSON.parse(sessionSummary) : null,
+      is_manual: true
+    };
+  }
+
   const cacheKey = 'etmarkets_portfolio';
   const cacheTimeKey = 'etmarkets_portfolio_time';
   const cached = localStorage.getItem(cacheKey);

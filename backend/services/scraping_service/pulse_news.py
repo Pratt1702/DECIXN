@@ -1,12 +1,4 @@
-"""
-Commit 3 — Company-aware Pulse ingestion.
-
-Adds:
-- Company alias resolution
-- Relevance filtering
-- CLI query input
-"""
-
+import re
 import asyncio
 import httpx
 from bs4 import BeautifulSoup
@@ -58,17 +50,16 @@ async def fetch_pulse_articles(limit: int = 100):
 
     return articles
 
+def tokenize(text: str):
+    """
+    Extract lowercase alphanumeric words.
+    """
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
 def matches_query(title: str, query: str):
-    title = title.lower()
-    query = query.lower().strip()
-
-    # Remove common punctuation
-    for ch in "-_,.":
-        title = title.replace(ch, " ")
-        query = query.replace(ch, " ")
-
-    title_words = set(title.split())
-    query_words = set(query.split())
+    title_words = tokenize(title)
+    query_words = tokenize(query)
 
     return len(title_words & query_words) > 0
 
@@ -83,13 +74,18 @@ def is_recent(time_raw: str | None):
 
     t = time_raw.lower()
 
+    # Minutes or hours → recent
     if "min" in t or "hour" in t:
         return True
 
+    # Yesterday → recent
     if "yesterday" in t:
-        return True  # still within ~24h
+        return True
 
-    # Drop older items like "2 days ago"
+    # Handle "1 day ago"
+    if "1 day" in t:
+        return True
+
     return False
 
 # --------------------------------------------------
@@ -114,6 +110,7 @@ async def get_company_news(query: str):
 # --------------------------------------------------
 
 async def main():
+    
     company = input("Enter company/stock name: ")
 
     results = await get_company_news(company)
@@ -129,6 +126,8 @@ async def main():
         print(f"   Source: {a['source']}")
         print(f"   Time:   {a['time_raw']}")
         print(f"   URL:    {a['url']}\n")
+    
+    
 
 
 if __name__ == "__main__":

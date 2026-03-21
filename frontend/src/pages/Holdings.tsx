@@ -12,6 +12,7 @@ export function Holdings() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isManual, setIsManual] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
   const calculateSummary = (holdings: any[]) => {
     const totalInvested = holdings.reduce(
@@ -147,18 +148,28 @@ export function Holdings() {
   }, [loadData]);
 
   const handleDataParsed = async (newHoldings: any[]) => {
+    let interval: NodeJS.Timeout | null = null;
     try {
       setLoading(true);
+      setProgress({ current: 0, total: newHoldings.length });
+      
+      interval = setInterval(() => {
+        setProgress((prev: { current: number; total: number }) => ({ 
+          ...prev, 
+          current: Math.min(prev.current + 1, prev.total) 
+        }));
+      }, 1000);
+
       const res = await analyzeCustomPortfolio(newHoldings);
+      if (interval) clearInterval(interval);
+      
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(res.portfolio_analysis));
-      // Store summary as well if necessary, but recalculating on loadData from session is what happens currently.
-      // Actually, wait, when loadData runs, it uses calculateSummary(parsed) instead of the backend's summary!
-      // I should store the entire response or at least the backend's summary.
       sessionStorage.setItem("portfolio_summary", JSON.stringify(res.portfolio_summary));
       setData(res);
       setIsManual(true);
     } catch (err) {
       console.error("Failed to fetch custom portfolio analysis", err);
+      if (interval) clearInterval(interval);
       // Fallback to local calculation if backend fails
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
       setData({
@@ -168,6 +179,7 @@ export function Holdings() {
       setIsManual(true);
     } finally {
       setLoading(false);
+      setProgress({ current: 0, total: 0 });
     }
   };
 
@@ -178,11 +190,29 @@ export function Holdings() {
 
   if (loading) {
     return (
-      <div className="py-32 flex flex-col justify-center items-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        <p className="text-text-muted text-sm font-medium tracking-wide">
-          Loading portfolio data…
-        </p>
+      <div className="py-32 flex flex-col justify-center items-center gap-6">
+        <div className="relative">
+          <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+          <Loader2 className="w-12 h-12 animate-spin text-accent absolute top-0 left-0" style={{ animationDuration: '3s' }} />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+            AI Engine Synchronizing
+          </p>
+          <p className="text-text-muted text-sm font-medium tracking-wide">
+            {progress.total > 0 
+              ? `Processing Asset ${progress.current} of ${progress.total}...` 
+              : "Fetching live market intelligence..."}
+          </p>
+          {progress.total > 0 && (
+            <div className="w-48 h-1 bg-white/5 rounded-full mx-auto mt-4 overflow-hidden">
+              <div 
+                className="h-full bg-accent transition-all duration-500" 
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   }

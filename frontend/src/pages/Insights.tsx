@@ -159,13 +159,24 @@ export function Insights() {
   }, []);
 
   const navigate = useNavigate();
+  const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
   useEffect(() => {
     async function fetchHoldings() {
+      let interval: any = null;
       try {
         const sessionData = sessionStorage.getItem(SESSION_KEY);
-        if (sessionData) {
+        if (sessionData && sessionData !== "undefined") {
           const parsed = JSON.parse(sessionData);
+          setProgress({ current: 0, total: parsed.length });
+          
+          interval = setInterval(() => {
+            setProgress(prev => {
+              const next = prev.current + 5;
+              return { ...prev, current: Math.min(next, prev.total) };
+            });
+          }, 800);
+
           const res = await analyzeCustomPortfolio(parsed);
           setData(res);
         } else {
@@ -176,6 +187,7 @@ export function Insights() {
         console.error("Failed to fetch, using mock data for demo", err);
         setData(MOCK_DATA);
       } finally {
+        if (interval) clearInterval(interval);
         setLoading(false);
       }
     }
@@ -235,11 +247,29 @@ export function Insights() {
 
   if (loading) {
     return (
-      <div className="py-32 flex flex-col justify-center items-center gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        <p className="text-text-muted text-sm font-medium tracking-wide">
-          Running AI Analysis on your portfolio…
-        </p>
+      <div className="py-32 flex flex-col justify-center items-center gap-6">
+        <div className="relative">
+          <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+          <Loader2 className="w-12 h-12 animate-spin text-accent absolute top-0 left-0" style={{ animationDuration: '3s' }} />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+            Heavy Analysis In Progress
+          </p>
+          <p className="text-text-muted text-sm font-medium tracking-wide">
+            {progress.total > 0 
+              ? `Processing Batch: ${progress.current} of ${progress.total} assets analyzed...` 
+              : "Fetching latest market signals & trend data..."}
+          </p>
+          {progress.total > 0 && (
+            <div className="w-64 h-1.5 bg-white/5 rounded-full mx-auto mt-6 overflow-hidden border border-white/5">
+              <div 
+                className="h-full bg-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.5)] transition-all duration-700 ease-out" 
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   }

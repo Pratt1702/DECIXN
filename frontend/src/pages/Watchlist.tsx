@@ -426,11 +426,12 @@ export function Watchlist() {
                               {d.sparkline && d.sparkline.length > 1 ? (
                                 <svg viewBox="0 0 100 24" className="w-full h-full preserveAspectRatio-none">
                                   {(() => {
-                                    const min = Math.min(...d.sparkline);
-                                    const max = Math.max(...d.sparkline);
+                                    const allPoints = [...d.sparkline, d.prevClose];
+                                    const min = Math.min(...allPoints);
+                                    const max = Math.max(...allPoints);
                                     const range = max - min || 1;
-                                    const padding = range * 0.1;
-                                    const scale = (val: number) => 22 - ((val - min + padding) / (range + 2 * padding)) * 20; // Leave 2px buffer
+                                    const padding = range * 0.15;
+                                    const scale = (val: number) => 22 - ((val - min + padding) / (range + 2 * padding)) * 20;
                                     
                                     const points = d.sparkline.map((val: number, idx: number) => {
                                       const x = (idx / (d.sparkline.length - 1)) * 100;
@@ -438,8 +439,18 @@ export function Watchlist() {
                                       return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
                                     }).join(' ');
 
+                                    const prevCloseY = scale(d.prevClose);
+
                                     return (
                                       <>
+                                        {/* Reference dashed line for previous close */}
+                                        <line 
+                                          x1="0" y1={prevCloseY} x2="100" y2={prevCloseY} 
+                                          stroke="white" 
+                                          strokeWidth="0.5" 
+                                          strokeDasharray="2,2" 
+                                          className="opacity-20"
+                                        />
                                         <path 
                                           d={points} 
                                           fill="none" 

@@ -315,6 +315,7 @@ def get_batch_quotes(payload: BatchQuotesRequest):
                 "symbol": original,
                 "companyName": company_name,
                 "price": curr_price,
+                "prevClose": prev_close,
                 "change": change,
                 "changePercent": change_pct,
                 "volume": vol,

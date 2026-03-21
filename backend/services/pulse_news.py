@@ -105,31 +105,5 @@ async def get_company_news(query: str):
     return filtered
 
 
-# --------------------------------------------------
-# CLI ENTRY POINT
-# --------------------------------------------------
 
-async def main():
-    
-    company = input("Enter company/stock name: ")
-
-    results = await get_company_news(company)
-
-    if not results:
-        print("No relevant articles found.")
-        return
-
-    print(f"\nFound {len(results)} relevant articles:\n")
-
-    for i, a in enumerate(results, 1):
-        print(f"{i}. {a['title']}")
-        print(f"   Source: {a['source']}")
-        print(f"   Time:   {a['time_raw']}")
-        print(f"   URL:    {a['url']}\n")
-    
-    
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
 # pip install httpx beautifulsoup4 lxml

@@ -329,7 +329,11 @@ export function Watchlist() {
                     onClick={() => handleSort("companyName")}
                   >
                     <div className="flex items-center gap-1">
-                      Company {sortKey === "companyName" && (sortOrder === "asc" ? "↑" : "↓")}
+                      Company {sortKey === "companyName" && (
+                        <span className="text-text-muted ml-0.5">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </div>
                   </th>
                   <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-[15%]">Trend</th>
@@ -338,7 +342,11 @@ export function Watchlist() {
                     onClick={() => handleSort("price")}
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Mkt price {sortKey === "price" && (sortOrder === "asc" ? "↑" : "↓")}
+                      Mkt price {sortKey === "price" && (
+                        <span className="text-text-muted ml-0.5">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </div>
                   </th>
                   <th 
@@ -346,7 +354,11 @@ export function Watchlist() {
                     onClick={() => handleSort("changePercent")}
                   >
                     <div className="flex items-center justify-end gap-1">
-                      1D change {sortKey === "changePercent" && (sortOrder === "asc" ? "↑" : "↓")}
+                      1D change {sortKey === "changePercent" && (
+                        <span className="text-text-muted ml-0.5">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </div>
                   </th>
                   <th 
@@ -354,7 +366,11 @@ export function Watchlist() {
                     onClick={() => handleSort("volume")}
                   >
                     <div className="flex items-center justify-end gap-1">
-                      1D vol {sortKey === "volume" && (sortOrder === "asc" ? "↑" : "↓")}
+                      1D vol {sortKey === "volume" && (
+                        <span className="text-text-muted ml-0.5">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </div>
                   </th>
                   <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-[15%] text-right">52W perf</th>

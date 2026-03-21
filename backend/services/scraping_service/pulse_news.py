@@ -17,34 +17,6 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 # --------------------------------------------------
-# Company aliases (minimal starter set)
-# --------------------------------------------------
-
-COMPANY_ALIASES = {
-    "SBIN": ["sbi", "state bank of india", "state bank"],
-    "TCS": ["tcs", "tata consultancy services"],
-    "RELIANCE": ["reliance", "ril", "reliance industries"],
-    "INFY": ["infosys", "infy"],
-    "HDFCBANK": ["hdfc", "hdfc bank"],
-}
-
-
-def resolve_symbol(user_input: str):
-    text = user_input.lower()
-
-    for symbol, aliases in COMPANY_ALIASES.items():
-        if any(alias in text for alias in aliases):
-            return symbol
-
-    return None
-
-
-def is_relevant(title: str, aliases):
-    t = title.lower()
-    return any(alias in t for alias in aliases)
-
-
-# --------------------------------------------------
 # Fetch Pulse feed
 # --------------------------------------------------
 

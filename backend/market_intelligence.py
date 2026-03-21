@@ -45,39 +45,67 @@ def analyze_single_ticker(symbol: str) -> dict:
             df_5y = t.history(period="5y", interval="1d")
             if not df_5y.empty:
                 def make_chart(df_sliced):
-                    return [{"date": d.strftime("%Y-%m-%d"), "price": float(p)} for d, p in zip(df_sliced.index, df_sliced['Close'])]
+                    if df_sliced.empty: return []
+                    return [{
+                        "time": int(d.timestamp()),
+                        "date": d.strftime("%Y-%m-%d"), 
+                        "price": float(p),
+                        "open": float(o),
+                        "high": float(h),
+                        "low": float(l),
+                        "volume": float(v)
+                    } for d, o, h, l, p, v in zip(df_sliced.index, df_sliced['Open'], df_sliced['High'], df_sliced['Low'], df_sliced['Close'], df_sliced['Volume'])]
                 
+                # Fetch different granularities to optimize performance and look
+                df_max = t.history(period="max", interval="1mo")
+                charts['All'] = make_chart(df_max)
+
+                df_5y = t.history(period="5y", interval="1wk")
                 charts['5Y'] = make_chart(df_5y)
-                charts['All'] = charts['5Y']
                 
-                three_years_ago = datetime.now() - timedelta(days=3*365)
-                charts['3Y'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(three_years_ago, tz=df_5y.index.tz)])
+                df_3y = t.history(period="3y", interval="1wk")
+                charts['3Y'] = make_chart(df_3y)
                 
-                one_year_ago = datetime.now() - timedelta(days=365)
-                charts['1Y'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(one_year_ago, tz=df_5y.index.tz)])
+                df_1y = t.history(period="1y", interval="1d")
+                charts['1Y'] = make_chart(df_1y)
                 
-                six_months_ago = datetime.now() - timedelta(days=180)
-                charts['6M'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(six_months_ago, tz=df_5y.index.tz)])
+                df_6m = t.history(period="6mo", interval="1d")
+                charts['6M'] = make_chart(df_6m)
                 
-                three_months_ago = datetime.now() - timedelta(days=90)
-                charts['3M'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(three_months_ago, tz=df_5y.index.tz)])
+                df_3m = t.history(period="3mo", interval="1d")
+                charts['3M'] = make_chart(df_3m)
                 
-                one_month_ago = datetime.now() - timedelta(days=30)
-                charts['1M'] = make_chart(df_5y[df_5y.index >= pd.Timestamp(one_month_ago, tz=df_5y.index.tz)])
+                df_1mo = t.history(period="1mo", interval="1h")
+                charts['1M'] = [{
+                    "time": int(d.timestamp()),
+                    "date": d.strftime("%b %d %H:%M"),
+                    "price": float(p),
+                    "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
+                } for d, o, h, l, p, v in zip(df_1mo.index, df_1mo['Open'], df_1mo['High'], df_1mo['Low'], df_1mo['Close'], df_1mo['Volume'])] if not df_1mo.empty else []
             else:
                 charts.update({'1M':[], '3M':[], '6M':[], '1Y':[], '3Y':[], '5Y':[], 'All':[]})
                 
-            # Fetch 1wk 1h data
-            df_1wk = t.history(period="5d", interval="1h")
+            # Fetch 1wk 15m data
+            df_1wk = t.history(period="5d", interval="15m")
             if not df_1wk.empty:
-                charts['1W'] = [{"date": d.strftime("%b %d %H:%M"), "price": float(p)} for d, p in zip(df_1wk.index, df_1wk['Close'])]
+                charts['1W'] = [{
+                    "time": int(d.timestamp()),
+                    "date": d.strftime("%b %d %H:%M"),
+                    "price": float(p),
+                    "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
+                } for d, o, h, l, p, v in zip(df_1wk.index, df_1wk['Open'], df_1wk['High'], df_1wk['Low'], df_1wk['Close'], df_1wk['Volume'])]
             else:
                 charts['1W'] = []
                 
             # Fetch 1d 5m data
             df_1d = t.history(period="1d", interval="5m")
             if not df_1d.empty:
-                charts['1D'] = [{"date": d.strftime("%H:%M:%S"), "price": float(p)} for d, p in zip(df_1d.index, df_1d['Close'])]
+                charts['1D'] = [{
+                    "time": int(d.timestamp()),
+                    "date": d.strftime("%H:%M:%S"),
+                    "price": float(p),
+                    "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
+                } for d, o, h, l, p, v in zip(df_1d.index, df_1d['Open'], df_1d['High'], df_1d['Low'], df_1d['Close'], df_1d['Volume'])]
             else:
                 charts['1D'] = []
                 
@@ -110,7 +138,15 @@ def analyze_single_ticker(symbol: str) -> dict:
 
         clean_macd = {k: convert_numpy(v) for k, v in signals['MACD'].items()}
         
-        chart_data = [{"date": d.strftime("%Y-%m-%d"), "price": convert_numpy(p)} for d, p in zip(df.index, df['Close'])]
+        chart_data = [{
+            "time": int(d.timestamp()),
+            "date": d.strftime("%Y-%m-%d"), 
+            "price": convert_numpy(p),
+            "open": convert_numpy(o),
+            "high": convert_numpy(h),
+            "low": convert_numpy(l),
+            "volume": convert_numpy(v)
+        } for d, o, h, l, p, v in zip(df.index, df['Open'], df['High'], df['Low'], df['Close'], df['Volume'])]
         
         try:
             info = yf.Ticker(symbol).info

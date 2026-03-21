@@ -1,8 +1,23 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTickerAnalysis, getPortfolio } from "../services/api";
-import { ArrowLeft, AlertTriangle, ChevronRight } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from "recharts";
+import {
+  ArrowLeft,
+  AlertTriangle,
+  ChevronRight,
+  Activity,
+  BarChart2,
+  CandlestickChart,
+} from "lucide-react";
+import {
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  YAxis,
+  Tooltip,
+  ReferenceLine,
+} from "recharts";
+import ReactApexChart from "react-apexcharts";
 import { AIIntelligencePanel } from "../components/dashboard/AIIntelligencePanel";
 import {
   TechnicalIndicators,
@@ -12,6 +27,7 @@ import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import gsap from "gsap";
 
 const PERIODS = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "All"];
+const CANDLE_COUNT = 100; // Tweak this to change chart density
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -38,9 +54,17 @@ export function StockDetails() {
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState("1Y");
+  const [period, setPeriod] = useState(
+    localStorage.getItem("preferred_period") || "1D",
+  );
+  const [chartType, setChartType] = useState<"line" | "candle">("line");
   const [holding, setHolding] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handlePeriodChange = (p: string) => {
+    setPeriod(p);
+    localStorage.setItem("preferred_period", p);
+  };
 
   useEffect(() => {
     async function checkPortfolio() {
@@ -171,7 +195,7 @@ export function StockDetails() {
     <div ref={containerRef} className="space-y-10 max-w-4xl mx-auto pb-12">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-all w-fit group"
+        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-all w-fit group cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />{" "}
         Back to Dashboard
@@ -194,23 +218,25 @@ export function StockDetails() {
             </div>
           )}
         </div>
-        
+
         {data?.fundamentals && (
           <div className="flex items-center gap-2 mb-2 animate-value">
-            {data.fundamentals.sector && data.fundamentals.sector !== "Unknown" && (
+            {data.fundamentals.sector &&
+              data.fundamentals.sector !== "Unknown" && (
                 <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
-                    {data.fundamentals.sector}
+                  {data.fundamentals.sector}
                 </span>
-            )}
-            {data.fundamentals.industry && data.fundamentals.industry !== "Unknown" && (
+              )}
+            {data.fundamentals.industry &&
+              data.fundamentals.industry !== "Unknown" && (
                 <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
-                    {data.fundamentals.industry}
+                  {data.fundamentals.industry}
                 </span>
-            )}
+              )}
             {data.fundamentals.quote_type && (
-                <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
-                    {data.fundamentals.quote_type}
-                </span>
+              <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
+                {data.fundamentals.quote_type}
+              </span>
             )}
           </div>
         )}
@@ -233,10 +259,19 @@ export function StockDetails() {
                 className={`flex items-center gap-2 font-black mt-1.5 text-base ${isPos ? "text-success" : "text-danger"}`}
               >
                 <span>
-                  <AnimatedNumber value={priceChange} showPlusSign decimals={2} className="inline-block" />
-                  {" "}
+                  <AnimatedNumber
+                    value={priceChange}
+                    showPlusSign
+                    decimals={2}
+                    className="inline-block"
+                  />{" "}
                   (
-                  <AnimatedNumber value={priceChangePct} showPlusSign decimals={2} className="inline-block" />
+                  <AnimatedNumber
+                    value={priceChangePct}
+                    showPlusSign
+                    decimals={2}
+                    className="inline-block"
+                  />
                   %)
                 </span>
                 <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
@@ -259,13 +294,39 @@ export function StockDetails() {
                 {data ? (
                   <span className="animate-value font-black text-[#f3f4f6]">
                     {label === "P/E" ? (
-                      data?.fundamentals?.pe_ratio ? <AnimatedNumber value={data.fundamentals.pe_ratio} decimals={2} /> : "N/A"
+                      data?.fundamentals?.pe_ratio ? (
+                        <AnimatedNumber
+                          value={data.fundamentals.pe_ratio}
+                          decimals={2}
+                        />
+                      ) : (
+                        "N/A"
+                      )
                     ) : label === "RSI" ? (
-                      data?.indicators?.rsi_14 ? <AnimatedNumber value={data.indicators.rsi_14} decimals={2} /> : "-"
+                      data?.indicators?.rsi_14 ? (
+                        <AnimatedNumber
+                          value={data.indicators.rsi_14}
+                          decimals={2}
+                        />
+                      ) : (
+                        "-"
+                      )
                     ) : label === "MACD" ? (
-                      data?.indicators?.macd?.MACD_Line ? <AnimatedNumber value={data.indicators.macd.MACD_Line} decimals={2} /> : "-"
+                      data?.indicators?.macd?.MACD_Line ? (
+                        <AnimatedNumber
+                          value={data.indicators.macd.MACD_Line}
+                          decimals={2}
+                        />
+                      ) : (
+                        "-"
+                      )
+                    ) : data?.fundamentals?.beta ? (
+                      <AnimatedNumber
+                        value={data.fundamentals.beta}
+                        decimals={2}
+                      />
                     ) : (
-                      data?.fundamentals?.beta ? <AnimatedNumber value={data.fundamentals.beta} decimals={2} /> : "-"
+                      "-"
                     )}
                   </span>
                 ) : (
@@ -278,7 +339,31 @@ export function StockDetails() {
       </header>
 
       <div className="border-b border-white/5 pb-8 mt-4">
-        <div className="h-72 sm:h-80 w-full relative mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-1 bg-bg-surface p-1 rounded-lg border border-border-main">
+            <button
+              onClick={() => setChartType("line")}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                chartType === "line"
+                  ? "bg-white/10 text-white"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setChartType("candle")}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                chartType === "candle"
+                  ? "bg-white/10 text-white"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <BarChart2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="h-72 sm:h-80 w-full relative mb-6 min-h-[288px]">
           {!data && loading ? (
             <div className="h-full w-full bg-white/5 animate-pulse rounded-[2.5rem] border border-white/5 flex items-center justify-center">
               <span className="text-sm text-text-muted font-medium tracking-widest animate-pulse">
@@ -286,57 +371,238 @@ export function StockDetails() {
               </span>
             </div>
           ) : (
-            <div className="animate-value h-full w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={currentChart}>
-                  <YAxis domain={["dataMin", "dataMax"]} hide />
-                  <Tooltip
-                    content={<CustomTooltip />}
-                    cursor={{
-                      stroke: "#2e303a",
-                      strokeWidth: 1,
-                      strokeDasharray: "4 4",
-                    }}
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="price"
-                    stroke={strokeColor}
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{
-                      r: 5,
-                      fill: strokeColor,
-                      stroke: "#121212",
-                      strokeWidth: 2,
-                    }}
-                    isAnimationActive={true}
-                    animationDuration={1000}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="animate-value h-full w-full min-h-[288px]">
+              {chartType === "line" ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={currentChart}>
+                    <YAxis domain={["dataMin", "dataMax"]} hide />
+                    <Tooltip
+                      content={<CustomTooltip />}
+                      cursor={{
+                        stroke: "#2e303a",
+                        strokeWidth: 1,
+                        strokeDasharray: "4 4",
+                      }}
+                      isAnimationActive={false}
+                    />
+                    {currentChart.length > 0 && (
+                      <ReferenceLine
+                        y={currentChart[0].price}
+                        stroke="#4b5563"
+                        strokeDasharray="3 3"
+                      />
+                    )}
+                    <Line
+                      type="monotone"
+                      dataKey="price"
+                      stroke={strokeColor}
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{
+                        r: 5,
+                        fill: strokeColor,
+                        stroke: "#121212",
+                        strokeWidth: 2,
+                      }}
+                      isAnimationActive={true}
+                      animationDuration={1000}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                (() => {
+                  const n = currentChart.length;
+                  const sampledChart =
+                    n <= CANDLE_COUNT
+                      ? currentChart
+                      : (() => {
+                          const sampled = [];
+                          for (let i = 0; i < CANDLE_COUNT; i++) {
+                            sampled.push(
+                              currentChart[Math.floor(i * (n / CANDLE_COUNT))],
+                            );
+                          }
+                          return sampled;
+                        })();
+
+                  return (
+                    <ReactApexChart
+                      options={{
+                        chart: {
+                          type: "candlestick",
+                          background: "transparent",
+                          toolbar: { show: false },
+                          animations: { enabled: false },
+                          sparkline: { enabled: false },
+                        },
+                        stroke: {
+                          show: true,
+                          width: [1, 0],
+                        },
+                        plotOptions: {
+                          candlestick: {
+                            colors: { upward: "#10b981", downward: "#f43f5e" },
+                            wick: { useFillColor: true },
+                          },
+                          bar: {
+                            columnWidth: "70%",
+                            borderRadius: 0,
+                          },
+                        },
+                        xaxis: {
+                          type: "category",
+                          labels: { show: false },
+                          axisBorder: { show: false },
+                          axisTicks: { show: false },
+                          tooltip: { enabled: false },
+                          crosshairs: {
+                            show: true,
+                            position: "back",
+                            stroke: {
+                              color: "#ffffff20",
+                              width: 1,
+                              dashArray: 4,
+                            },
+                          },
+                        },
+                        yaxis: [
+                          {
+                            labels: { show: false },
+                            tooltip: { enabled: true },
+                            axisBorder: { show: false },
+                            axisTicks: { show: false },
+                            min: (min: any) => min * 0.99,
+                            max: (max: any) => max * 1.01,
+                            crosshairs: {
+                              show: true,
+                              stroke: { color: '#ffffff20', width: 1, dashArray: 4 },
+                            },
+                          },
+                          {
+                            seriesName: "Volume",
+                            show: false,
+                            min: 0,
+                            max: (max) => max * 3.5,
+                          },
+                        ],
+                        legend: {
+                          show: false,
+                        },
+                        grid: {
+                          show: false,
+                          padding: { left: -10, right: -10, top: 0, bottom: 0 },
+                        },
+                        tooltip: {
+                          theme: "dark",
+                          shared: true,
+                          custom: function ({ dataPointIndex, w }: any) {
+                            if (
+                              !w.globals.seriesCandleO[0] ||
+                              !w.globals.seriesCandleO[0][dataPointIndex]
+                            )
+                              return "";
+                            const o =
+                              w.globals.seriesCandleO[0][dataPointIndex];
+                            const h =
+                              w.globals.seriesCandleH[0][dataPointIndex];
+                            const l =
+                              w.globals.seriesCandleL[0][dataPointIndex];
+                            const c =
+                              w.globals.seriesCandleC[0][dataPointIndex];
+                            const v = w.globals.series[1]
+                              ? w.config.series[1].data[dataPointIndex].y
+                              : 0;
+                            const date =
+                              w.globals.categoryLabels[dataPointIndex];
+
+                            return `
+                              <div class="px-3 py-2 bg-[#121212] border border-white/10 rounded-lg shadow-xl text-[11px] font-bold">
+                                <div class="mb-1 text-white/30">${date}</div>
+                                <div class="flex gap-4">
+                                  <span class="text-white/40">O <span class="text-white">${o.toFixed(2)}</span></span>
+                                  <span class="text-white/40">H <span class="text-white">${h.toFixed(2)}</span></span>
+                                </div>
+                                <div class="flex gap-4 mb-2">
+                                  <span class="text-white/40">L <span class="text-white">${l.toFixed(2)}</span></span>
+                                  <span class="text-white/40">C <span class="text-white text-[#10b981]">${c.toFixed(2)}</span></span>
+                                </div>
+                                <div class="pt-1 border-t border-white/5">
+                                  <span class="text-white/40 text-[10px]">VOL <span class="text-white">${v ? v.toLocaleString() : "-"}</span></span>
+                                </div>
+                              </div>
+                            `;
+                          },
+                        },
+                      }}
+                      series={[
+                        {
+                          name: "Price",
+                          type: "candlestick",
+                          data: sampledChart.map((d: any) => ({
+                            x: d.date,
+                            y: [
+                              d.open || d.price,
+                              d.high || d.price,
+                              d.low || d.price,
+                              d.price,
+                            ],
+                          })),
+                        },
+                        {
+                          name: "Volume",
+                          type: "bar",
+                          data: sampledChart.map((d: any) => ({
+                            x: d.date,
+                            y: d.volume || 0,
+                            fillColor:
+                              d.price >= (d.open || d.price)
+                                ? "#10b98180"
+                                : "#f43f5e80",
+                          })),
+                        },
+                      ]}
+                      type="line"
+                      height="100%"
+                    />
+                  );
+                })()
+              )}
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-          {PERIODS.map((p) => {
-            const isActive = period === p;
-            return (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  isActive
-                    ? "bg-border-main text-text-bold border border-white/10"
-                    : "bg-transparent text-text-muted hover:text-text-bold hover:bg-white/5"
-                }`}
-              >
-                {p}
-              </button>
-            );
-          })}
+        <div className="flex items-center justify-between gap-4 mt-6">
+          <div className="flex-1" /> {/* Spacer to keep center row centered */}
+          
+          <div className="flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none">
+            {PERIODS.map((p) => {
+              const isActive = period === p;
+              return (
+                <button
+                  key={p}
+                  onClick={() => handlePeriodChange(p)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-border-main text-text-bold border border-white/10"
+                      : "bg-transparent text-text-muted hover:text-text-bold hover:bg-white/5"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex-1 flex justify-end">
+            <button
+              onClick={() => window.open(`/terminal/${ticker}`, "_blank")}
+              className="group flex items-center gap-2.5 bg-bg-surface hover:bg-white/5 border border-border-main hover:border-white/10 text-text-muted hover:text-text-bold px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+              title="Open Advanced Terminal"
+            >
+              <span className="group-hover:text-text-bold transition-colors">Terminal</span>
+              <CandlestickChart className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -379,10 +645,20 @@ export function StockDetails() {
                     <div
                       className={`text-[13px] font-black mt-1 ${isHPnlPos ? "text-success" : "text-danger"}`}
                     >
-                      <AnimatedNumber value={holdingPnl} showPlusSign prefix="₹" decimals={2} className="inline-block" />
-                      {" "}
+                      <AnimatedNumber
+                        value={holdingPnl}
+                        showPlusSign
+                        prefix="₹"
+                        decimals={2}
+                        className="inline-block"
+                      />{" "}
                       (
-                      <AnimatedNumber value={holdingPnlPct} showPlusSign decimals={0} className="inline-block" />
+                      <AnimatedNumber
+                        value={holdingPnlPct}
+                        showPlusSign
+                        decimals={0}
+                        className="inline-block"
+                      />
                       %)
                     </div>
                   </div>

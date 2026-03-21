@@ -3,6 +3,7 @@ import { MainLayout } from "./components/layout/MainLayout";
 import { Holdings } from "./pages/Holdings";
 import { Insights } from "./pages/Insights";
 import { StockDetails } from "./pages/StockDetails";
+import { Terminal } from "./pages/Terminal";
 import "./App.css";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="insights" element={<Insights />} />
         <Route path="stock/:ticker" element={<StockDetails />} />
       </Route>
+      <Route path="/terminal/:ticker" element={<Terminal />} />
     </Routes>
   );
 }

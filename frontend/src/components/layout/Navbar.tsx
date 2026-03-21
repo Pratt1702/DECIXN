@@ -1,11 +1,13 @@
-import { Search, Bell, Settings, Loader2 } from "lucide-react";
+import { Search, Bell, Settings, Loader2, LogOut } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { searchStocks } from "../../services/api";
 import { motion } from "framer-motion";
 import logo from "../../assets/logo.png";
+import { useSupabaseAuth } from "../../contexts/AuthContext";
 
 export function Navbar() {
+  const { signOut } = useSupabaseAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [search, setSearch] = useState("");
@@ -97,7 +99,7 @@ export function Navbar() {
           <div className="hidden md:flex h-full space-x-2">
             <button
               onClick={() => navigate("/holdings")}
-              className={`relative h-full flex items-center px-4 text-[15px] font-semibold tracking-wide transition-colors ${location.pathname.includes("holdings") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
+              className={`relative h-full flex items-center px-4 text-[15px] font-bold tracking-wide transition-colors ${location.pathname.includes("holdings") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
             >
               Holdings
               {location.pathname.includes("holdings") && (
@@ -109,7 +111,7 @@ export function Navbar() {
             </button>
             <button
               onClick={() => navigate("/insights")}
-              className={`relative h-full flex items-center px-4 text-[15px] font-semibold tracking-wide transition-colors ${location.pathname.includes("insights") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
+              className={`relative h-full flex items-center px-4 text-[15px] font-bold tracking-wide transition-colors ${location.pathname.includes("insights") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
             >
               Insights
               {location.pathname.includes("insights") && (
@@ -182,6 +184,13 @@ export function Navbar() {
           </button>
           <button className="hover:text-accent hover:scale-110 active:scale-95 transition-all duration-300">
             <Settings className="h-5 w-5" />
+          </button>
+          <button 
+            onClick={() => signOut()}
+            className="hover:text-danger hover:scale-110 active:scale-95 transition-all duration-300"
+            title="Sign Out"
+          >
+            <LogOut className="h-5 w-5" />
           </button>
           <div className="h-9 w-9 overflow-hidden rounded-xl bg-bg-surface border border-white/10 cursor-pointer hover:border-accent transition-all duration-300 active:scale-95">
             <img

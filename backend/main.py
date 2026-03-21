@@ -180,7 +180,7 @@ def analyze_portfolio():
     Reads the Kite holdings CSV (holdings_kite.csv) as a fallback data source,
     then delegates to the shared analysis pipeline.
     """
-    csv_path = "holdings_kite.csv"
+    csv_path = os.path.join(os.path.dirname(__file__), "assets", "holdings_kite.csv")
     if not os.path.exists(csv_path):
         raise HTTPException(status_code=404, detail="Holdings CSV not found in backend directory.")
 
@@ -195,8 +195,9 @@ def analyze_portfolio():
                 symbol = row[0].replace('"', '').replace("'", '').strip()
                 qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
                 avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
+                # row[3] is LTP, row[4] is Invested, row[5] is Cur. Val, row[6] is P&L
+                cur_val = float(row[5].replace('"', '').replace(',', '').strip() or 0)
                 pnl = float(row[6].replace('"', '').replace(',', '').strip() or 0)
-                cur_val = float(row[4].replace('"', '').replace(',', '').strip() or 0)
                 if symbol and qty > 0:
                     holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": pnl, "current_value": cur_val})
             except Exception as e:

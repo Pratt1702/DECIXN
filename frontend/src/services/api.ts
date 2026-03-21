@@ -54,9 +54,16 @@ export const getPortfolio = async () => {
   const cached = localStorage.getItem(cacheKey);
   const cacheTime = localStorage.getItem(cacheTimeKey);
   
-  // Return cache if it's less than 5 minutes old (300,000ms)
+  // Return cache if it's less than 5 minutes old (300,000ms) and has valid data
   if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 300000) {
-    return JSON.parse(cached);
+    try {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.portfolio_analysis && parsed.portfolio_analysis.length > 0) {
+        return parsed;
+      }
+    } catch (e) {
+      console.warn("API cache corrupt, ignoring");
+    }
   }
   
   try {

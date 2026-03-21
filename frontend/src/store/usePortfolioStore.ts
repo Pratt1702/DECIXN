@@ -30,10 +30,12 @@ export const usePortfolioStore = create<PortfolioState>()(
       }),
       
       shouldRefresh: (currentHash) => {
-        const { lastAnalysis, sourceHash } = get();
+        const { lastAnalysis, sourceHash, data } = get();
         
-        // 1. If no data, refresh
-        if (!lastAnalysis) return true;
+        // 1. If no data or data is effectively empty, refresh
+        if (!lastAnalysis || !data || !data.portfolio_analysis || data.portfolio_analysis.length === 0) {
+          return true;
+        }
         
         // 2. If source (CSV) changed, refresh
         if (currentHash && currentHash !== sourceHash) return true;

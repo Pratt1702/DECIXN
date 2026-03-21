@@ -1,0 +1,251 @@
+.signup-background {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #0a0a0a;
+  overflow: hidden;
+  height: 100vh;
+  width: 100%;
+}
+
+.signup-component {
+  z-index: 100;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  background: rgba(18, 18, 18, 0.8);
+  backdrop-filter: blur(24px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 40px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.6);
+  transition:
+    transform 0.3s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.3s;
+}
+
+.auth-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(80, 255, 167, 0.3);
+}
+
+.auth-card-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-header {
+  text-align: center;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-logo {
+  height: 64px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-family: "Noto Sans", sans-serif !important;
+  font-size: 3.5rem;
+  font-weight: 900;
+  font-style: italic !important;
+  letter-spacing: -0.05em;
+  color: #f3f4f6;
+  line-height: 1;
+  display: block;
+  text-shadow: 0 0 40px rgba(80, 255, 167, 0.1);
+}
+
+.brand-tagline {
+  font-family: "Noto Sans", sans-serif !important;
+  font-size: 14px;
+  color: #9ca3af;
+  font-weight: 600;
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+/* Supabase UI Overrides */
+.supabase-auth-ui_ui-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+}
+
+.supabase-auth-ui_ui-button {
+  padding: 14px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-size: 13px !important;
+  /* font-style: italic !important; */
+  border-radius: 12px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 1px solid rgba(80, 255, 167, 0.2) !important;
+  font-family: "Noto Sans", sans-serif !important;
+}
+
+.supabase-auth-ui_ui-button[type="submit"] {
+  background: linear-gradient(135deg, #065535 0%, #043d26 100%) !important;
+  color: #50ffa7 !important;
+  border: 1px solid rgba(80, 255, 167, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.supabase-auth-ui_ui-button[type="submit"]:hover {
+  background: linear-gradient(135deg, #0a7a4c 0%, #065535 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(80, 255, 167, 0.15) !important;
+  border-color: rgba(80, 255, 167, 0.5) !important;
+  letter-spacing: 0.2em !important;
+}
+
+.supabase-auth-ui_ui-input {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  color: #f3f4f6 !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  font-family: "Noto Sans", sans-serif !important;
+}
+
+.supabase-auth-ui_ui-input:focus {
+  border-color: rgba(80, 255, 167, 0.4) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px rgba(80, 255, 167, 0.2) !important;
+}
+
+.supabase-auth-ui_ui-label {
+  font-family: "Noto Sans", sans-serif !important;
+  font-style: normal !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #9ca3af !important;
+  text-transform: capitalize !important;
+  margin-bottom: 10px !important;
+  display: block !important;
+}
+
+.supabase-auth-ui_ui-message {
+  font-family: "Noto Sans", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #e13451 !important;
+  text-align: center !important;
+  margin-top: 10px !important;
+  background: rgba(225, 52, 81, 0.1) !important;
+  padding: 8px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(225, 52, 81, 0.2) !important;
+}
+
+.supabase-auth-ui_ui-anchor {
+  color: #9ca3af !important;
+  font-size: 13px !important;
+  font-family: "Noto Sans", sans-serif !important;
+  text-decoration: none !important;
+  transition: color 0.2s !important;
+  text-align: center !important;
+  display: block !important;
+  margin-top: 12px !important;
+}
+
+.supabase-auth-ui_ui-anchor:hover {
+  color: #50ffa7 !important;
+}
+
+.supabase-auth-ui_ui-divider {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  margin: 24px 0 !important;
+}
+
+/* Floating Elements */
+.floating-tickers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.floating-ticker {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.05);
+  font-size: 60px;
+  font-weight: 900;
+  font-family: "Noto Sans", sans-serif !important;
+  white-space: nowrap;
+  animation: scrollTicker linear infinite;
+  user-select: none;
+}
+
+@keyframes scrollTicker {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200vw);
+  }
+}
+
+.floating-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.floating-line {
+  position: absolute;
+  width: 150px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(80, 255, 167, 0.2),
+    transparent
+  );
+  animation: lineScan linear infinite;
+}
+
+@keyframes lineScan {
+  0% {
+    transform: translateX(-200px);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120vw);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 32px 24px;
+  }
+  .brand-name {
+    font-size: 2.2rem;
+  }
+}

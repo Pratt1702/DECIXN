@@ -8,6 +8,7 @@ import {
   TechnicalIndicators,
   YearlyRangeBar,
 } from "../components/dashboard/TechnicalIndicators";
+import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import gsap from "gsap";
 
 const PERIODS = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "All"];
@@ -202,26 +203,24 @@ export function StockDetails() {
             </div>
           ) : (
             <div className="animate-value">
-              <p className="text-4xl font-bold tracking-tight text-text-bold">
-                ₹
-                {currentPrice.toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
+              <AnimatedNumber
+                value={currentPrice}
+                prefix="₹"
+                decimals={2}
+                className="block text-4xl font-black tracking-tight text-text-bold"
+              />
               <div
-                className={`flex items-center gap-2 font-bold mt-1.5 text-base ${isPos ? "text-success" : "text-danger"}`}
+                className={`flex items-center gap-2 font-black mt-1.5 text-base ${isPos ? "text-success" : "text-danger"}`}
               >
                 <span>
-                  {isPos ? "+" : ""}
-                  {priceChange.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                  })}{" "}
-                  ({isPos ? "+" : ""}
-                  {priceChangePct.toFixed(2)}%)
+                  <AnimatedNumber value={priceChange} showPlusSign decimals={2} className="inline-block" />
+                  {" "}
+                  (
+                  <AnimatedNumber value={priceChangePct} showPlusSign decimals={2} className="inline-block" />
+                  %)
                 </span>
                 <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                <span className="text-text-muted font-medium uppercase text-xs tracking-widest">
+                <span className="text-text-muted font-bold uppercase text-xs tracking-widest">
                   {period}
                 </span>
               </div>
@@ -238,14 +237,16 @@ export function StockDetails() {
                   {label}
                 </span>
                 {data ? (
-                  <span className="animate-value font-bold text-[#f3f4f6]">
-                    {label === "P/E"
-                      ? data?.fundamentals?.pe_ratio?.toFixed(2) || "N/A"
-                      : label === "RSI"
-                        ? data?.indicators?.rsi_14?.toFixed(2) || "-"
-                        : label === "MACD"
-                          ? data?.indicators?.macd?.MACD_Line?.toFixed(2) || "-"
-                          : data?.fundamentals?.beta?.toFixed(2) || "-"}
+                  <span className="animate-value font-black text-[#f3f4f6]">
+                    {label === "P/E" ? (
+                      data?.fundamentals?.pe_ratio ? <AnimatedNumber value={data.fundamentals.pe_ratio} decimals={2} /> : "N/A"
+                    ) : label === "RSI" ? (
+                      data?.indicators?.rsi_14 ? <AnimatedNumber value={data.indicators.rsi_14} decimals={2} /> : "-"
+                    ) : label === "MACD" ? (
+                      data?.indicators?.macd?.MACD_Line ? <AnimatedNumber value={data.indicators.macd.MACD_Line} decimals={2} /> : "-"
+                    ) : (
+                      data?.fundamentals?.beta ? <AnimatedNumber value={data.fundamentals.beta} decimals={2} /> : "-"
+                    )}
                   </span>
                 ) : (
                   <div className="h-4 w-12 bg-white/5 animate-pulse rounded" />
@@ -321,14 +322,14 @@ export function StockDetails() {
 
       {holding && currentPrice > 0 && (
         <div
-          className="bg-transparent border border-[#27272a] rounded-2xl px-6 py-5 mt-4 mb-4 flex flex-row items-center justify-between cursor-pointer hover:bg-white/5 transition-all group"
+          className="bg-bg-surface border border-border-main rounded-xl px-6 py-5 mt-4 mb-4 flex flex-row items-center justify-between cursor-pointer hover:border-[#333] transition-all group"
           onClick={() => navigate("/holdings")}
         >
           <div>
-            <p className="text-lg font-bold text-text-bold tracking-tight">
+            <p className="text-lg font-black text-text-bold tracking-tight">
               {holding.holding_context.quantity} Shares
             </p>
-            <p className="text-[13px] text-text-muted mt-1 font-medium">
+            <p className="text-[13px] text-text-muted mt-1 font-bold">
               Avg Price ₹
               {holding.holding_context.avg_cost.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -349,22 +350,21 @@ export function StockDetails() {
                 const isHPnlPos = holdingPnl >= 0;
                 return (
                   <div className="animate-value text-right flex flex-col items-end">
-                    <p className="text-lg font-bold text-text-bold">
-                      ₹
-                      {(
-                        holding.holding_context.quantity * currentPrice
-                      ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                    </p>
-                    <p
-                      className={`text-[13px] font-bold mt-1 ${isHPnlPos ? "text-success" : "text-danger"}`}
+                    <AnimatedNumber
+                      value={holding.holding_context.quantity * currentPrice}
+                      prefix="₹"
+                      decimals={2}
+                      className="text-lg font-black text-text-bold"
+                    />
+                    <div
+                      className={`text-[13px] font-black mt-1 ${isHPnlPos ? "text-success" : "text-danger"}`}
                     >
-                      {isHPnlPos ? "+" : ""}₹
-                      {holdingPnl.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}{" "}
-                      ({isHPnlPos ? "+" : ""}
-                      {holdingPnlPct.toFixed(0)}%)
-                    </p>
+                      <AnimatedNumber value={holdingPnl} showPlusSign prefix="₹" decimals={2} className="inline-block" />
+                      {" "}
+                      (
+                      <AnimatedNumber value={holdingPnlPct} showPlusSign decimals={0} className="inline-block" />
+                      %)
+                    </div>
                   </div>
                 );
               })()}

@@ -41,19 +41,19 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   ];
 
   return (
-    <div className="overflow-x-auto rounded-3xl border border-white/5 bg-white/[0.02] backdrop-blur-3xl shadow-2xl hover:border-white/10 transition-all duration-700">
-      <table className="w-full text-left text-sm text-text-bold border-collapse">
-        <thead className="border-b border-white/5 bg-white/[0.03] text-[10px] uppercase tracking-[0.2em] text-white/40 font-bold font-heading">
+    <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden hover:border-[#333] transition-all duration-200">
+      <table className="w-full text-left text-sm border-collapse">
+        <thead className="bg-white/[0.03] border-b border-white/5">
           <tr>
             {COLUMNS.map((col) => (
               <th
                 key={col.label}
-                className="px-6 py-6 cursor-pointer hover:text-white transition-colors group whitespace-nowrap"
+                className="px-6 py-4 text-[10px] text-text-muted font-black uppercase tracking-[0.15em] cursor-pointer hover:text-text-bold transition-colors group whitespace-nowrap"
                 onClick={() => handleSort(col.field)}
               >
                 <div className="flex items-center gap-1.5">
                   {col.label}
-                  <ArrowUpDown className={`h-3 w-3 transition-colors ${sortField === col.field ? "text-white/80" : "text-white/10 group-hover:text-white/30"}`} />
+                  <ArrowUpDown className={`h-3 w-3 transition-colors ${sortField === col.field ? "text-text-muted" : "text-white/10 group-hover:text-white/30"}`} />
                 </div>
               </th>
             ))}
@@ -67,16 +67,16 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
               <tr
                 key={i}
                 onClick={() => navigate(`/stock/${h.symbol}`)}
-                className="hover:bg-white/[0.04] transition-all group cursor-pointer"
+                className="hover:bg-white/[0.04] transition-all cursor-pointer group"
               >
-                <td className="px-6 py-5 font-bold text-white tracking-tight">{h.symbol}</td>
-                <td className="px-6 py-5 text-white/70 font-medium tabular-nums">{ctx.quantity}</td>
-                <td className="px-6 py-5 text-white/70 font-medium tabular-nums tracking-tighter">₹{ctx.avg_cost.toLocaleString("en-IN")}</td>
-                <td className="px-6 py-5 text-white font-bold tabular-nums tracking-tighter">₹{ctx.current_value.toLocaleString("en-IN")}</td>
-                <td className={`px-6 py-5 font-black tabular-nums ${isPos ? "text-success" : "text-danger"}`}>
+                <td className="px-6 py-4 font-black text-text-bold tracking-tight">{h.symbol}</td>
+                <td className="px-6 py-4 text-text-muted font-bold tabular-nums">{ctx.quantity}</td>
+                <td className="px-6 py-4 text-text-muted font-bold tabular-nums">₹{ctx.avg_cost.toLocaleString("en-IN")}</td>
+                <td className="px-6 py-4 text-text-bold font-black tabular-nums">₹{ctx.current_value.toLocaleString("en-IN")}</td>
+                <td className={`px-6 py-4 font-black tabular-nums ${isPos ? "text-success" : "text-danger"}`}>
                   <div className="flex items-center gap-1.5">
                     {isPos ? <ArrowUpRight className="h-4 w-4 stroke-[3]" /> : <ArrowDownRight className="h-4 w-4 stroke-[3]" />}
-                    {Math.abs(ctx.pnl_pct).toFixed(2)}%
+                    {isPos ? '+' : ''}{ctx.pnl_pct.toFixed(2)}%
                   </div>
                 </td>
               </tr>

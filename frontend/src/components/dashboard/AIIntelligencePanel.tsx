@@ -33,15 +33,15 @@ export function AIIntelligencePanel({ data }: { data: any }) {
 
   return (
     <div className="">
-      <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
+      <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
         Summary{" "}
         <InfoTooltip content="An AI-calculated composite score blending active technical indicators, moving averages, and deep market sentiment to determine your precise trading conviction." />
       </h2>
-      <p className="text-sm text-text-muted mb-6">
+      <p className="text-sm text-text-muted mb-6 font-medium">
         Based on AI heuristics and technicals
       </p>
 
-      <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl p-8 shadow-lg">
+      <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl p-8">
         <div className="flex justify-between items-start mb-10">
           <div>
             <p className="text-sm text-text-muted mb-1">
@@ -136,7 +136,7 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                         className="h-4 w-full bg-white/5 animate-pulse rounded"
                       />
                     ))
-                  : data.reasons.map((r: string, i: number) => (
+                  : data.reasons.slice(0, 3).map((r: string, i: number) => (
                       <li
                         key={i}
                         className="text-sm text-text-muted flex gap-3"
@@ -147,6 +147,63 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                     ))}
               </ul>
             </div>
+
+            <div>
+              <h3 className="font-bold text-text-bold mb-3 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                   <div className="w-1.5 h-4 bg-accent rounded-full" />
+                   Recommended Action
+                </span>
+                {data?.priority && (
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${data.priority === 'HIGH' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-white/5 text-text-muted border-white/10'}`}>
+                    {data.priority} PRIORITY
+                  </span>
+                )}
+              </h3>
+              {loading ? (
+                <div className="h-20 w-full bg-white/5 animate-pulse rounded-xl" />
+              ) : (
+                <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                       <p className="text-xl font-black text-white tracking-tight leading-none uppercase">
+                          {data?.severity && data.severity !== 'MODERATE' ? (
+                             <span className={`${data.severity === 'CRITICAL' ? 'text-danger' : 'text-amber-500'} mr-2`}>{data.severity}</span>
+                          ) : ''}
+                          {data.decision}
+                       </p>
+                       <span className="text-[9px] font-black text-accent bg-accent/5 px-2 py-0.5 rounded border border-accent/10 whitespace-nowrap uppercase tracking-widest">
+                          {data.trade_type || 'Positional'}
+                       </span>
+                    </div>
+                    {data.pattern && data.pattern !== 'None' && (
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{data.pattern}</p>
+                    )}
+                  </div>
+                  
+                  <p className="text-sm text-text-muted leading-relaxed">
+                    {data.action}
+                    {data.watch_condition && (
+                       <span className="block mt-2 text-[10px] italic text-[#9ca3af]">Trigger: {data.watch_condition}</span>
+                    )}
+                  </p>
+
+                  <div className="flex gap-6 pt-2 border-t border-white/5">
+                    <div>
+                       <span className="text-[9px] text-text-muted font-bold uppercase tracking-widest block mb-1">Confidence</span>
+                       <span className="text-sm font-black text-white">{score}%</span>
+                    </div>
+                    <div>
+                       <span className="text-[9px] text-text-muted font-bold uppercase tracking-widest block mb-1">Risk Factor</span>
+                       <span className={`text-sm font-black ${data.risk_level === 'HIGH' ? 'text-danger' : data.risk_level === 'MEDIUM' ? 'text-amber-500' : 'text-success'}`}>
+                          {data.risk_level || 'LOW'}
+                       </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>

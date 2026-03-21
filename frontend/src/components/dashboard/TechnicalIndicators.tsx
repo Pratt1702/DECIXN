@@ -2,6 +2,7 @@ import { Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 
 // Native CSS Group-Hover Tooltip
 const InfoTooltip = ({
@@ -55,11 +56,11 @@ export function YearlyRangeBar({ data }: { data: any }) {
 
   return (
     <div className="">
-      <h2 className="text-xl font-bold text-text-bold mb-4 flex items-center gap-2">
+      <h2 className="text-xl font-black text-text-bold mb-4 flex items-center gap-2">
         52-Week Range{" "}
         <InfoTooltip content="Yearly price trajectory." align="left" />
       </h2>
-      <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl px-6 py-5 shadow-lg">
+      <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl px-6 py-5">
         <div className="flex justify-between text-[10px] text-text-muted uppercase tracking-[0.15em] font-bold mb-3 tabular-nums">
           <span>
             52W Low {loading ? "---" : `(₹${low.toLocaleString("en-IN")})`}
@@ -85,18 +86,22 @@ export function YearlyRangeBar({ data }: { data: any }) {
         <div className="flex justify-between items-center border-t border-white/5 pt-4 mt-4 text-xs">
           <div className="flex items-baseline gap-2">
             <span
-              className={`font-bold text-text-bold text-lg tabular-nums ${loading ? "animate-pulse text-white/10" : ""}`}
+              className={`font-black text-text-bold text-lg tabular-nums ${loading ? "animate-pulse text-white/10" : ""}`}
             >
-              {loading
-                ? "₹---"
-                : `₹${price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+              {loading ? (
+                "₹---"
+              ) : (
+                <AnimatedNumber value={price} prefix="₹" decimals={2} className="inline-block" />
+              )}
             </span>
             <span className="text-[10px] text-white/30 uppercase tracking-widest font-black">
               Current
             </span>
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest text-white/20">
-            {loading ? "---" : `${pct.toFixed(0)}% Distance from low`}
+            {loading ? "---" : (
+              <AnimatedNumber value={pct} suffix="% Distance from low" decimals={0} className="inline-block" />
+            )}
           </div>
         </div>
       </div>
@@ -132,14 +137,14 @@ export function TechnicalIndicators({ data }: { data: any }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 mb-[64px]">
         {/* Support and Resistance */}
         <div>
-          <h2 className="text-xl font-bold text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-black text-text-bold mb-4 flex items-center gap-2">
             Support and Resistance{" "}
             <InfoTooltip
               content="Key computational price levels defined by Pivot Points."
               align="left"
             />
           </h2>
-          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl px-6 py-5 shadow-lg relative h-full flex flex-col justify-center min-h-[220px]">
+          <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl px-6 py-5 relative h-full flex flex-col justify-center min-h-[220px]">
             <div className="relative h-1.5 w-full bg-[#333] rounded-full mb-10 mt-2">
               <div className="absolute -top-7 left-0 text-[10px] text-text-muted font-bold">
                 {loading ? "---" : `S3 ${pivots.S3?.toFixed(1)}`}
@@ -225,16 +230,16 @@ export function TechnicalIndicators({ data }: { data: any }) {
 
         {/* Indicators */}
         <div>
-          <h2 className="text-xl font-bold text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-black text-text-bold mb-4 flex items-center gap-2">
             Indicators{" "}
             <InfoTooltip
               content="Momentum oscillators built strictly on price action."
               align="left"
             />
           </h2>
-          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl overflow-hidden shadow-lg h-full">
+          <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl overflow-hidden h-full">
             <table className="w-full text-left text-xs h-full">
-              <thead className="border-b border-border-main text-[10px] text-text-muted uppercase tracking-[0.15em] bg-bg-surface">
+              <thead className="border-b border-white/5 text-[10px] text-text-muted uppercase tracking-[0.15em] bg-white/[0.03]">
                 <tr>
                   <th className="px-5 py-4 font-bold">Indicator</th>
                   <th className="px-5 py-4 font-bold text-right">Value</th>
@@ -298,16 +303,16 @@ export function TechnicalIndicators({ data }: { data: any }) {
 
       {/* Moving Averages */}
       <div>
-        <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
+        <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
           Moving averages{" "}
           <InfoTooltip
             content="The trailing average stock price over designated lookback time frames (SMA: Simple, EMA: Exponential). Extensively used visually to identify broad trajectory changes."
             align="left"
           />
         </h2>
-        <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl overflow-hidden shadow-lg">
+        <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-border-main text-[11px] text-text-muted uppercase tracking-widest">
+            <thead className="border-b border-white/5 bg-white/[0.03] text-[10px] uppercase tracking-[0.15em] text-text-muted font-black">
               <tr>
                 <th className="px-8 py-5 font-bold">Period</th>
                 <th className="px-8 py-5 font-bold text-right">SMA</th>
@@ -363,7 +368,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
       {/* Fundamentals & Delivery Volume */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
-          <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
             Fundamentals{" "}
             <InfoTooltip
               content="Core macro-financial metrics showcasing intrinsic enterprise valuation, sheer profitability profiles, and baseline dividend yields compared intensely against industry peers."
@@ -371,8 +376,8 @@ export function TechnicalIndicators({ data }: { data: any }) {
             />
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
-              <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">
+            <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 p-5 rounded-xl">
+              <p className="text-[10px] text-text-muted uppercase tracking-[0.15em] font-black mb-2">
                 Market Cap
               </p>
               <p className="text-2xl font-bold text-text-bold">
@@ -425,14 +430,14 @@ export function TechnicalIndicators({ data }: { data: any }) {
         </div>
 
         <div>
-          <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
             Delivery volume percentage{" "}
             <InfoTooltip
               content="The sheer scale of equity actively delivered to demat accounts vs intraday speculation. Robust, higher delivery explicitly outlines powerful longer-term institutional investor conviction."
               align="left"
             />
           </h2>
-          <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-6 rounded-2xl shadow-lg flex flex-col justify-between h-[232px]">
+          <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 p-6 rounded-xl flex flex-col justify-between h-[232px]">
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm font-medium">
                 <div className="flex items-center gap-2">

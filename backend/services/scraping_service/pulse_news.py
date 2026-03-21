@@ -48,7 +48,7 @@ def is_relevant(title: str, aliases):
 # Fetch Pulse feed
 # --------------------------------------------------
 
-async def fetch_pulse_articles(limit: int = 20):
+async def fetch_pulse_articles(limit: int = 100):
 
     try:
         async with httpx.AsyncClient(headers=HEADERS) as client:

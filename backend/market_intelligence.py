@@ -634,6 +634,9 @@ def analyze_single_ticker(symbol: str) -> dict:
             "beta": convert_numpy(info.get("beta", 0.98) or 0.98),
             "52w_low": convert_numpy(info.get("fiftyTwoWeekLow") or 0),
             "52w_high": convert_numpy(info.get("fiftyTwoWeekHigh") or 0),
+            "sector": convert_numpy(info.get("sector") or "Unknown"),
+            "industry": convert_numpy(info.get("industry") or "Unknown"),
+            "quote_type": convert_numpy(info.get("quoteType") or "EQUITY"),
         }
         
         last_c = df.iloc[-2] if len(df) > 1 else df.iloc[-1]
@@ -757,11 +760,17 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         # --- 1.2 52-WEEK CONTEXT ---
         fifty_two_week_low = None
         fifty_two_week_high = None
+        sector = "Unknown"
+        industry = "Unknown"
+        quote_type = "EQUITY"
         company_name = symbol.replace('.NS', '').replace('.BO', '')
         try:
             info = yf.Ticker(symbol).info
             fifty_two_week_low = info.get('fiftyTwoWeekLow')
             fifty_two_week_high = info.get('fiftyTwoWeekHigh')
+            sector = info.get('sector', 'Unknown') or "Unknown"
+            industry = info.get('industry', 'Unknown') or "Unknown"
+            quote_type = info.get('quoteType', 'EQUITY') or "EQUITY"
             company_name = info.get('longName', info.get('shortName', company_name))
         except Exception:
             pass
@@ -801,6 +810,9 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             },
             "data": {
                 "companyName": company_name,
+                "sector": sector,
+                "industry": industry,
+                "quote_type": quote_type,
                 "price": convert_numpy(signals['Price']),
                 "trend": signals['Trend'],
                 "portfolio_decision": decision,

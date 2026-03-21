@@ -214,7 +214,9 @@ Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list o
     "total_value_live": 62710.5,
     "total_pnl": -23243.7,
     "win_rate": "12.5%",
-    "insight": "..."
+    "insight": "...",
+    "working_capital_pct": 32.5,
+    "trapped_capital_pct": 67.5
   },
   "recommended_actions": ["...", "..."],
   "portfolio_analysis": [

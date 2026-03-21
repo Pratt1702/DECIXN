@@ -194,6 +194,26 @@ export function StockDetails() {
             </div>
           )}
         </div>
+        
+        {data?.fundamentals && (
+          <div className="flex items-center gap-2 mb-2 animate-value">
+            {data.fundamentals.sector && data.fundamentals.sector !== "Unknown" && (
+                <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
+                    {data.fundamentals.sector}
+                </span>
+            )}
+            {data.fundamentals.industry && data.fundamentals.industry !== "Unknown" && (
+                <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
+                    {data.fundamentals.industry}
+                </span>
+            )}
+            {data.fundamentals.quote_type && (
+                <span className="px-2.5 py-1 rounded-md bg-white/5 text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] border border-white/10">
+                    {data.fundamentals.quote_type}
+                </span>
+            )}
+          </div>
+        )}
 
         <div className="mt-3 text-left">
           {!data && loading ? (

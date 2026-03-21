@@ -9,6 +9,7 @@ import {
   Activity,
   BarChart2,
   CandlestickChart,
+  Bookmark,
 } from "lucide-react";
 import {
   LineChart,
@@ -25,6 +26,8 @@ import {
   YearlyRangeBar,
 } from "../components/dashboard/TechnicalIndicators";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
+import { WatchlistModal } from "../components/dashboard/WatchlistModal";
+import { useWatchlistStore } from "../store/useWatchlistStore";
 import gsap from "gsap";
 
 const PERIODS = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "All"];
@@ -62,6 +65,8 @@ export function StockDetails() {
   const [holding, setHolding] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { addRecentView } = useExploreStore();
+  const [modalOpen, setModalOpen] = useState(false);
+  const { isSymbolInAnyWatchlist } = useWatchlistStore();
 
   const handlePeriodChange = (p: string) => {
     setPeriod(p);
@@ -249,6 +254,13 @@ export function StockDetails() {
               <span className="bg-accent/10 text-accent border border-accent/20 px-3 py-1 rounded-full text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
                 {data?.symbol?.replace(".NS", "").replace(".BO", "") || ticker}
               </span>
+              <button
+                onClick={() => setModalOpen(true)}
+                className={`ml-1 md:ml-3 p-2 rounded-xl border transition-all cursor-pointer active:scale-95 ${isSymbolInAnyWatchlist(ticker || '') ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
+                title="Save to Watchlist"
+              >
+                <Bookmark className={`w-6 h-6 ${isSymbolInAnyWatchlist(ticker || '') ? 'fill-accent' : ''}`} />
+              </button>
             </div>
           )}
         </div>
@@ -709,6 +721,12 @@ export function StockDetails() {
         <AIIntelligencePanel data={data} />
         <TechnicalIndicators data={data} />
       </div>
+
+      <WatchlistModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        symbol={data?.symbol || ticker || ""}
+      />
     </div>
   );
 }

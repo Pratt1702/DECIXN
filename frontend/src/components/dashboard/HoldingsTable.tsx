@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { ArrowUpRight, ArrowDownRight, ArrowUpDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function HoldingsTable({ holdings }: { holdings: any[] }) {
@@ -53,7 +53,11 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
               >
                 <div className="flex items-center gap-1.5">
                   {col.label}
-                  <ArrowUpDown className={`h-3 w-3 transition-colors ${sortField === col.field ? "text-text-muted" : "text-white/10 group-hover:text-white/30"}`} />
+                  {sortField === col.field && (
+                    <span className="text-text-muted font-black">
+                      {sortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  )}
                 </div>
               </th>
             ))}

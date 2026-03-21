@@ -6,6 +6,7 @@ from market_intelligence import analyze_single_ticker, analyze_single_holding, g
 import csv
 import os
 import requests
+import yfinance as yf
 
 app = FastAPI(
     title="Market Intelligence Engine API",
@@ -33,6 +34,9 @@ class HoldingInput(BaseModel):
 
 class PortfolioInput(BaseModel):
     holdings: list[HoldingInput]
+
+class BatchQuotesRequest(BaseModel):
+    symbols: list[str]
 
 @app.get("/")
 def read_root():
@@ -246,6 +250,85 @@ def analyze_ticker(ticker: str):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))
         
     return result
+
+@app.post("/quotes/batch")
+def get_batch_quotes(payload: BatchQuotesRequest):
+    """
+    Fetches lightweight batch quotes for multiple symbols to power watchlists efficiently.
+    Includes intraday sparkline data for trend visualization.
+    """
+    if not payload.symbols:
+        return {"success": True, "results": []}
+    
+    stock_data = []
+    
+    for original in payload.symbols:
+        sym = original.upper().replace(' ', '')
+        if not sym.endswith('.NS') and not sym.endswith('.BO'):
+            sym += '.NS'
+            
+        try:
+            t = yf.Ticker(sym)
+            # Fetch 5d intraday to ensure we have at least one valid trading session
+            # (especially useful during weekends or after-hours where 1d might be empty)
+            hist_5d = t.history(period="5d", interval="30m")
+            hist_2d = t.history(period="2d")
+            
+            if len(hist_2d) >= 2:
+                prev_close = float(hist_2d['Close'].iloc[-2])
+                curr_price = float(hist_2d['Close'].iloc[-1])
+                vol = float(hist_2d['Volume'].iloc[-1])
+            elif len(hist_2d) == 1:
+                prev_close = float(hist_2d['Close'].iloc[0])
+                curr_price = float(hist_2d['Close'].iloc[0])
+                vol = float(hist_2d['Volume'].iloc[0])
+            else:
+                continue
+                
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100 if prev_close > 0 else 0
+            
+            # Extract sparkline points (closing prices from the LAST valid trading day in hist_5d)
+            sparkline = []
+            if not hist_5d.empty:
+                # Group by date and take the last date's values
+                last_date = hist_5d.index[-1].date()
+                last_day_data = hist_5d[hist_5d.index.date == last_date]
+                sparkline = [float(x) for x in last_day_data['Close'].tolist()]
+            
+            if len(sparkline) < 2:
+                sparkline = [curr_price, curr_price] # Fallback to flat line instead of empty
+            
+            trend = "Bullish" if change_pct > 0 else ("Bearish" if change_pct < 0 else "Neutral")
+            
+            try:
+                info = t.info
+                company_name = info.get('shortName', info.get('longName', original))
+                fifty_two_low = info.get('fiftyTwoWeekLow', curr_price * 0.8)
+                fifty_two_high = info.get('fiftyTwoWeekHigh', curr_price * 1.2)
+            except:
+                company_name = original
+                fifty_two_low = curr_price * 0.8
+                fifty_two_high = curr_price * 1.2
+                
+            stock_data.append({
+                "symbol": original,
+                "companyName": company_name,
+                "price": curr_price,
+                "prevClose": prev_close,
+                "change": change,
+                "changePercent": change_pct,
+                "volume": vol,
+                "trend": trend,
+                "fifty_two_week_low": fifty_two_low,
+                "fifty_two_week_high": fifty_two_high,
+                "sparkline": sparkline
+            })
+        except Exception as e:
+            print(f"Error fetching quote for {original}: {e}")
+            continue
+
+    return {"success": True, "results": stock_data}
 
 @app.get("/search/{query}")
 def search_stocks(query: str):

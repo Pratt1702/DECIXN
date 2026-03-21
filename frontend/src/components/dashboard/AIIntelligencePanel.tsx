@@ -33,15 +33,15 @@ export function AIIntelligencePanel({ data }: { data: any }) {
 
   return (
     <div className="">
-      <h2 className="text-2xl font-bold text-text-bold mb-4 flex items-center gap-2">
+      <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
         Summary{" "}
         <InfoTooltip content="An AI-calculated composite score blending active technical indicators, moving averages, and deep market sentiment to determine your precise trading conviction." />
       </h2>
-      <p className="text-sm text-text-muted mb-6">
+      <p className="text-sm text-text-muted mb-6 font-medium">
         Based on AI heuristics and technicals
       </p>
 
-      <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 rounded-2xl p-8 shadow-lg">
+      <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl p-8">
         <div className="flex justify-between items-start mb-10">
           <div>
             <p className="text-sm text-text-muted mb-1">

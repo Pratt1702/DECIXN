@@ -11,6 +11,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 
 
 const SESSION_KEY = "uploaded_holdings";
@@ -348,14 +349,14 @@ export function Insights() {
                     <div className="px-6 pb-4">
                       <div className="grid grid-cols-4 gap-3">
                         {[
-                          { label: "Avg Cost", value: `₹${item.holding_context?.avg_cost?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}` },
-                          { label: "LTP", value: `₹${item.data?.price?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}` },
-                          { label: "Return", value: `${item.holding_context?.pnl_pct > 0 ? '+' : ''}${item.holding_context?.pnl_pct?.toFixed(2) || '0.00'}%`, color: (item.holding_context?.pnl_pct ?? 0) >= 0 ? 'text-success' : 'text-danger' },
-                          { label: "Holding", value: `₹${item.holding_context?.current_value?.toLocaleString('en-IN') || '0'}` },
+                          { label: "Avg Cost", val: item.holding_context?.avg_cost || 0, prefix: "₹", suffix: "", dec: 2 },
+                          { label: "LTP", val: item.data?.price || 0, prefix: "₹", suffix: "", dec: 2 },
+                          { label: "Return", val: item.holding_context?.pnl_pct || 0, prefix: "", suffix: "%", dec: 2, showPlus: true, color: (item.holding_context?.pnl_pct ?? 0) >= 0 ? 'text-success' : 'text-danger' },
+                          { label: "Holding", val: item.holding_context?.current_value || 0, prefix: "₹", suffix: "", dec: 0 },
                         ].map((stat) => (
                           <div key={stat.label} className="bg-white/[0.03] rounded-lg px-3 py-2">
                             <p className="text-[9px] text-text-muted uppercase tracking-widest font-bold mb-0.5">{stat.label}</p>
-                            <p className={`text-sm font-black ${stat.color || 'text-text-bold'}`}>{stat.value}</p>
+                            <AnimatedNumber value={stat.val} prefix={stat.prefix} suffix={stat.suffix} decimals={stat.dec} showPlusSign={stat.showPlus} className={`text-sm font-black ${stat.color || 'text-text-bold'}`} />
                           </div>
                         ))}
                       </div>
@@ -460,21 +461,28 @@ export function Insights() {
               <div className="border-t border-white/5 pt-3 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-text-muted font-bold">Total Invested</span>
-                  <span className="text-sm font-black text-text-bold">₹{data?.portfolio_summary?.total_invested?.toLocaleString('en-IN') || '0'}</span>
+                  <AnimatedNumber value={data?.portfolio_summary?.total_invested || 0} prefix="₹" className="text-sm font-black text-text-bold" />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-text-muted font-bold">Current Value</span>
-                  <span className="text-sm font-black text-text-bold">₹{data?.portfolio_summary?.total_value_live?.toLocaleString('en-IN') || '0'}</span>
+                  <AnimatedNumber value={data?.portfolio_summary?.total_value_live || 0} prefix="₹" className="text-sm font-black text-text-bold" />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-text-muted font-bold">Total P&L</span>
-                  <span className={`text-sm font-black ${(data?.portfolio_summary?.total_pnl ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}>
-                    {(data?.portfolio_summary?.total_pnl ?? 0) >= 0 ? '+' : ''}₹{data?.portfolio_summary?.total_pnl?.toLocaleString('en-IN') || '0'}
-                  </span>
+                  <AnimatedNumber
+                    value={data?.portfolio_summary?.total_pnl || 0}
+                    prefix="₹"
+                    showPlusSign
+                    className={`text-sm font-black ${(data?.portfolio_summary?.total_pnl ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}
+                  />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-text-muted font-bold">Win Rate</span>
-                  <span className="text-sm font-black text-text-bold">{data?.portfolio_summary?.win_rate || '0%'}</span>
+                  <AnimatedNumber
+                    value={parseFloat(data?.portfolio_summary?.win_rate || "0")}
+                    suffix="%"
+                    className="text-sm font-black text-text-bold"
+                  />
                 </div>
               </div>
             </div>

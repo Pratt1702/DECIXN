@@ -146,12 +146,19 @@
   font-family: "Noto Sans", sans-serif !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  color: #e13451 !important;
+  color: #50ffa7 !important;
   text-align: center !important;
   margin-top: 10px !important;
-  background: rgba(225, 52, 81, 0.1) !important;
+  background: rgba(80, 255, 167, 0.1) !important;
   padding: 8px !important;
   border-radius: 8px !important;
+  border: 1px solid rgba(80, 255, 167, 0.2) !important;
+}
+
+/* Specific styling for error/danger messages */
+.supabase-auth-ui_ui-message[class*="color-danger"] {
+  color: #e13451 !important;
+  background: rgba(225, 52, 81, 0.1) !important;
   border: 1px solid rgba(225, 52, 81, 0.2) !important;
 }
 

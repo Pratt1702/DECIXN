@@ -28,7 +28,7 @@ export function Login() {
   const { user, loading } = useSupabaseAuth();
 
   if (loading) return null;
-  if (user) return <Navigate to="/insights" replace />;
+  if (user) return <Navigate to="/holdings" replace />;
 
   const redirectUrl = window.location.origin;
 

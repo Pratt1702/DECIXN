@@ -16,7 +16,7 @@ function App() {
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Navigate to="/insights" replace />} />
+          <Route index element={<Navigate to="/holdings" replace />} />
           <Route path="holdings" element={<Holdings />} />
           <Route path="insights" element={<Insights />} />
           <Route path="stock/:ticker" element={<StockDetails />} />

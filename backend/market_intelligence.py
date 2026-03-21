@@ -1,3 +1,4 @@
+import requests
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -307,7 +308,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         "LIT": "LT", "LNT": "LT", "L&T": "LT",
         "M&M": "M&M", "MAM": "M&M",
         "TATASTEEL": "TATASTEEL", "TATAPOWER": "TATAPOWER",
-        "TATA MOTORS": "TATAMOTORS", "TATAMOTORS": "TATAMOTORS",
+        "TATA MOTORS": "TMPV", "TATAMOTORS": "TMPV", "TMPV": "TMPV", "TMCV": "TMCV",
         "RELIANCE": "RELIANCE", "RIL": "RELIANCE",
         "HDFC": "HDFCBANK", "HDFCBANK": "HDFCBANK",
         "ICICI": "ICICIBANK", "ICICIBANK": "ICICIBANK",
@@ -456,6 +457,118 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             "success": False,
             "error": str(e)
         })
+
+def get_market_overview() -> dict:
+    """
+    Fetches NIFTY 50, SENSEX, and Top Gainers / Losers for the Indian market.
+    """
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    indices = []
+    try:
+        # Fetch NIFTY 50
+        nifty = yf.Ticker("^NSEI").history(period="2d")
+        if len(nifty) >= 2:
+            prev_close = nifty['Close'].iloc[-2]
+            curr_price = nifty['Close'].iloc[-1]
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100
+        elif len(nifty) == 1:
+            curr_price = nifty['Close'].iloc[0]
+            change, change_pct = 0, 0
+        else:
+            curr_price, change, change_pct = 0, 0, 0
+            
+        indices.append({
+            "name": "NIFTY",
+            "symbol": "^NSEI",
+            "price": float(curr_price),
+            "change": float(change),
+            "changePercent": float(change_pct)
+        })
+        
+        # Fetch SENSEX
+        sensex = yf.Ticker("^BSESN").history(period="2d")
+        if len(sensex) >= 2:
+            prev_close = sensex['Close'].iloc[-2]
+            curr_price = sensex['Close'].iloc[-1]
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100
+        elif len(sensex) == 1:
+            curr_price = sensex['Close'].iloc[0]
+            change, change_pct = 0, 0
+        else:
+            curr_price, change, change_pct = 0, 0, 0
+            
+        indices.append({
+            "name": "SENSEX",
+            "symbol": "^BSESN",
+            "price": float(curr_price),
+            "change": float(change),
+            "changePercent": float(change_pct)
+        })
+    except Exception as e:
+        print(f"Error fetching indices: {e}")
+        
+    nifty50_symbols = [
+        "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "BHARTIARTL.NS",
+        "SBIN.NS", "INFY.NS", "ITC.NS", "HINDUNILVR.NS", "LT.NS",
+        "BAJFINANCE.NS", "HCLTECH.NS", "MARUTI.NS", "SUNPHARMA.NS", "TMPV.NS", "TMCV.NS",
+        "ASIANPAINT.NS", "KOTAKBANK.NS", "M&M.NS", "AXISBANK.NS", "ONGC.NS",
+        "NTPC.NS", "POWERGRID.NS", "WIPRO.NS", "TATASTEEL.NS", "COALINDIA.NS",
+        "ULTRACEMCO.NS", "TITAN.NS", "BAJAJFINSV.NS", "NESTLEIND.NS", "ADANIENT.NS",
+        "ADANIPORTS.NS", "GRASIM.NS", "INDUSINDBK.NS", "BRITANNIA.NS", "TECHM.NS",
+        "HINDALCO.NS", "JSWSTEEL.NS", "EICHERMOT.NS", "DRREDDY.NS", "DIVISLAB.NS",
+        "SBILIFE.NS", "HDFCLIFE.NS", "BPCL.NS", "HEROMOTOCO.NS", "CIPLA.NS",
+        "APOLLOHOSP.NS", "UPL.NS", "BAJAJ-AUTO.NS", "TATACONSUM.NS", "SHREECEM.NS"
+    ]
+    
+    stock_data = []
+    try:
+        df = yf.download(nifty50_symbols, period="2d", interval="1d", group_by="ticker", threads=True, auto_adjust=True)
+        for symbol in nifty50_symbols:
+            try:
+                ticker_data = df[symbol] if len(nifty50_symbols) > 1 else df
+                if len(ticker_data) >= 2:
+                    prev_close = float(ticker_data['Close'].iloc[-2])
+                    curr_price = float(ticker_data['Close'].iloc[-1])
+                    change = curr_price - prev_close
+                    change_pct = (change / prev_close) * 100 if prev_close > 0 else 0
+                elif len(ticker_data) == 1:
+                    curr_price = float(ticker_data['Close'].iloc[-1])
+                    change, change_pct = 0.0, 0.0
+                else:
+                    continue
+                
+                if curr_price > 0:
+                    try:
+                        info = yf.Ticker(symbol).info
+                        company_name = info.get('shortName', info.get('longName', symbol.replace('.NS', '')))
+                    except:
+                        company_name = symbol.replace('.NS', '')
+                        
+                    stock_data.append({
+                        "symbol": symbol.replace('.NS', '').replace('.BO', ''),
+                        "companyName": company_name,
+                        "price": curr_price,
+                        "change": change,
+                        "changePercent": change_pct
+                    })
+            except Exception as e:
+                continue
+    except Exception as e:
+        print(f"Error fetching batch data: {e}")
+
+    stock_data.sort(key=lambda x: x['changePercent'], reverse=True)
+    gainers = stock_data[:10] if stock_data else []
+    losers = sorted(stock_data, key=lambda x: x['changePercent'])[:10] if stock_data else []
+
+    return {
+        "success": True,
+        "indices": indices,
+        "top_gainers": gainers,
+        "top_losers": losers
+    }
 
 def run_market_intelligence(stocks):
     results = {}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTickerAnalysis, getPortfolio } from "../services/api";
+import { useExploreStore } from "../store/useExploreStore";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -60,6 +61,7 @@ export function StockDetails() {
   const [chartType, setChartType] = useState<"line" | "candle">("line");
   const [holding, setHolding] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { addRecentView } = useExploreStore();
 
   const handlePeriodChange = (p: string) => {
     setPeriod(p);
@@ -138,6 +140,27 @@ export function StockDetails() {
     }
     fetchTicker();
   }, [ticker]);
+
+  useEffect(() => {
+    if (data && !data.error) {
+      let priceChange = 0;
+      let priceChangePct = 0;
+      const currentChart = data.charts?.[period] || [];
+      if (currentChart && currentChart.length > 0) {
+        const firstPrice = currentChart[0].price;
+        priceChange = data.price - firstPrice;
+        priceChangePct = (priceChange / firstPrice) * 100;
+      }
+
+      addRecentView({
+        symbol: data.symbol,
+        companyName: data.companyName || data.symbol,
+        price: data.price,
+        change: priceChange,
+        changePercent: priceChangePct
+      });
+    }
+  }, [data, period, addRecentView]);
 
   useEffect(() => {
     if (!loading && data && !data.error && containerRef.current) {

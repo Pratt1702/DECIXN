@@ -106,6 +106,18 @@ export function Navbar() {
           {/* Navigation Links */}
           <div className="hidden md:flex h-full space-x-2">
             <button
+              onClick={() => navigate("/explore")}
+              className={`relative h-full flex items-center px-4 text-[15px] font-bold tracking-wide transition-colors ${location.pathname.includes("explore") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
+            >
+              Explore
+              {location.pathname.includes("explore") && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute bottom-0 left-4 right-4 h-[3px] bg-white rounded-t-md"
+                />
+              )}
+            </button>
+            <button
               onClick={() => navigate("/holdings")}
               className={`relative h-full flex items-center px-4 text-[15px] font-bold tracking-wide transition-colors ${location.pathname.includes("holdings") ? "text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#d1d5db]"}`}
             >

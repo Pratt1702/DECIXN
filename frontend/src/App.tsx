@@ -3,6 +3,7 @@ import { MainLayout } from "./components/layout/MainLayout";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { Login } from "./pages/Login";
 import { Holdings } from "./pages/Holdings";
+import { Explore } from "./pages/Explore";
 import { Insights } from "./pages/Insights";
 import { StockDetails } from "./pages/StockDetails";
 import { Terminal } from "./pages/Terminal";
@@ -16,7 +17,8 @@ function App() {
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<Navigate to="/holdings" replace />} />
+          <Route index element={<Navigate to="/explore" replace />} />
+          <Route path="explore" element={<Explore />} />
           <Route path="holdings" element={<Holdings />} />
           <Route path="insights" element={<Insights />} />
           <Route path="stock/:ticker" element={<StockDetails />} />

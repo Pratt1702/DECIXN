@@ -64,7 +64,7 @@ export function WatchlistModal({ isOpen, onClose, symbol }: WatchlistModalProps)
             </h3>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-white/5 transition-colors"
+              className="p-1.5 rounded-md text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-white/5 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -80,7 +80,7 @@ export function WatchlistModal({ isOpen, onClose, symbol }: WatchlistModalProps)
                 <button
                   key={list.id}
                   onClick={() => handleToggle(list.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-white/5 transition-all text-left group"
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-white/5 transition-all text-left group cursor-pointer"
                 >
                   <div className="flex flex-row items-center gap-3">
                     <div className={`p-2 rounded-lg transition-colors border ${inList ? "bg-accent/10 border-accent/20" : "bg-white/5 border-white/5 group-hover:bg-white/10"}`}>
@@ -127,7 +127,7 @@ export function WatchlistModal({ isOpen, onClose, symbol }: WatchlistModalProps)
               <button
                 onClick={handleCreateAndAdd}
                 disabled={!newListName.trim() || isCreating}
-                className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer active:scale-95"
               >
                 <Plus className="w-5 h-5 text-[#9ca3af] group-hover:text-accent transition-colors" />
               </button>

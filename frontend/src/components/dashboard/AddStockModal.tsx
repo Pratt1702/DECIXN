@@ -84,7 +84,7 @@ export function AddStockModal({ isOpen, onClose, watchlistId }: AddStockModalPro
             <h3 className="text-base font-black text-[#f3f4f6]">
               Add Stocks to Watchlist
             </h3>
-            <button onClick={onClose} className="p-1.5 rounded-md text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-white/5 transition-colors">
+            <button onClick={onClose} className="p-1.5 rounded-md text-[#9ca3af] hover:text-[#f3f4f6] hover:bg-white/5 transition-colors cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -123,7 +123,7 @@ export function AddStockModal({ isOpen, onClose, watchlistId }: AddStockModalPro
                   <button
                     onClick={() => handleToggle(symClean)}
                     disabled={isToggling}
-                    className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${inList ? 'bg-accent/10 border border-accent/20 text-accent' : 'bg-white/5 hover:bg-white/10 border border-white/10 text-[#9ca3af] hover:text-white'}`}
+                    className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer active:scale-95 ${inList ? 'bg-accent/10 border border-accent/20 text-accent' : 'bg-white/5 hover:bg-white/10 border border-white/10 text-[#9ca3af] hover:text-white'}`}
                   >
                     {isToggling ? (
                       <Loader2 className="w-4 h-4 animate-spin" />

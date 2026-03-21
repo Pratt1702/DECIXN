@@ -32,7 +32,7 @@ export function Watchlist() {
   const [editName, setEditName] = useState("");
   const [pendingRemovals, setPendingRemovals] = useState<string[]>([]);
   const [isProcessingDone, setIsProcessingDone] = useState(false);
-  const { createWatchlist, renameWatchlist, deleteWatchlist, toggleItemInWatchlist, removeItemsFromWatchlist } = useWatchlistStore();
+  const { createWatchlist, renameWatchlist, deleteWatchlist, removeItemsFromWatchlist } = useWatchlistStore();
 
   useEffect(() => {
     if (user) fetchWatchlists(user.id);
@@ -195,7 +195,7 @@ export function Watchlist() {
                 <button
                   key={w.id}
                   onClick={() => setActiveTab(w.id)}
-                  className={`px-5 py-3 text-sm font-bold border-b-[3px] transition-all whitespace-nowrap ${isActive ? "border-accent text-accent" : "border-transparent text-text-muted hover:text-text-bold hover:border-white/10"}`}
+                  className={`px-5 py-3 text-sm font-bold border-b-[3px] transition-all whitespace-nowrap cursor-pointer ${isActive ? "border-accent text-accent" : "border-transparent text-text-muted hover:text-text-bold hover:border-white/10"}`}
                 >
                   {w.name}
                 </button>
@@ -238,7 +238,7 @@ export function Watchlist() {
             ) : (
               <button
                 onClick={() => setIsCreatingList(true)}
-                className="px-4 py-3 text-sm font-bold text-text-muted hover:text-text-bold hover:bg-white/5 transition-all flex items-center gap-2 border-b-[3px] border-transparent"
+                className="px-4 py-3 text-sm font-bold text-text-muted hover:text-text-bold hover:bg-white/5 transition-all flex items-center gap-2 border-b-[3px] border-transparent cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Watchlist
               </button>
@@ -263,20 +263,20 @@ export function Watchlist() {
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
                   onClick={handleDeleteWatchlist}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-[#333] hover:border-danger hover:text-danger hover:bg-danger/10 rounded-lg text-sm font-bold text-[#f3f4f6] transition-all whitespace-nowrap"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-[#333] hover:border-danger hover:text-danger hover:bg-danger/10 rounded-lg text-sm font-bold text-[#f3f4f6] transition-all whitespace-nowrap cursor-pointer shadow-sm active:scale-95"
                 >
                   <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete watchlist</span><span className="sm:hidden">Delete</span>
                 </button>
                 <button
                   onClick={handleUndo}
-                  className="flex items-center justify-center gap-2 px-4 py-2 border border-[#333] hover:bg-white/5 rounded-lg text-sm font-bold text-[#f3f4f6] transition-all"
+                  className="flex items-center justify-center gap-2 px-4 py-2 border border-[#333] hover:bg-white/5 rounded-lg text-sm font-bold text-[#f3f4f6] transition-all cursor-pointer active:scale-95"
                 >
                   <Undo2 className="w-4 h-4" /> Undo
                 </button>
                 <button
                   onClick={handleDone}
                   disabled={isProcessingDone}
-                  className="px-5 py-2 bg-accent hover:bg-accent/90 text-black rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-5 py-2 bg-accent hover:bg-accent/90 text-black rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer active:scale-95"
                 >
                   {isProcessingDone ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Done
@@ -300,7 +300,7 @@ export function Watchlist() {
                 <button 
                   onClick={() => setIsAddStockModalOpen(true)}
                   disabled={!activeTab}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95"
                 >
                   <Plus className="w-4 h-4 text-text-muted" /> Add stocks
                 </button>
@@ -311,7 +311,7 @@ export function Watchlist() {
                     setPendingRemovals([]);
                   }}
                   disabled={!activeTab}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95"
                 >
                   <Edit2 className="w-4 h-4 text-text-muted" /> Edit
                 </button>
@@ -471,7 +471,7 @@ export function Watchlist() {
                                    setPendingRemovals(prev => [...prev, d.symbol]);
                                  }
                                }}
-                               className={`p-2 rounded-lg transition-colors border ${isRemoved ? 'bg-white/10 border-white/20 text-white' : 'hover:bg-danger/10 border-transparent hover:border-danger/30 text-danger'}`}
+                               className={`p-2 rounded-lg transition-colors border cursor-pointer active:scale-90 ${isRemoved ? 'bg-white/10 border-white/20 text-white' : 'hover:bg-danger/10 border-transparent hover:border-danger/30 text-danger'}`}
                                title={isRemoved ? "Undo remove" : "Remove from watchlist"}
                             >
                                {isRemoved ? <Undo2 className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}

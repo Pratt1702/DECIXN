@@ -256,7 +256,7 @@ export function StockDetails() {
               </span>
               <button
                 onClick={() => setModalOpen(true)}
-                className={`ml-1 md:ml-3 p-2 rounded-xl border transition-all ${isSymbolInAnyWatchlist(ticker || '') ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
+                className={`ml-1 md:ml-3 p-2 rounded-xl border transition-all cursor-pointer active:scale-95 ${isSymbolInAnyWatchlist(ticker || '') ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
                 title="Save to Watchlist"
               >
                 <Bookmark className={`w-6 h-6 ${isSymbolInAnyWatchlist(ticker || '') ? 'fill-accent' : ''}`} />

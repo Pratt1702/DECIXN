@@ -114,12 +114,40 @@ def analyze_single_ticker(symbol: str) -> dict:
         return charts
 
     symbol = symbol.upper().replace(' ', '')
-    if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
-        symbol += '.NS'
-    symbol = symbol.upper()
+    original_symbol = symbol.replace('.NS', '').replace('.BO', '')
+    
+    # Try .NS first, then .BO as fallback
+    symbols_to_try = [f"{original_symbol}.NS", f"{original_symbol}.BO"]
+    
+    df = None
+    final_symbol = None
+    fetch_error = None
+
+    for sym in symbols_to_try:
+        try:
+            df = fetch_data(sym, period="1y")
+            if not df.empty:
+                final_symbol = sym
+                break
+        except Exception as e:
+            fetch_error = e
+            continue
+
+    if df is None or df.empty:
+        # Final attempt: try without any suffix just in case
+        try:
+            df = fetch_data(original_symbol, period="1y")
+            final_symbol = original_symbol
+        except:
+            return {
+                "symbol": original_symbol,
+                "success": False,
+                "error": f"Ticker '{original_symbol}' not found on NSE or BSE. (Last error: {fetch_error})"
+            }
+
+    symbol = final_symbol
         
     try:
-        df = fetch_data(symbol, period="1y")
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
         decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc = make_decision(signals)
@@ -269,10 +297,46 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             return bool(obj)
         return obj
 
+    original_symbol = symbol.replace('.NS', '').replace('.BO', '')
+    symbols_to_try = [f"{original_symbol}.NS", f"{original_symbol}.BO"]
+    
+    df = None
+    final_symbol = None
+    for sym in symbols_to_try:
+        try:
+            df = fetch_data(sym, period="100d")
+            if not df.empty:
+                final_symbol = sym
+                break
+        except:
+            continue
+    
+    # If no exchange found, create a mock-up/fallback result instead of crashing
+    is_fallback = False
+    if df is None:
+        is_fallback = True
+        dates = pd.date_range(end=datetime.today(), periods=5)
+        price_est = avg_cost + (pnl / qty) if qty > 0 else avg_cost
+        df = pd.DataFrame({
+            'Open': [price_est]*5, 'High': [price_est]*5, 'Low': [price_est]*5, 
+            'Close': [price_est]*5, 'Volume': [0]*5
+        }, index=dates)
+        symbol = original_symbol
+    else:
+        symbol = final_symbol
+
     try:
-        df = fetch_data(symbol, period="100d")
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
+        
+        # Add warning for fallback data
+        mkt_reasons = []
+        if is_fallback:
+            mkt_reasons.append("LIVE DATA UNAVAILABLE: Using estimated price based on your P&L history.")
+            signals['Trend'] = "Neutral (No Data)"
+            signals['MACD'] = {'macd':0, 'signal':0, 'hist':0}
+            signals['RSI'] = 50
+            signals['Price'] = avg_cost + (pnl / qty) if qty > 0 else avg_cost
 
         total_invested = avg_cost * qty
         current_value = signals['Price'] * qty
@@ -285,6 +349,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         industry = "Unknown"
         quote_type = "EQUITY"
         company_name = symbol.replace('.NS', '').replace('.BO', '')
+        
         try:
             info = yf.Ticker(symbol).info
             fifty_two_week_low = info.get('fiftyTwoWeekLow')
@@ -293,11 +358,16 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             industry = info.get('industry', 'Unknown') or "Unknown"
             quote_type = info.get('quoteType', 'EQUITY') or "EQUITY"
             company_name = info.get('longName', info.get('shortName', company_name))
-        except Exception:
+        except:
             pass
 
         benchmark_comparison = get_benchmark_comparison(df)
-        mkt_decision, mkt_reasons, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc = make_decision(signals)
+        if not is_fallback:
+            mkt_decision, mkt_reasons_raw, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc = make_decision(signals)
+            mkt_reasons.extend(mkt_reasons_raw)
+        else:
+            # Safe defaults for fallback
+            mkt_decision, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc = ("HOLD", 50, "WAIT", "LOW", "LOW", "Unknown", "DEBT", "LOW", "Maintain status quo")
         decision, reasons, action, priority, risk_level, _, portfolio_tag = make_holding_decision(
             signals, avg_cost, live_pnl,
             fifty_two_week_low=fifty_two_week_low,

@@ -31,13 +31,22 @@ const MOCK_PORTFOLIO = {
 export const getPortfolio = async () => {
   // Priority 1: Check session storage for custom uploaded holdings
   const sessionHoldings = sessionStorage.getItem('uploaded_holdings');
-  if (sessionHoldings) {
-    const sessionSummary = sessionStorage.getItem('portfolio_summary');
-    return {
-      portfolio_analysis: JSON.parse(sessionHoldings),
-      portfolio_summary: sessionSummary ? JSON.parse(sessionSummary) : null,
-      is_manual: true
-    };
+  if (sessionHoldings && sessionHoldings !== "undefined") {
+    try {
+      const sessionSummary = sessionStorage.getItem('portfolio_summary');
+      const summaryParsed = (sessionSummary && sessionSummary !== "undefined") 
+        ? JSON.parse(sessionSummary) 
+        : null;
+
+      return {
+        portfolio_analysis: JSON.parse(sessionHoldings),
+        portfolio_summary: summaryParsed,
+        is_manual: true
+      };
+    } catch (e) {
+      console.warn("Session holdings corrupt, clearing:", e);
+      sessionStorage.removeItem('uploaded_holdings');
+    }
   }
 
   const cacheKey = 'etmarkets_portfolio';

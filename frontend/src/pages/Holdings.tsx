@@ -61,16 +61,29 @@ export function Holdings() {
 
   const loadData = useCallback(async () => {
     const sessionData = sessionStorage.getItem(SESSION_KEY);
-    if (sessionData) {
-      const parsed = JSON.parse(sessionData);
-      const sessionSummary = sessionStorage.getItem("portfolio_summary");
-      setData({
-        portfolio_analysis: parsed,
-        portfolio_summary: sessionSummary ? JSON.parse(sessionSummary) : calculateSummary(parsed),
-      });
-      setIsManual(true);
-      setLoading(false);
-      return;
+    
+    // Check for both null AND the literal string "undefined" which can sometimes happen
+    if (sessionData && sessionData !== "undefined") {
+      try {
+        const parsed = JSON.parse(sessionData);
+        if (Array.isArray(parsed)) {
+          const sessionSummary = sessionStorage.getItem("portfolio_summary");
+          const summaryParsed = (sessionSummary && sessionSummary !== "undefined") 
+            ? JSON.parse(sessionSummary) 
+            : calculateSummary(parsed);
+
+          setData({
+            portfolio_analysis: parsed,
+            portfolio_summary: summaryParsed,
+          });
+          setIsManual(true);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Invalid session data, falling back to API:", err);
+        sessionStorage.removeItem(SESSION_KEY);
+      }
     }
 
     try {

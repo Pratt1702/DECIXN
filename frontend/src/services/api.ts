@@ -49,8 +49,8 @@ export const getPortfolio = async () => {
     }
   }
 
-  const cacheKey = 'etmarkets_portfolio';
-  const cacheTimeKey = 'etmarkets_portfolio_time';
+  const cacheKey = 'decixn_portfolio';
+  const cacheTimeKey = 'decixn_portfolio_time';
   const cached = localStorage.getItem(cacheKey);
   const cacheTime = localStorage.getItem(cacheTimeKey);
   

@@ -105,3 +105,9 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
   const response = await apiClient.post('/analyze/portfolio', payload);
   return response.data;
 };
+
+export const getMarketOverview = async () => {
+  const response = await apiClient.get('/market/overview');
+  return response.data;
+};
+

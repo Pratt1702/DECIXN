@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from market_intelligence import analyze_single_ticker, analyze_single_holding
+from market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
 import csv
 import os
 import requests
@@ -227,6 +227,13 @@ def analyze_portfolio_custom(payload: PortfolioInput):
         for h in payload.holdings
     ]
     return _run_portfolio_analysis(holdings_data)
+
+@app.get("/market/overview")
+def get_market_overview_endpoint():
+    """
+    Returns real-time indices (NIFTY 50, SENSEX) and top gainers/losers.
+    """
+    return get_market_overview()
 
 @app.get("/analyze/{ticker}")
 def analyze_ticker(ticker: str):

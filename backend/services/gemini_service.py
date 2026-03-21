@@ -15,14 +15,22 @@ TITLE: {title}
 CONTENT:
 {content}
 
+Extract:
+Affected stocks (NSE tickers if possible)
+Sectors
+Sentiment (positive / negative / neutral)
+Short impact summary (1-2 lines, actionable)
+
+Leave stocks/sectors empty if nothing relevant
+
 Return ONLY valid JSON. No markdown. No explanation.
 
 {{
   "summary": "...",
   "sentiment": "positive|negative|neutral",
-  "impact_summary": "...",
-  "stocks": [],
-  "sectors": []
+  "impact_summary": [](Array of strings/sentences, technical + narrative, max 3),
+  "stocks": [] (Correct ticker symbols only, no company names),
+  "sectors": [] (Correct sector names yfinance convention, no company names, include only if it really impacts sector-wide)
 }}
 """
 

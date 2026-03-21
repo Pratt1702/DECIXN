@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { getBatchQuotes } from "../services/api";
-import { Loader2, Plus, Edit2, Bookmark, ArrowRight, Search, X } from "lucide-react";
+import { Loader2, Plus, Edit2, Bookmark, ArrowRight, Search, X, Trash2, Undo2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
@@ -18,11 +18,21 @@ export function Watchlist() {
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [watchlistData, setWatchlistData] = useState<any[]>([]);
 
+  // Sorting
+  const [sortKey, setSortKey] = useState<string>("companyName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
   // Modals & Inline Creation
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const [isCreatingList, setIsCreatingList] = useState(false);
   const [newListName, setNewListName] = useState("");
-  const { createWatchlist } = useWatchlistStore();
+  
+  // Edit Mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [pendingRemovals, setPendingRemovals] = useState<string[]>([]);
+  const [isProcessingDone, setIsProcessingDone] = useState(false);
+  const { createWatchlist, renameWatchlist, deleteWatchlist, toggleItemInWatchlist, removeItemsFromWatchlist } = useWatchlistStore();
 
   useEffect(() => {
     if (user) fetchWatchlists(user.id);
@@ -68,10 +78,77 @@ export function Watchlist() {
     fetchQuotes();
   }, [activeTab, items]);
 
-  const filteredData = watchlistData.filter(d => 
-    d.companyName.toLowerCase().includes(search.toLowerCase()) || 
-    d.symbol.toLowerCase().includes(search.toLowerCase())
-  );
+  const activeWatchlist = watchlists.find(w => w.id === activeTab);
+  
+  const filteredData = watchlistData
+    .filter(d => 
+      d.companyName.toLowerCase().includes(search.toLowerCase()) || 
+      d.symbol.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      const valA = a[sortKey];
+      const valB = b[sortKey];
+      
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        const comp = valA.localeCompare(valB);
+        return sortOrder === "asc" ? comp : -comp;
+      }
+      
+      const numA = Number(valA);
+      const numB = Number(valB);
+      if (isNaN(numA) || isNaN(numB)) return 0;
+      
+      return sortOrder === "asc" ? numA - numB : numB - numA;
+    });
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortOrder("asc");
+    }
+  };
+
+  const handleUndo = () => {
+    setIsEditing(false);
+    setEditName("");
+    setPendingRemovals([]);
+  };
+
+  const handleDone = async () => {
+    if (!activeTab || !activeWatchlist) return;
+    setIsProcessingDone(true);
+    
+    try {
+      // Rename if changed
+      if (editName.trim() && editName.trim() !== activeWatchlist.name) {
+        await renameWatchlist(activeTab, editName.trim());
+      }
+
+      // Process batch removals
+      if (pendingRemovals.length > 0) {
+        await removeItemsFromWatchlist(activeTab, pendingRemovals);
+      }
+
+      setIsEditing(false);
+      setPendingRemovals([]);
+    } finally {
+      setIsProcessingDone(false);
+    }
+  };
+
+  const handleDeleteWatchlist = async () => {
+    if (!activeTab) return;
+    if (window.confirm("Are you sure you want to delete this watchlist? This action cannot be undone.")) {
+      await deleteWatchlist(activeTab);
+      setIsEditing(false);
+      setPendingRemovals([]);
+      
+      const remaining = watchlists.filter(w => w.id !== activeTab);
+      setActiveTab(remaining.length > 0 ? remaining[0].id : null);
+    }
+  };
 
   return (
     <motion.div
@@ -169,43 +246,121 @@ export function Watchlist() {
           </div>
 
           {/* TOOLBAR */}
-          <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/5">
-            <div className="relative w-full sm:max-w-xs group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent transition-colors" />
-              <input
-                type="text"
-                placeholder="Search your watchlist"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-border-main rounded-lg pl-9 pr-4 py-2 text-sm text-text-bold focus:outline-none focus:border-accent/50 transition-colors"
-              />
-            </div>
+          {isEditing ? (
+            <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/5 bg-[#0a0a0a]">
+              <div className="flex items-center w-full sm:w-auto">
+                <div className="relative flex items-center bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 w-full sm:w-64 group focus-within:border-accent/50 transition-colors">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="bg-transparent text-sm font-bold text-[#f3f4f6] focus:outline-none w-full"
+                  />
+                  <Edit2 className="w-3.5 h-3.5 text-[#9ca3af] shrink-0 ml-2 group-focus-within:text-accent transition-colors" />
+                </div>
+              </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button 
-                onClick={() => setIsAddStockModalOpen(true)}
-                disabled={!activeTab}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-4 h-4 text-text-muted" /> Add stocks
-              </button>
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all">
-                <Edit2 className="w-4 h-4 text-text-muted" /> Edit
-              </button>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  onClick={handleDeleteWatchlist}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-[#333] hover:border-danger hover:text-danger hover:bg-danger/10 rounded-lg text-sm font-bold text-[#f3f4f6] transition-all whitespace-nowrap"
+                >
+                  <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete watchlist</span><span className="sm:hidden">Delete</span>
+                </button>
+                <button
+                  onClick={handleUndo}
+                  className="flex items-center justify-center gap-2 px-4 py-2 border border-[#333] hover:bg-white/5 rounded-lg text-sm font-bold text-[#f3f4f6] transition-all"
+                >
+                  <Undo2 className="w-4 h-4" /> Undo
+                </button>
+                <button
+                  onClick={handleDone}
+                  disabled={isProcessingDone}
+                  className="px-5 py-2 bg-accent hover:bg-accent/90 text-black rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isProcessingDone ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Done
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/5">
+              <div className="relative w-full sm:max-w-xs group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search your watchlist"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full bg-[#0a0a0a] border border-border-main rounded-lg pl-9 pr-4 py-2 text-sm text-text-bold focus:outline-none focus:border-accent/50 transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button 
+                  onClick={() => setIsAddStockModalOpen(true)}
+                  disabled={!activeTab}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-4 h-4 text-text-muted" /> Add stocks
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsEditing(true);
+                    setEditName(activeWatchlist?.name || "");
+                    setPendingRemovals([]);
+                  }}
+                  disabled={!activeTab}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-bold text-text-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Edit2 className="w-4 h-4 text-text-muted" /> Edit
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* DATA TABLE */}
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-left min-w-[800px] border-collapse relative">
               <thead className="bg-white/[0.02] border-b border-white/5 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
-                  <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-1/4">Company</th>
+                  <th 
+                    className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-1/4 cursor-pointer hover:text-text-bold transition-colors"
+                    onClick={() => handleSort("companyName")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Company {sortKey === "companyName" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-[15%]">Trend</th>
-                  <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted text-right">Mkt price</th>
-                  <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted text-right">1D change</th>
-                  <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted text-right">1D vol</th>
+                  <th 
+                    className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted text-right cursor-pointer hover:text-text-bold transition-colors"
+                    onClick={() => handleSort("price")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Mkt price {sortKey === "price" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted text-right cursor-pointer hover:text-text-bold transition-colors"
+                    onClick={() => handleSort("changePercent")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      1D change {sortKey === "changePercent" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted text-right cursor-pointer hover:text-text-bold transition-colors"
+                    onClick={() => handleSort("volume")}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      1D vol {sortKey === "volume" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-[15%] text-right">52W perf</th>
+                  {isEditing && (
+                    <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-[0.2em] text-text-muted w-16 text-center">Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -226,29 +381,32 @@ export function Watchlist() {
                       rangeProgress = ((d.price - d.fifty_two_week_low) / (d.fifty_two_week_high - d.fifty_two_week_low)) * 100;
                     }
 
+                    const isRemoved = pendingRemovals.includes(d.symbol);
+                    if (isRemoved && !isEditing) return null; // Fallback in case state out of sync
+
                     return (
                       <motion.tr 
                         key={d.symbol}
                         initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        animate={{ opacity: isRemoved ? 0.3 : 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
-                        onClick={() => navigate(`/stock/${d.symbol}`)}
-                        className="hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                        onClick={() => { if (!isEditing) navigate(`/stock/${d.symbol}`); }}
+                        className={`transition-colors ${isEditing ? 'cursor-default' : 'hover:bg-white/[0.04] cursor-pointer'} group`}
                       >
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
+                          <div className={`flex items-center gap-3 transition-opacity ${isRemoved ? 'opacity-50 cursor-not-allowed' : ''}`}>
                             <div className="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center opacity-70">
                                <span className="text-[10px] font-bold text-text-muted">{d.symbol.slice(0, 2)}</span>
                             </div>
                             <div>
-                               <p className="text-sm font-black text-text-bold truncate max-w-[180px]">{d.companyName}</p>
+                               <p className={`text-sm font-black truncate max-w-[180px] ${isRemoved ? 'text-text-muted line-through' : 'text-text-bold'}`}>{d.companyName}</p>
                                <p className="text-[10px] text-text-muted font-bold mt-0.5">{d.symbol.replace('.NS', '').replace('.BO', '')}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                             {/* Simple visual indicator mimicking a sparkline trend */}
-                           <div className="w-24 h-6 flex items-center">
+                           <div className={`w-24 h-6 flex items-center transition-opacity ${isRemoved ? 'opacity-30 grayscale' : ''}`}>
                               <svg viewBox="0 0 100 24" className="w-full h-full preserveAspectRatio-none">
                                 <path 
                                    d={isPos ? "M0,24 L20,16 L40,20 L60,8 L80,12 L100,2" : "M0,2 L20,10 L40,6 L60,18 L80,14 L100,22"} 
@@ -277,22 +435,22 @@ export function Watchlist() {
                               </svg>
                            </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className={`px-6 py-4 text-right transition-opacity ${isRemoved ? 'opacity-30' : ''}`}>
                           <AnimatedNumber value={d.price} prefix="₹" decimals={2} className="text-sm font-bold text-text-bold" />
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className={`px-6 py-4 text-right transition-opacity ${isRemoved ? 'opacity-30' : ''}`}>
                           <span className={`text-[13px] font-bold ${changeColor}`}>
                             {isPos ? "+" : ""}
                             <AnimatedNumber value={d.change} decimals={2} className="inline" /> (
                             <AnimatedNumber value={d.changePercent} decimals={2} className="inline" />%)
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className={`px-6 py-4 text-right transition-opacity ${isRemoved ? 'opacity-30' : ''}`}>
                           <span className="text-sm font-bold text-text-bold">
                             {d.volume.toLocaleString('en-IN')}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className={`px-6 py-4 text-right transition-opacity ${isRemoved ? 'opacity-30' : ''}`}>
                           <div className="flex items-center justify-end gap-2 text-[10px] font-bold text-text-muted mt-1">
                             <span>L</span>
                             <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden relative">
@@ -302,6 +460,24 @@ export function Watchlist() {
                             <span>H</span>
                           </div>
                         </td>
+                        {isEditing && (
+                          <td className="px-6 py-4 text-center">
+                            <button 
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 if (isRemoved) {
+                                   setPendingRemovals(prev => prev.filter(s => s !== d.symbol));
+                                 } else {
+                                   setPendingRemovals(prev => [...prev, d.symbol]);
+                                 }
+                               }}
+                               className={`p-2 rounded-lg transition-colors border ${isRemoved ? 'bg-white/10 border-white/20 text-white' : 'hover:bg-danger/10 border-transparent hover:border-danger/30 text-danger'}`}
+                               title={isRemoved ? "Undo remove" : "Remove from watchlist"}
+                            >
+                               {isRemoved ? <Undo2 className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          </td>
+                        )}
                       </motion.tr>
                     );
                   })

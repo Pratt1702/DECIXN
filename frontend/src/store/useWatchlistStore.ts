@@ -22,7 +22,9 @@ interface WatchlistState {
   fetchWatchlists: (userId: string) => Promise<void>;
   createWatchlist: (userId: string, name: string) => Promise<Watchlist | null>;
   deleteWatchlist: (watchlistId: string) => Promise<boolean>;
+  renameWatchlist: (watchlistId: string, newName: string) => Promise<boolean>;
   toggleItemInWatchlist: (watchlistId: string, symbol: string) => Promise<boolean>;
+  removeItemsFromWatchlist: (watchlistId: string, symbols: string[]) => Promise<boolean>;
   getSymbolsInWatchlist: (watchlistId: string) => string[];
   isSymbolInAnyWatchlist: (symbol: string) => boolean;
 }
@@ -107,6 +109,25 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     }
   },
 
+  renameWatchlist: async (watchlistId: string, newName: string) => {
+    try {
+      const { error } = await supabase
+        .from('watchlists')
+        .update({ name: newName })
+        .eq('id', watchlistId);
+
+      if (error) throw error;
+
+      set((state) => ({
+        watchlists: state.watchlists.map(w => w.id === watchlistId ? { ...w, name: newName } : w)
+      }));
+      return true;
+    } catch (err: any) {
+      set({ error: err.message });
+      return false;
+    }
+  },
+
   toggleItemInWatchlist: async (watchlistId: string, symbol: string) => {
     try {
       const { items } = get();
@@ -146,6 +167,30 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
     } catch (err: any) {
       set({ error: err.message });
       throw err;
+    }
+  },
+
+  removeItemsFromWatchlist: async (watchlistId: string, symbols: string[]) => {
+    if (symbols.length === 0) return true;
+    
+    try {
+      const { error } = await supabase
+        .from('watchlist_items')
+        .delete()
+        .eq('watchlist_id', watchlistId)
+        .in('symbol', symbols);
+
+      if (error) throw error;
+
+      set((state) => ({
+        items: state.items.filter(i => 
+          !(i.watchlist_id === watchlistId && symbols.includes(i.symbol))
+        )
+      }));
+      return true;
+    } catch (err: any) {
+      set({ error: err.message });
+      return false;
     }
   },
 

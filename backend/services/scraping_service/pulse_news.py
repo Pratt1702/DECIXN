@@ -72,6 +72,26 @@ def matches_query(title: str, query: str):
 
     return len(title_words & query_words) > 0
 
+
+def is_recent(time_raw: str | None):
+    """
+    Heuristic: keep articles from roughly last 24 hours.
+    """
+
+    if not time_raw:
+        return False
+
+    t = time_raw.lower()
+
+    if "min" in t or "hour" in t:
+        return True
+
+    if "yesterday" in t:
+        return True  # still within ~24h
+
+    # Drop older items like "2 days ago"
+    return False
+
 # --------------------------------------------------
 # Main service
 # --------------------------------------------------
@@ -83,6 +103,7 @@ async def get_company_news(query: str):
     filtered = [
         a for a in raw_articles
         if matches_query(a["title"], query)
+        and is_recent(a["time_raw"])
     ]
 
     return filtered

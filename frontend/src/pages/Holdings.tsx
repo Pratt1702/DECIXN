@@ -4,7 +4,7 @@ import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { HoldingsTable } from "../components/dashboard/HoldingsTable";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, BarChart3 } from "lucide-react";
 
 const SESSION_KEY = "uploaded_holdings";
 
@@ -135,8 +135,11 @@ export function Holdings() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
+      <div className="py-32 flex flex-col justify-center items-center gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        <p className="text-text-muted text-sm font-medium tracking-wide">
+          Loading portfolio data…
+        </p>
       </div>
     );
   }
@@ -145,21 +148,23 @@ export function Holdings() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-10 max-w-6xl mx-auto pb-24"
+      transition={{ duration: 0.3 }}
+      className="max-w-5xl mx-auto pb-20 pt-8 space-y-8"
     >
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 pb-8">
+      {/* ── HEADER ── */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-4 mb-3">
-            <h1 className="text-4xl xl:text-5xl font-black tracking-tighter text-white">
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-black text-text-bold tracking-tighter">
               Portfolio
             </h1>
             {isManual && (
-              <span className="px-3 py-1 rounded-full bg-accent text-[10px] font-black text-bg-main uppercase tracking-tighter shadow-[0_0_20px_rgba(80,255,167,0.3)]">
+              <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20">
                 Local Session
               </span>
             )}
           </div>
-          <p className="text-text-muted text-base xl:text-lg font-medium">
+          <p className="text-text-muted text-sm font-medium">
             Intelligent capital management & risk oversight.
           </p>
         </div>
@@ -171,66 +176,61 @@ export function Holdings() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               onClick={clearManualData}
-              className="flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-white/2 text-text-bold border border-white/10 hover:bg-white/5 hover:border-danger/30 transition-all font-bold text-sm"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm"
             >
-              <Trash2 className="w-4.5 h-4.5 text-danger" />
-              Revert to Live Data
+              <Trash2 className="w-4 h-4 text-danger" />
+              Revert to Test Data
             </motion.button>
           )}
         </AnimatePresence>
       </header>
 
-      <div className="space-y-10">
-        {data?.portfolio_summary && (
-          <div className="space-y-8">
-            <SummaryCards
-              invested={data.portfolio_summary.total_invested}
-              current={data.portfolio_summary.total_value_live}
-              pnl={data.portfolio_summary.total_pnl}
-            />
-
-            <AnimatePresence>
-              {data?.portfolio_summary?.insight && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-6 rounded-3xl border border-accent/20 bg-accent/5 backdrop-blur-2xl relative overflow-hidden group shadow-xl"
-                >
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-[100px] -mr-32 -mt-32 group-hover:bg-accent/10 transition-all duration-700" />
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                    <h3 className="text-xs font-black text-accent uppercase tracking-tighter">
-                      Market Intelligence
-                    </h3>
-                  </div>
-                  <p className="text-lg text-text-bold leading-relaxed relative z-10 font-semibold italic">
-                    "{data.portfolio_summary.insight}"
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
+      {/* ── SUMMARY CARDS ── */}
+      {data?.portfolio_summary && (
         <div className="space-y-6">
-          <div className="flex items-end justify-between border-b border-white/5 pb-4">
-            <div className="space-y-1">
-              <h3 className="text-xs font-black text-text-muted uppercase tracking-[0.3em]">
-                Capital Allocation
-              </h3>
-              <div className="text-[10px] text-text-muted italic opacity-50">
-                Click items to analyze depth
-              </div>
-            </div>
-            <CSVUpload onDataParsed={(holdings) => {
-              handleDataParsed(holdings);
-            }} />
-          </div>
+          <SummaryCards
+            invested={data.portfolio_summary.total_invested}
+            current={data.portfolio_summary.total_value_live}
+            pnl={data.portfolio_summary.total_pnl}
+          />
 
-          {data?.portfolio_analysis && (
-            <HoldingsTable holdings={data.portfolio_analysis} />
-          )}
+          {/* AI Insight Banner */}
+          <AnimatePresence>
+            {data?.portfolio_summary?.insight && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-bg-surface border border-border-main rounded-xl p-5"
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BarChart3 size={13} className="text-accent" />
+                  <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">
+                    Market Intelligence
+                  </span>
+                </div>
+                <p className="text-[13px] text-text-muted font-medium leading-relaxed">
+                  {data.portfolio_summary.insight}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+      )}
+
+      {/* ── HOLDINGS TABLE ── */}
+      <div className="space-y-4">
+        <div className="flex items-end justify-between">
+          <h2 className="text-2xl font-black text-text-bold tracking-tighter">
+            Holdings
+          </h2>
+          <CSVUpload onDataParsed={(holdings) => {
+            handleDataParsed(holdings);
+          }} />
+        </div>
+
+        {data?.portfolio_analysis && (
+          <HoldingsTable holdings={data.portfolio_analysis} />
+        )}
       </div>
     </motion.div>
   );

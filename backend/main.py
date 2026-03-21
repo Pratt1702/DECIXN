@@ -72,28 +72,59 @@ def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     cut_losses_count = sum(1 for r in results if "CUT LOSSES" in r['data']['portfolio_decision'])
     ride_trend_count = sum(1 for r in results if "RIDE TREND" in r['data']['portfolio_decision'])
 
+    working_capital = 0.0
+    trapped_capital = 0.0
+    recommendations = []
+
     for r in results:
         val = r['holding_context']['current_value']
-        r['holding_context']['portfolio_weight_pct'] = round((val / total_value_live * 100) if total_value_live > 0 else 0.0, 2)
+        weight = round((val / total_value_live * 100) if total_value_live > 0 else 0.0, 2)
+        r['holding_context']['portfolio_weight_pct'] = weight
+        if weight > 25:
+            sym = r['symbol'].replace('.NS','')
+            recommendations.append(f"Consider trimming {sym} — {weight}% of portfolio is overweight in a single position.")
+
+        trend = r['data'].get('trend', '')
+        if trend == 'Bullish':
+            working_capital += val
+        elif trend == 'Bearish':
+            trapped_capital += val
+
+    working_capital_pct = round((working_capital / total_value_live * 100) if total_value_live > 0 else 0.0, 1)
+    trapped_capital_pct = round((trapped_capital / total_value_live * 100) if total_value_live > 0 else 0.0, 1)
 
     risk_level = "Low"
     health = "Strong"
-    insight = "Portfolio is stable and assets are trending well."
-    recommendations = []
+
+    bearish_count = sum(1 for r in results if r['data'].get('trend') == 'Bearish')
+    bullish_count = sum(1 for r in results if r['data'].get('trend') == 'Bullish')
+    
+    bad_stocks = [r['symbol'].replace('.NS','') for r in results if "CUT LOSSES" in r['data']['portfolio_decision']]
+    bad_stocks_weights = sum(r['holding_context']['portfolio_weight_pct'] for r in results if "CUT LOSSES" in r['data']['portfolio_decision'])
 
     if losers > winners:
         health = "Weak"
-        insight = "Majority of holdings are currently sitting at a loss."
     elif cut_losses_count > 0:
         health = "Fair"
-        insight = "Mixed performance with several dragging assets."
 
-    bad_stocks = [r['symbol'].replace('.NS','') for r in results if "CUT LOSSES" in r['data']['portfolio_decision']]
+    # Dynamic Insight Generation
+    if bearish_count > bullish_count and bad_stocks:
+        if len(bad_stocks) > 1:
+            bad_str = f"{' and '.join(bad_stocks[:2])} together represent {round(bad_stocks_weights)}% of capital"
+        else:
+            bad_str = f"{bad_stocks[0]} represents {round(bad_stocks_weights)}% of capital"
+        insight = f"{bearish_count} of {len(results)} holdings are in confirmed downtrends. {bad_str} — consider de-risking these positions first."
+    elif bullish_count > bearish_count:
+        insight = f"{bullish_count} of {len(results)} holdings are riding bullish trends. Capital is working efficiently."
+    elif cut_losses_count > 0:
+        insight = f"Mixed performance with some dragging assets. Consider reviewing {bad_stocks[0]}." if bad_stocks else "Mixed performance with some dragging assets."
+    else:
+        insight = "Portfolio is stable and assets are trending well."
+
     bad_str = f" like {', '.join(bad_stocks[:2])}" if bad_stocks else ""
 
     if len(results) > 0 and (cut_losses_count / len(results)) >= 0.4:
         risk_level = "High"
-        insight = "High concentration of capital in assets experiencing strong downtrends."
         recommendations.append(f"High urgency: Cut losses in deeply bearish stocks{bad_str} to preserve capital.")
     elif cut_losses_count > 0:
         risk_level = "Medium"
@@ -123,7 +154,9 @@ def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
             "total_value_live": round(total_value_live, 2),
             "total_pnl": round(total_pnl, 2),
             "win_rate": win_rate,
-            "insight": insight
+            "insight": insight,
+            "working_capital_pct": working_capital_pct,
+            "trapped_capital_pct": trapped_capital_pct
         },
         "recommended_actions": recommendations,
         "portfolio_analysis": results

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { getPortfolio } from "../services/api";
+import { getPortfolio, analyzeCustomPortfolio } from "../services/api";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { HoldingsTable } from "../components/dashboard/HoldingsTable";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
@@ -32,6 +32,17 @@ export function Holdings() {
           ).toFixed(0) + "%"
         : "0%";
 
+    const workingCapital = holdings.reduce(
+      (acc, h) => acc + (h.data?.trend === "Bullish" ? h.holding_context.current_value : 0),
+      0,
+    );
+    const trappedCapital = holdings.reduce(
+      (acc, h) => acc + (h.data?.trend === "Bearish" ? h.holding_context.current_value : 0),
+      0,
+    );
+    const workingCapitalPct = currentValue > 0 ? (workingCapital / currentValue) * 100 : 0;
+    const trappedCapitalPct = currentValue > 0 ? (trappedCapital / currentValue) * 100 : 0;
+
     return {
       total_invested: totalInvested,
       total_value_live: currentValue,
@@ -43,6 +54,8 @@ export function Holdings() {
         totalPnL < 0
           ? "Your portfolio is currently underperforming. Consider rebalancing or reviewing entry points."
           : "Portfolio is showing healthy momentum. Stay cautious on volatile sectors.",
+      working_capital_pct: Math.round(workingCapitalPct),
+      trapped_capital_pct: Math.round(trappedCapitalPct),
     };
   };
 
@@ -50,9 +63,10 @@ export function Holdings() {
     const sessionData = sessionStorage.getItem(SESSION_KEY);
     if (sessionData) {
       const parsed = JSON.parse(sessionData);
+      const sessionSummary = sessionStorage.getItem("portfolio_summary");
       setData({
         portfolio_analysis: parsed,
-        portfolio_summary: calculateSummary(parsed),
+        portfolio_summary: sessionSummary ? JSON.parse(sessionSummary) : calculateSummary(parsed),
       });
       setIsManual(true);
       setLoading(false);
@@ -119,13 +133,29 @@ export function Holdings() {
     loadData();
   }, [loadData]);
 
-  const handleDataParsed = (newHoldings: any[]) => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
-    setData({
-      portfolio_analysis: newHoldings,
-      portfolio_summary: calculateSummary(newHoldings),
-    });
-    setIsManual(true);
+  const handleDataParsed = async (newHoldings: any[]) => {
+    try {
+      setLoading(true);
+      const res = await analyzeCustomPortfolio(newHoldings);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(res.portfolio_analysis));
+      // Store summary as well if necessary, but recalculating on loadData from session is what happens currently.
+      // Actually, wait, when loadData runs, it uses calculateSummary(parsed) instead of the backend's summary!
+      // I should store the entire response or at least the backend's summary.
+      sessionStorage.setItem("portfolio_summary", JSON.stringify(res.portfolio_summary));
+      setData(res);
+      setIsManual(true);
+    } catch (err) {
+      console.error("Failed to fetch custom portfolio analysis", err);
+      // Fallback to local calculation if backend fails
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
+      setData({
+        portfolio_analysis: newHoldings,
+        portfolio_summary: calculateSummary(newHoldings),
+      });
+      setIsManual(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearManualData = () => {
@@ -192,6 +222,8 @@ export function Holdings() {
             invested={data.portfolio_summary.total_invested}
             current={data.portfolio_summary.total_value_live}
             pnl={data.portfolio_summary.total_pnl}
+            workingCapitalPct={data.portfolio_summary.working_capital_pct}
+            trappedCapitalPct={data.portfolio_summary.trapped_capital_pct}
           />
 
           {/* AI Insight Banner */}

@@ -1,7 +1,15 @@
 # Market Intelligence Engine — Logic & Scoring Documentation
 **Last updated:** March 20, 2026 | **Version:** 1.2
 
-This document explains the internal mechanics of `market_intelligence.py` — how signals are generated, the decision logic, and how the final **Actionable Insights** are derived. It also documents the portfolio aggregation layer and full API surface.
+This document explains the internal mechanics of the Market Intelligence Engine — how signals are generated, the decision logic, and how the final **Actionable Insights** are derived.
+
+## System Architecture
+The market intelligence engine resides natively within the backend and has been refactored into modular components for scalability:
+- `backend/data_fetcher.py`: Handles fetching historical OHLCV data from Yahoo Finance and mocking fallbacks.
+- `backend/technical_indicators.py`: Computes RSI, MACD, Moving Averages, ATR, Volatility, and Nifty 50 relative strength.
+- `backend/signal_generator.py`: Generates structured trading signals and technical heuristics.
+- `backend/decision_engine.py`: Employs probability-weighted rules, success metrics, and trend validation to emit actionable decisions.
+- `backend/market_intelligence.py`: The orchestrator facade that imports the above modules and is directly invoked by the FastAPI APIs.
 
 ---
 
@@ -214,7 +222,9 @@ Shared helper used by **both** GET and POST `/analyze/portfolio`. Inputs: list o
     "total_value_live": 62710.5,
     "total_pnl": -23243.7,
     "win_rate": "12.5%",
-    "insight": "..."
+    "insight": "...",
+    "working_capital_pct": 32.5,
+    "trapped_capital_pct": 67.5
   },
   "recommended_actions": ["...", "..."],
   "portfolio_analysis": [

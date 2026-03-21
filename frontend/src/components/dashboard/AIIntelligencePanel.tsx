@@ -165,14 +165,27 @@ export function AIIntelligencePanel({ data }: { data: any }) {
               ) : (
                 <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
                   <div>
-                    <p className="text-xl font-black text-white tracking-tight leading-none mb-1">{data.decision}</p>
+                    <div className="flex items-center justify-between mb-1">
+                       <p className="text-xl font-black text-white tracking-tight leading-none uppercase">
+                          {data?.severity && data.severity !== 'MODERATE' ? (
+                             <span className={`${data.severity === 'CRITICAL' ? 'text-danger' : 'text-amber-500'} mr-2`}>{data.severity}</span>
+                          ) : ''}
+                          {data.decision}
+                       </p>
+                       <span className="text-[9px] font-black text-accent bg-accent/5 px-2 py-0.5 rounded border border-accent/10 whitespace-nowrap uppercase tracking-widest">
+                          {data.trade_type || 'Positional'}
+                       </span>
+                    </div>
                     {data.pattern && data.pattern !== 'None' && (
-                      <p className="text-[10px] font-bold text-accent uppercase tracking-widest">{data.pattern}</p>
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{data.pattern}</p>
                     )}
                   </div>
                   
                   <p className="text-sm text-text-muted leading-relaxed">
                     {data.action}
+                    {data.watch_condition && (
+                       <span className="block mt-2 text-[10px] italic text-[#9ca3af]">Trigger: {data.watch_condition}</span>
+                    )}
                   </p>
 
                   <div className="flex gap-6 pt-2 border-t border-white/5">

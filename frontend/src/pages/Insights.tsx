@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
   BellRing,
-  ArrowRight,
   Search,
   ChevronDown,
   ListFilter,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
 
 const SESSION_KEY = "uploaded_holdings";
 
@@ -140,11 +140,19 @@ export function Insights() {
     return data.portfolio_analysis
       .filter((item: any) => {
         const dec = item.data?.portfolio_decision || "WATCH";
-        const isActionable =
-          dec.includes("CUT") ||
-          dec.includes("RIDE") ||
-          dec.includes("AVERAGE") ||
-          dec.includes("BOOK");
+        
+        // Always show if it's a strategic action
+        const isActionable = 
+           item.data?.priority === 'HIGH' || 
+           item.data?.priority === 'MEDIUM' ||
+           dec.includes("SELL") ||
+           dec.includes("REDUCE") ||
+           dec.includes("EXIT") ||
+           dec.includes("AVERAGE") ||
+           dec.includes("RIDE") ||
+           dec.includes("HOLD") ||
+           dec.includes("BOOK");
+
         if (!isActionable) return false;
 
         if (searchQuery) {
@@ -283,78 +291,104 @@ export function Insights() {
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     key={item.symbol}
-                    className="bg-bg-surface border border-border-main p-6 rounded-xl shadow-sm hover:border-[#4b5563] transition-colors cursor-pointer group"
+                    className="bg-bg-surface border border-border-main p-6 rounded-xl shadow-sm hover:border-[#4b5563] transition-colors cursor-pointer group relative overflow-hidden"
                     onClick={() => navigate(`/stock/${item.symbol}`)}
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div>
+                      <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-xl font-bold text-text-bold">
+                          <h3 className="text-2xl font-black text-text-bold tracking-tight">
                             {item.symbol.replace(".NS", "")}
                           </h3>
-                          {item.data?.urgency_score === "HIGH" && (
-                            <span className="flex h-2 w-2 rounded-full bg-danger animate-pulse" />
-                          )}
-                          <ArrowRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <span className={`h-2.5 w-2.5 rounded-full ${item.data?.priority === 'HIGH' ? 'bg-danger animate-pulse' : item.data?.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-success'}`} />
                         </div>
-                        <p className="text-sm text-text-muted mt-1">
+                        <p className="text-sm text-text-muted">
                           Holding Value:{" "}
-                          <span className="font-medium text-[#f3f4f6]">
+                          <span className="font-bold text-text-bold text-base">
                             ₹
                             {item.holding_context?.current_value.toLocaleString(
                               "en-IN",
                             )}
                           </span>
                         </p>
-                        <div className="flex gap-4 mt-2.5">
-                          <p className="text-[11px] uppercase tracking-wider">
+                        <div className="flex gap-4 pt-1 items-center">
+                          <p className="text-[10px] uppercase tracking-widest">
                              <span className="text-text-muted font-bold">Priority :</span>{' '}
                              <span className={`font-black ${item.data?.priority === 'HIGH' ? 'text-amber-500' : item.data?.priority === 'MEDIUM' ? 'text-[#9ca3af]' : 'text-[#6b7280]'}`}>
                                 {item.data?.priority || 'LOW'}
                              </span>
                           </p>
-                          <p className="text-[11px] uppercase tracking-wider">
+                          <p className="text-[10px] uppercase tracking-widest">
                              <span className="text-text-muted font-bold">Risk :</span>{' '}
                              <span className={`font-black ${item.data?.risk_level === 'HIGH' ? 'text-danger' : item.data?.risk_level === 'MEDIUM' ? 'text-amber-500' : 'text-success'}`}>
                                 {item.data?.risk_level || 'LOW'}
                              </span>
                           </p>
+                          {item.data?.trade_type && (
+                             <p className="text-[10px] uppercase tracking-widest">
+                                <span className="text-text-muted font-bold">Trend :</span>{' '}
+                                <span className="font-black text-[#9ca3af]">
+                                   {item.data.trade_type}
+                                </span>
+                             </p>
+                          )}
+
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-col items-end">
                         <span
-                          className={`px-3 py-1.5 rounded text-[10px] md:text-xs font-bold border tracking-wider uppercase ${badgeClr}`}
+                          className={`px-4 py-2 rounded text-sm font-black border tracking-wider uppercase ${badgeClr}`}
                         >
-                          {dec}
+                          {item.data?.severity && item.data.severity !== 'MODERATE' ? `${item.data.severity} ` : ''}{dec}
                         </span>
+                        {item.data?.portfolio_tag && (
+                           <span className={`text-[9px] font-bold mt-2 uppercase tracking-widest ${item.data.portfolio_tag.includes('TOP') ? 'text-success' : 'text-danger'}`}>
+                              {item.data.portfolio_tag}
+                           </span>
+                        )}
                       </div>
                     </div>
-                    <div className="border-t border-border-main border-dashed pt-4">
-                      <div className="flex flex-col gap-4">
-                        <ul className="space-y-3 flex-1">
+                    <div className="border-t border-white/5 pt-6 space-y-6">
+                      {item.data?.portfolio_action && (
+                        <div>
+                           <div className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mb-3">Strategic Action</div>
+                           <ul className="space-y-2.5">
+                              <li className="flex gap-3 text-sm text-[#9ca3af]">
+                                 <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                 {item.data.portfolio_action}
+                              </li>
+                              {item.data.watch_condition && (
+                                 <li className="flex gap-3 text-sm text-[#9ca3af]">
+                                    <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                    Trigger: {item.data.watch_condition}
+                                 </li>
+                              )}
+                           </ul>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] mb-3">Analysis</div>
+                        <ul className="space-y-2.5">
                           {item.data?.pattern && item.data.pattern !== 'None' && (
-                             <li className="flex gap-3 text-sm text-accent font-bold mb-1">
-                                <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-accent" />
-                                Pattern Detected: {item.data.pattern}
+                             <li className="flex gap-3 text-sm">
+                                <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-white/60" />
+                                <span className="text-text-muted">Pattern Detected:</span>
+                                <span className={`font-bold ${item.data.pattern.includes('Breakout') || item.data.pattern.includes('Reversal') ? 'text-success' : 'text-danger'}`}>
+                                   {item.data.pattern}
+                                </span>
                              </li>
                           )}
                           {item.data?.reasons?.map((r: string, idx: number) => (
                             <li
                               key={idx}
-                              className="flex gap-3 text-sm text-text-muted"
+                              className="flex gap-3 text-sm text-[#9ca3af]"
                             >
-                              <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500/80" />
+                              <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" />
                               {r}
                             </li>
                           ))}
                         </ul>
-                        
-                        {item.data?.portfolio_action && (
-                          <div className="mt-2 bg-white/[0.03] border border-white/5 rounded-lg p-3 group-hover:bg-white/[0.05] transition-colors">
-                             <div className="text-[10px] text-accent font-bold uppercase tracking-widest mb-1.5">Strategic Action</div>
-                             <p className="text-sm text-text-bold leading-snug">{item.data.portfolio_action}</p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </motion.div>

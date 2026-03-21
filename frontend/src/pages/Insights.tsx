@@ -13,7 +13,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 
-
 const SESSION_KEY = "uploaded_holdings";
 
 const MOCK_DATA = {
@@ -76,26 +75,47 @@ const MOCK_DATA = {
 // Helper: pick a bullet icon color based on the reason text content
 function getBulletColor(reason: string): string {
   const r = reason.toLowerCase();
-  if (r.includes('bearish') || r.includes('downtrend') || r.includes('sell') || r.includes('loss') || r.includes('underperform') || r.includes('capital preservation'))
-    return 'bg-danger';
-  if (r.includes('warning') || r.includes('risk') || r.includes('caution') || r.includes('overextended') || r.includes('volatil'))
-    return 'bg-amber-500';
-  if (r.includes('bullish') || r.includes('breakout') || r.includes('uptrend') || r.includes('opportunity') || r.includes('recovery'))
-    return 'bg-success';
-  return 'bg-info';
+  if (
+    r.includes("bearish") ||
+    r.includes("downtrend") ||
+    r.includes("sell") ||
+    r.includes("loss") ||
+    r.includes("underperform") ||
+    r.includes("capital preservation")
+  )
+    return "bg-danger";
+  if (
+    r.includes("warning") ||
+    r.includes("risk") ||
+    r.includes("caution") ||
+    r.includes("overextended") ||
+    r.includes("volatil")
+  )
+    return "bg-amber-500";
+  if (
+    r.includes("bullish") ||
+    r.includes("breakout") ||
+    r.includes("uptrend") ||
+    r.includes("opportunity") ||
+    r.includes("recovery")
+  )
+    return "bg-success";
+  return "bg-info";
 }
 
 // Severity order: danger(0) → amber(1) → success(2) → info(3)
 function getBulletPriority(reason: string): number {
   const color = getBulletColor(reason);
-  if (color === 'bg-danger') return 0;
-  if (color === 'bg-amber-500') return 1;
-  if (color === 'bg-success') return 2;
+  if (color === "bg-danger") return 0;
+  if (color === "bg-amber-500") return 1;
+  if (color === "bg-success") return 2;
   return 3;
 }
 
 function sortReasonsBySeverity(reasons: string[]): string[] {
-  return [...reasons].sort((a, b) => getBulletPriority(a) - getBulletPriority(b));
+  return [...reasons].sort(
+    (a, b) => getBulletPriority(a) - getBulletPriority(b),
+  );
 }
 
 export function Insights() {
@@ -170,18 +190,18 @@ export function Insights() {
     return data.portfolio_analysis
       .filter((item: any) => {
         const dec = item.data?.portfolio_decision || "WATCH";
-        
+
         // Always show if it's a strategic action
-        const isActionable = 
-           item.data?.priority === 'HIGH' || 
-           item.data?.priority === 'MEDIUM' ||
-           dec.includes("SELL") ||
-           dec.includes("REDUCE") ||
-           dec.includes("EXIT") ||
-           dec.includes("AVERAGE") ||
-           dec.includes("RIDE") ||
-           dec.includes("HOLD") ||
-           dec.includes("BOOK");
+        const isActionable =
+          item.data?.priority === "HIGH" ||
+          item.data?.priority === "MEDIUM" ||
+          dec.includes("SELL") ||
+          dec.includes("REDUCE") ||
+          dec.includes("EXIT") ||
+          dec.includes("AVERAGE") ||
+          dec.includes("RIDE") ||
+          dec.includes("HOLD") ||
+          dec.includes("BOOK");
 
         if (!isActionable) return false;
 
@@ -199,8 +219,8 @@ export function Insights() {
 
         if (sortField === "urgency") {
           cmp =
-            (urgencyMap[b.data?.priority] || 0) -
-            (urgencyMap[a.data?.priority] || 0);
+            (urgencyMap[a.data?.priority] || 0) -
+            (urgencyMap[b.data?.priority] || 0);
         } else if (sortField === "pnl") {
           cmp =
             (a.holding_context?.pnl_pct || 0) -
@@ -209,7 +229,7 @@ export function Insights() {
           cmp = a.symbol.localeCompare(b.symbol);
         }
 
-        return sortOrder === "desc" ? cmp : -cmp;
+        return sortOrder === "asc" ? cmp : -cmp;
       });
   }, [data, searchQuery, sortField, sortOrder]);
 
@@ -304,12 +324,26 @@ export function Insights() {
             {filteredAndSortedInsights.length > 0 ? (
               filteredAndSortedInsights.map((item: any) => {
                 const dec = item.data?.portfolio_decision || "WATCH";
-                const isBearish = dec.includes("CUT") || dec.includes("REDUCE") || dec.includes("EXIT") || dec.includes("SELL") || dec.includes("BOOK");
-                const isBullish = dec.includes("RIDE") || dec.includes("AVERAGE") || dec.includes("BUY");
-                const accentBorder = isBearish ? 'border-l-danger' : isBullish ? 'border-l-success' : 'border-l-amber-500';
+                const isBearish =
+                  dec.includes("CUT") ||
+                  dec.includes("REDUCE") ||
+                  dec.includes("EXIT") ||
+                  dec.includes("SELL") ||
+                  dec.includes("BOOK");
+                const isBullish =
+                  dec.includes("RIDE") ||
+                  dec.includes("AVERAGE") ||
+                  dec.includes("BUY");
+                const accentBorder = isBearish
+                  ? "border-l-danger"
+                  : isBullish
+                    ? "border-l-success"
+                    : "border-l-amber-500";
                 const chipClr = isBearish
                   ? "bg-danger/10 text-danger border-danger/20"
-                  : isBullish ? "bg-success/10 text-success border-success/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                  : isBullish
+                    ? "bg-success/10 text-success border-success/20"
+                    : "bg-amber-500/10 text-amber-400 border-amber-500/20";
 
                 return (
                   <motion.div
@@ -328,20 +362,28 @@ export function Insights() {
                           <h3 className="text-xl font-black text-text-bold tracking-tight">
                             {item.symbol.replace(".NS", "")}
                           </h3>
-                          {item.data?.portfolio_tag && item.data.portfolio_tag !== 'NEUTRAL' && (
-                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${item.data.portfolio_tag.includes('TOP') ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-                              {item.data.portfolio_tag}
-                            </span>
-                          )}
+                          {item.data?.portfolio_tag &&
+                            item.data.portfolio_tag !== "NEUTRAL" && (
+                              <span
+                                className={`text-[9px] font-black px-1.5 py-0.5 rounded ${item.data.portfolio_tag.includes("TOP") ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                              >
+                                {item.data.portfolio_tag}
+                              </span>
+                            )}
                         </div>
                         <p className="text-xs text-text-muted mt-0.5 font-medium">
-                          {item.data?.companyName || item.symbol.replace('.NS', '')}
+                          {item.data?.companyName ||
+                            item.symbol.replace(".NS", "")}
                         </p>
                       </div>
                       <span
                         className={`px-3 py-1.5 rounded-lg text-xs font-black border tracking-wider uppercase ${chipClr}`}
                       >
-                        {item.data?.severity && item.data.severity !== 'MODERATE' ? `${item.data.severity} ` : ''}{dec}
+                        {item.data?.severity &&
+                        item.data.severity !== "MODERATE"
+                          ? `${item.data.severity} `
+                          : ""}
+                        {dec}
                       </span>
                     </div>
 
@@ -349,14 +391,55 @@ export function Insights() {
                     <div className="px-6 pb-4">
                       <div className="grid grid-cols-4 gap-3">
                         {[
-                          { label: "Avg Cost", val: item.holding_context?.avg_cost || 0, prefix: "₹", suffix: "", dec: 2 },
-                          { label: "LTP", val: item.data?.price || 0, prefix: "₹", suffix: "", dec: 2 },
-                          { label: "Return", val: item.holding_context?.pnl_pct || 0, prefix: "", suffix: "%", dec: 2, showPlus: true, color: (item.holding_context?.pnl_pct ?? 0) >= 0 ? 'text-success' : 'text-danger' },
-                          { label: "Holding", val: item.holding_context?.current_value || 0, prefix: "₹", suffix: "", dec: 0 },
+                          {
+                            label: "Avg Cost",
+                            val: item.holding_context?.avg_cost || 0,
+                            prefix: "₹",
+                            suffix: "",
+                            dec: 2,
+                          },
+                          {
+                            label: "LTP",
+                            val: item.data?.price || 0,
+                            prefix: "₹",
+                            suffix: "",
+                            dec: 2,
+                          },
+                          {
+                            label: "Return",
+                            val: item.holding_context?.pnl_pct || 0,
+                            prefix: "",
+                            suffix: "%",
+                            dec: 2,
+                            showPlus: true,
+                            color:
+                              (item.holding_context?.pnl_pct ?? 0) >= 0
+                                ? "text-success"
+                                : "text-danger",
+                          },
+                          {
+                            label: "Holding",
+                            val: item.holding_context?.current_value || 0,
+                            prefix: "₹",
+                            suffix: "",
+                            dec: 0,
+                          },
                         ].map((stat) => (
-                          <div key={stat.label} className="bg-white/[0.03] rounded-lg px-3 py-2">
-                            <p className="text-[9px] text-text-muted uppercase tracking-widest font-bold mb-0.5">{stat.label}</p>
-                            <AnimatedNumber value={stat.val} prefix={stat.prefix} suffix={stat.suffix} decimals={stat.dec} showPlusSign={stat.showPlus} className={`text-sm font-black ${stat.color || 'text-text-bold'}`} />
+                          <div
+                            key={stat.label}
+                            className="bg-white/[0.03] rounded-lg px-3 py-2"
+                          >
+                            <p className="text-[9px] text-text-muted uppercase tracking-widest font-bold mb-0.5">
+                              {stat.label}
+                            </p>
+                            <AnimatedNumber
+                              value={stat.val}
+                              prefix={stat.prefix}
+                              suffix={stat.suffix}
+                              decimals={stat.dec}
+                              showPlusSign={stat.showPlus}
+                              className={`text-sm font-black ${stat.color || "text-text-bold"}`}
+                            />
                           </div>
                         ))}
                       </div>
@@ -367,14 +450,19 @@ export function Insights() {
                       <div className="px-6 pb-4">
                         <div className="flex items-center gap-1.5 mb-2">
                           <Crosshair size={12} className="text-text-muted" />
-                          <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Recommendation</span>
+                          <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">
+                            Recommendation
+                          </span>
                         </div>
                         <p className="text-[13px] text-[#d1d5db] leading-relaxed pl-[18px] font-medium">
                           {item.data.portfolio_action}
                         </p>
                         {item.data.watch_condition && (
                           <p className="text-[12px] text-text-muted mt-1.5 pl-[18px] flex items-center gap-1.5 font-medium">
-                            <Activity size={11} className="text-amber-500 shrink-0" />
+                            <Activity
+                              size={11}
+                              className="text-amber-500 shrink-0"
+                            />
                             <span>Trigger: {item.data.watch_condition}</span>
                           </p>
                         )}
@@ -382,42 +470,73 @@ export function Insights() {
                     )}
 
                     {/* ── MARKET CONTEXT ── */}
-                    {((item.data?.pattern && item.data.pattern !== 'None' && item.data.pattern !== 'None Detected') || (item.data?.reasons?.length > 0)) && (
+                    {((item.data?.pattern &&
+                      item.data.pattern !== "None" &&
+                      item.data.pattern !== "None Detected") ||
+                      item.data?.reasons?.length > 0) && (
                       <div className="px-6 pb-4">
                         <div className="flex items-center gap-1.5 mb-2">
                           <BarChart3 size={12} className="text-text-muted" />
-                          <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Market Context</span>
+                          <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">
+                            Market Context
+                          </span>
                         </div>
                         <ul className="space-y-1.5 pl-[18px]">
-                          {item.data?.pattern && item.data.pattern !== 'None' && item.data.pattern !== 'None Detected' && (
-                            <li className="flex items-start gap-2 text-[13px]">
-                              <div className={`mt-[6px] shrink-0 w-1.5 h-1.5 rounded-full ${item.data.pattern.includes('Breakout') || item.data.pattern.includes('Reversal') ? 'bg-success' : 'bg-danger'}`} />
-                              <span>
-                                <span className="text-text-muted font-bold">Pattern: </span>
-                                <span className={`font-black ${item.data.pattern.includes('Breakout') || item.data.pattern.includes('Reversal') ? 'text-success' : 'text-danger'}`}>
-                                  {item.data.pattern}
+                          {item.data?.pattern &&
+                            item.data.pattern !== "None" &&
+                            item.data.pattern !== "None Detected" && (
+                              <li className="flex items-start gap-2 text-[13px]">
+                                <div
+                                  className={`mt-[6px] shrink-0 w-1.5 h-1.5 rounded-full ${item.data.pattern.includes("Breakout") || item.data.pattern.includes("Reversal") ? "bg-success" : "bg-danger"}`}
+                                />
+                                <span>
+                                  <span className="text-text-muted font-bold">
+                                    Pattern:{" "}
+                                  </span>
+                                  <span
+                                    className={`font-black ${item.data.pattern.includes("Breakout") || item.data.pattern.includes("Reversal") ? "text-success" : "text-danger"}`}
+                                  >
+                                    {item.data.pattern}
+                                  </span>
                                 </span>
-                              </span>
-                            </li>
+                              </li>
+                            )}
+                          {sortReasonsBySeverity(item.data?.reasons || []).map(
+                            (r: string, idx: number) => (
+                              <li
+                                key={idx}
+                                className="flex items-start gap-2 text-[13px] text-text-muted font-medium"
+                              >
+                                <div
+                                  className={`mt-[6px] shrink-0 w-1.5 h-1.5 rounded-full ${getBulletColor(r)}`}
+                                />
+                                {r}
+                              </li>
+                            ),
                           )}
-                          {sortReasonsBySeverity(item.data?.reasons || []).map((r: string, idx: number) => (
-                            <li
-                              key={idx}
-                              className="flex items-start gap-2 text-[13px] text-text-muted font-medium"
-                            >
-                              <div className={`mt-[6px] shrink-0 w-1.5 h-1.5 rounded-full ${getBulletColor(r)}`} />
-                              {r}
-                            </li>
-                          ))}
                         </ul>
                       </div>
                     )}
 
                     {/* ── FOOTER ── */}
                     <div className="px-6 py-3 border-t border-white/[0.04] flex items-center gap-3 text-[10px] text-text-muted tracking-wide font-bold">
-                      <span>Priority: <span className={`font-black ${item.data?.priority === 'HIGH' ? 'text-amber-500' : item.data?.priority === 'MEDIUM' ? 'text-text-muted' : 'text-[#6b7280]'}`}>{item.data?.priority || 'LOW'}</span></span>
+                      <span>
+                        Priority:{" "}
+                        <span
+                          className={`font-black ${item.data?.priority === "HIGH" ? "text-amber-500" : item.data?.priority === "MEDIUM" ? "text-text-muted" : "text-[#6b7280]"}`}
+                        >
+                          {item.data?.priority || "LOW"}
+                        </span>
+                      </span>
                       <span className="text-white/10">·</span>
-                      <span>Risk: <span className={`font-black ${item.data?.risk_level === 'HIGH' ? 'text-danger' : item.data?.risk_level === 'MEDIUM' ? 'text-amber-500' : 'text-success'}`}>{item.data?.risk_level || 'LOW'}</span></span>
+                      <span>
+                        Risk:{" "}
+                        <span
+                          className={`font-black ${item.data?.risk_level === "HIGH" ? "text-danger" : item.data?.risk_level === "MEDIUM" ? "text-amber-500" : "text-success"}`}
+                        >
+                          {item.data?.risk_level || "LOW"}
+                        </span>
+                      </span>
                       {item.data?.trade_type && (
                         <>
                           <span className="text-white/10">·</span>
@@ -442,42 +561,68 @@ export function Insights() {
         {/* ── PORTFOLIO SUMMARY SIDEBAR ── */}
         <div className="lg:col-span-1">
           <div className="sticky top-8 space-y-6">
-            <h2 className="text-2xl font-black text-text-bold tracking-tighter">Portfolio Summary</h2>
+            <h2 className="text-2xl font-black text-text-bold tracking-tighter">
+              Portfolio Summary
+            </h2>
 
             {/* Live Stats */}
             <div className="bg-bg-surface border border-border-main rounded-xl p-5 space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-text-muted font-bold uppercase tracking-widest">Health</span>
-                <span className={`text-sm font-black ${data?.portfolio_summary?.health === 'Strong' ? 'text-success' : data?.portfolio_summary?.health === 'Weak' ? 'text-danger' : 'text-amber-500'}`}>
-                  {data?.portfolio_summary?.health || 'N/A'}
+                <span className="text-xs text-text-muted font-bold uppercase tracking-widest">
+                  Health
+                </span>
+                <span
+                  className={`text-sm font-black ${data?.portfolio_summary?.health === "Strong" ? "text-success" : data?.portfolio_summary?.health === "Weak" ? "text-danger" : "text-amber-500"}`}
+                >
+                  {data?.portfolio_summary?.health || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-text-muted font-bold uppercase tracking-widest">Risk Level</span>
-                <span className={`text-sm font-black ${data?.portfolio_summary?.risk_level === 'High' ? 'text-danger' : data?.portfolio_summary?.risk_level === 'Medium' ? 'text-amber-500' : 'text-success'}`}>
-                  {data?.portfolio_summary?.risk_level || 'N/A'}
+                <span className="text-xs text-text-muted font-bold uppercase tracking-widest">
+                  Risk Level
+                </span>
+                <span
+                  className={`text-sm font-black ${data?.portfolio_summary?.risk_level === "High" ? "text-danger" : data?.portfolio_summary?.risk_level === "Medium" ? "text-amber-500" : "text-success"}`}
+                >
+                  {data?.portfolio_summary?.risk_level || "N/A"}
                 </span>
               </div>
               <div className="border-t border-white/5 pt-3 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-text-muted font-bold">Total Invested</span>
-                  <AnimatedNumber value={data?.portfolio_summary?.total_invested || 0} prefix="₹" className="text-sm font-black text-text-bold" />
+                  <span className="text-xs text-text-muted font-bold">
+                    Total Invested
+                  </span>
+                  <AnimatedNumber
+                    value={data?.portfolio_summary?.total_invested || 0}
+                    prefix="₹"
+                    className="text-sm font-black text-text-bold"
+                  />
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-text-muted font-bold">Current Value</span>
-                  <AnimatedNumber value={data?.portfolio_summary?.total_value_live || 0} prefix="₹" className="text-sm font-black text-text-bold" />
+                  <span className="text-xs text-text-muted font-bold">
+                    Current Value
+                  </span>
+                  <AnimatedNumber
+                    value={data?.portfolio_summary?.total_value_live || 0}
+                    prefix="₹"
+                    className="text-sm font-black text-text-bold"
+                  />
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-text-muted font-bold">Total P&L</span>
+                  <span className="text-xs text-text-muted font-bold">
+                    Total P&L
+                  </span>
                   <AnimatedNumber
                     value={data?.portfolio_summary?.total_pnl || 0}
                     prefix="₹"
                     showPlusSign
-                    className={`text-sm font-black ${(data?.portfolio_summary?.total_pnl ?? 0) >= 0 ? 'text-success' : 'text-danger'}`}
+                    className={`text-sm font-black ${(data?.portfolio_summary?.total_pnl ?? 0) >= 0 ? "text-success" : "text-danger"}`}
                   />
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-text-muted font-bold">Win Rate</span>
+                  <span className="text-xs text-text-muted font-bold">
+                    Win Rate
+                  </span>
                   <AnimatedNumber
                     value={parseFloat(data?.portfolio_summary?.win_rate || "0")}
                     suffix="%"
@@ -492,7 +637,9 @@ export function Insights() {
               <div className="bg-bg-surface border border-border-main rounded-xl p-5">
                 <div className="flex items-center gap-1.5 mb-3">
                   <BarChart3 size={13} className="text-info" />
-                  <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">AI Assessment</span>
+                  <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">
+                    AI Assessment
+                  </span>
                 </div>
                 <p className="text-[13px] text-text-muted font-medium leading-relaxed">
                   {data.portfolio_summary.insight}
@@ -501,22 +648,30 @@ export function Insights() {
             )}
 
             {/* Recommendations */}
-            {data?.recommended_actions && data.recommended_actions.length > 0 && (
-              <div className="bg-bg-surface border border-border-main rounded-xl p-5">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <Crosshair size={13} className="text-accent" />
-                  <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Recommended Actions</span>
+            {data?.recommended_actions &&
+              data.recommended_actions.length > 0 && (
+                <div className="bg-bg-surface border border-border-main rounded-xl p-5">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Crosshair size={13} className="text-accent" />
+                    <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">
+                      Recommended Actions
+                    </span>
+                  </div>
+                  <ul className="space-y-2">
+                    {data.recommended_actions.map(
+                      (action: string, i: number) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-[13px] text-text-muted font-medium"
+                        >
+                          <div className="mt-[6px] shrink-0 w-1.5 h-1.5 rounded-full bg-accent/60" />
+                          {action}
+                        </li>
+                      ),
+                    )}
+                  </ul>
                 </div>
-                <ul className="space-y-2">
-                  {data.recommended_actions.map((action: string, i: number) => (
-                    <li key={i} className="flex items-start gap-2 text-[13px] text-text-muted font-medium">
-                      <div className="mt-[6px] shrink-0 w-1.5 h-1.5 rounded-full bg-accent/60" />
-                      {action}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>

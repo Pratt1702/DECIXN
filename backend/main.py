@@ -255,6 +255,7 @@ def analyze_ticker(ticker: str):
 def get_batch_quotes(payload: BatchQuotesRequest):
     """
     Fetches lightweight batch quotes for multiple symbols to power watchlists efficiently.
+    Includes intraday sparkline data for trend visualization.
     """
     if not payload.symbols:
         return {"success": True, "results": []}
@@ -268,21 +269,35 @@ def get_batch_quotes(payload: BatchQuotesRequest):
             
         try:
             t = yf.Ticker(sym)
-            hist = t.history(period="2d")
+            # Fetch 5d intraday to ensure we have at least one valid trading session
+            # (especially useful during weekends or after-hours where 1d might be empty)
+            hist_5d = t.history(period="5d", interval="30m")
+            hist_2d = t.history(period="2d")
             
-            if len(hist) >= 2:
-                prev_close = float(hist['Close'].iloc[-2])
-                curr_price = float(hist['Close'].iloc[-1])
-                vol = float(hist['Volume'].iloc[-1])
-            elif len(hist) == 1:
-                prev_close = float(hist['Close'].iloc[0])
-                curr_price = float(hist['Close'].iloc[0])
-                vol = float(hist['Volume'].iloc[0])
+            if len(hist_2d) >= 2:
+                prev_close = float(hist_2d['Close'].iloc[-2])
+                curr_price = float(hist_2d['Close'].iloc[-1])
+                vol = float(hist_2d['Volume'].iloc[-1])
+            elif len(hist_2d) == 1:
+                prev_close = float(hist_2d['Close'].iloc[0])
+                curr_price = float(hist_2d['Close'].iloc[0])
+                vol = float(hist_2d['Volume'].iloc[0])
             else:
                 continue
                 
             change = curr_price - prev_close
             change_pct = (change / prev_close) * 100 if prev_close > 0 else 0
+            
+            # Extract sparkline points (closing prices from the LAST valid trading day in hist_5d)
+            sparkline = []
+            if not hist_5d.empty:
+                # Group by date and take the last date's values
+                last_date = hist_5d.index[-1].date()
+                last_day_data = hist_5d[hist_5d.index.date == last_date]
+                sparkline = [float(x) for x in last_day_data['Close'].tolist()]
+            
+            if len(sparkline) < 2:
+                sparkline = [curr_price, curr_price] # Fallback to flat line instead of empty
             
             trend = "Bullish" if change_pct > 0 else ("Bearish" if change_pct < 0 else "Neutral")
             
@@ -305,7 +320,8 @@ def get_batch_quotes(payload: BatchQuotesRequest):
                 "volume": vol,
                 "trend": trend,
                 "fifty_two_week_low": fifty_two_low,
-                "fifty_two_week_high": fifty_two_high
+                "fifty_two_week_high": fifty_two_high,
+                "sparkline": sparkline
             })
         except Exception as e:
             print(f"Error fetching quote for {original}: {e}")

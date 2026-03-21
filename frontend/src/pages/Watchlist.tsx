@@ -421,34 +421,56 @@ export function Watchlist() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                            {/* Simple visual indicator mimicking a sparkline trend */}
+                            {/* Real 1D sparkline trend */}
                            <div className={`w-24 h-6 flex items-center transition-opacity ${isRemoved ? 'opacity-30 grayscale' : ''}`}>
-                              <svg viewBox="0 0 100 24" className="w-full h-full preserveAspectRatio-none">
-                                <path 
-                                   d={isPos ? "M0,24 L20,16 L40,20 L60,8 L80,12 L100,2" : "M0,2 L20,10 L40,6 L60,18 L80,14 L100,22"} 
-                                   fill="none" 
-                                   stroke={isPos ? "#10b981" : "#e13451"} 
-                                   strokeWidth="1.5"
-                                   strokeLinejoin="round"
-                                   strokeLinecap="round"
-                                   className="opacity-60 group-hover:opacity-100 transition-opacity"
-                                />
-                                <path 
-                                   d={isPos ? "M0,24 L20,16 L40,20 L60,8 L80,12 L100,2 L100,24 Z" : "M0,2 L20,10 L40,6 L60,18 L80,14 L100,22 L100,24 Z"} 
-                                   fill={isPos ? "url(#gradPos)" : "url(#gradNeg)"} 
-                                   className="opacity-10 group-hover:opacity-20 transition-opacity"
-                                />
-                                <defs>
-                                  <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#10b981" />
-                                    <stop offset="100%" stopColor="transparent" />
-                                  </linearGradient>
-                                  <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#e13451" />
-                                    <stop offset="100%" stopColor="transparent" />
-                                  </linearGradient>
-                                </defs>
-                              </svg>
+                              {d.sparkline && d.sparkline.length > 1 ? (
+                                <svg viewBox="0 0 100 24" className="w-full h-full preserveAspectRatio-none">
+                                  {(() => {
+                                    const min = Math.min(...d.sparkline);
+                                    const max = Math.max(...d.sparkline);
+                                    const range = max - min || 1;
+                                    const padding = range * 0.1;
+                                    const scale = (val: number) => 22 - ((val - min + padding) / (range + 2 * padding)) * 20; // Leave 2px buffer
+                                    
+                                    const points = d.sparkline.map((val: number, idx: number) => {
+                                      const x = (idx / (d.sparkline.length - 1)) * 100;
+                                      const y = scale(val);
+                                      return `${idx === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+                                    }).join(' ');
+
+                                    return (
+                                      <>
+                                        <path 
+                                          d={points} 
+                                          fill="none" 
+                                          stroke={isPos ? "#10b981" : "#e13451"} 
+                                          strokeWidth="2"
+                                          strokeLinejoin="round"
+                                          strokeLinecap="round"
+                                          className="opacity-70 group-hover:opacity-100 transition-opacity"
+                                        />
+                                        <path 
+                                          d={`${points} L100,24 L0,24 Z`} 
+                                          fill={isPos ? "url(#gradPos)" : "url(#gradNeg)"} 
+                                          className="opacity-10 group-hover:opacity-20 transition-opacity"
+                                        />
+                                      </>
+                                    );
+                                  })()}
+                                  <defs>
+                                    <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="#10b981" />
+                                      <stop offset="100%" stopColor="transparent" />
+                                    </linearGradient>
+                                    <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="#e13451" />
+                                      <stop offset="100%" stopColor="transparent" />
+                                    </linearGradient>
+                                  </defs>
+                                </svg>
+                              ) : (
+                                <div className="text-[8px] font-bold text-text-muted uppercase tracking-widest opacity-20">No Data</div>
+                              )}
                            </div>
                         </td>
                         <td className={`px-6 py-4 text-right transition-opacity ${isRemoved ? 'opacity-30' : ''}`}>

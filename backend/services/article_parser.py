@@ -1,21 +1,31 @@
-from bs4 import BeautifulSoup
+# services/article_parser.py
+
 import trafilatura
+from bs4 import BeautifulSoup
 
-def extract_with_synopsis(url):
+
+def extract_article_text(url: str) -> str | None:
+
     downloaded = trafilatura.fetch_url(url)
+    if not downloaded:
+        return None
 
-    text = trafilatura.extract(downloaded)
+    body = trafilatura.extract(downloaded)
+    if not body:
+        return None
 
     soup = BeautifulSoup(downloaded, "lxml")
 
     synopsis_tag = soup.select_one(".synopsis, .artSyn, div.Synopsis")
 
-    synopsis = synopsis_tag.get_text(" ", strip=True)
+    synopsis = ""
+    if synopsis_tag:
+        synopsis = synopsis_tag.get_text(" ", strip=True)
 
-    if synopsis.lower().startswith("synopsis"):
-        synopsis = synopsis[len("synopsis"):].strip()
+        if synopsis.lower().startswith("synopsis"):
+            synopsis = synopsis[len("synopsis"):].strip()
 
-    combined = synopsis + "\n\n" + (text or "")
+    combined = (synopsis + "\n\n" + body).strip()
 
     paragraphs = [
         p.strip()
@@ -24,6 +34,3 @@ def extract_with_synopsis(url):
     ]
 
     return "\n\n".join(paragraphs[:3])
-
-
-

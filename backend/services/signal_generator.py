@@ -50,16 +50,16 @@ def generate_signals(df):
 
     # --- WATCH CONDITIONS ---
     watch_price = latest['MA20']
-    watch_type = "Support at MA20"
+    watch_type = "Baseline support (MA20)"
     if latest['Close'] > latest['MA20']:
         watch_price = latest['MA20']
-        watch_type = "Support at MA20"
+        watch_type = "Solid cushion (MA20)"
     if breakout_strength > -0.02 and breakout_strength < 0:
         watch_price = latest['High20']
-        watch_type = "Breakout above Resistance"
+        watch_type = "Major hurdle (Resistance)"
     elif latest['RSI'] < 35:
         watch_price = latest['MA20']
-        watch_type = "Recovery above MA20"
+        watch_type = "Trend reclaim level (MA20)"
 
     signals = {
         'Price': latest['Close'],

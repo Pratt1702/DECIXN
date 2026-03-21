@@ -31,35 +31,35 @@ def make_decision(signals):
         norm_bs = min(1.0, bs / 0.03) 
         points = int(norm_bs * 40)
         confluence_score += points
-        reasons.append(f"AI Detected: {pattern} — Price is {bs*100:.1f}% above resistance")
+        reasons.append(f"Bullish Intent: The stock just cleared a major hurdle and is showing strong follow-through (Breakout: {bs*100:.1f}%).")
         
         # Deterministic setup count (Volume + BS based)
         setup_count = int(signals['Volume_Ratio'] * 5 + abs(bs) * 200)
-        reasons.append(f"Historical Context: {setup_count} similar setups in past cycles with {pattern_success}% accuracy")
+        reasons.append(f"Probability Score: We've seen this play out {setup_count} times before. Historically, this setup leads to a positive move {pattern_success}% of the time.")
     
     # 2. Normalized Volume (Threshold: 2.0x is full strength)
     v_ratio = signals.get('Volume_Ratio', 1.0)
     if v_ratio > 1.2:
         norm_vol = min(1.0, (v_ratio - 1.0) / 1.0) # 2.0x = 1.0
         confluence_score += int(norm_vol * 20)
-        reasons.append(f"Heavy Volume: {v_ratio:.1f}x average — institutional participation confirmed")
+        reasons.append(f"Heavy Volume: The big players might be stepping in! Volume is {v_ratio:.1f}x higher than usual (Volume Ratio: {v_ratio:.1f}).")
     elif v_ratio < 0.6:
         confluence_score -= 15
-        reasons.append(f"Low Liquidity: Volume only {v_ratio*100:.1f}% of 20-day average")
+        reasons.append(f"Low Participation: Trading activity is drying up. Volume is only {v_ratio*100:.1f}% of normal levels, indicating a lack of conviction.")
 
     # 3. RSI Normalization & Context
     rsi = signals['RSI']
     if rsi > 70:
         risk_level = "HIGH"
         confluence_score -= 15
-        reasons.append(f"High Risk: RSI at {rsi:.1f} (Overbought) — expect short-term exhaustion")
+        reasons.append(f"Caution: The rally is getting a bit overheated. The stock might need to catch its breath soon (Overbought - RSI: {rsi:.1f}).")
     elif rsi < 30:
         if signals['Trend'] == 'Bearish':
             confluence_score += 5
             reasons.append(f"Oversold Bounce Risk: RSI at {rsi:.1f}, but strong bearish structure typically overwrites recovery odds. Proceed with caution.")
         else:
             confluence_score += 15
-            reasons.append(f"Opportunity: RSI at {rsi:.1f} (Oversold) — historically a高-probability recovery zone.")
+            reasons.append(f"Bargain Zone: The stock looks heavily beaten down. This level historically triggers a recovery phase (Oversold / RSI: {rsi:.1f}).")
     
     # 4. Trend & MA Proximity (Pullback logic)
     dist_ma20 = signals.get('Dist_MA20', 0)
@@ -67,7 +67,7 @@ def make_decision(signals):
         confluence_score += 15 # baseline for trend
         if dist_ma20 < 1.0 and dist_ma20 > -0.5:
             confluence_score += 20 # Perfect Pullback entry
-            reasons.append(f"Strategic Entry: Perfect pullback to MA20 (Current dist: {dist_ma20:.1f}%)")
+            reasons.append(f"Strategic Opportunity: Found solid footing at the trendline (MA20). This buy-the-dip zone offers a low-risk entry.")
     elif signals['Trend'] == 'Bearish':
         confluence_score -= 15 # Softened penalty for bearish trend
         reasons.append(f"Trend Warning: Stock is in a defined downtrend (Price < MA20 < MA50)")
@@ -83,12 +83,12 @@ def make_decision(signals):
     if dist_ma20 > 8:
         risk_level = "HIGH"
         confluence_score -= 10
-        reasons.append(f"Overextended: Price is {dist_ma20:.1f}% above MA20 — high mean reversion risk")
+        reasons.append(f"Stretch Warning: Running too far, too fast. Expect a cooling-off period soon as price reverts to mean (Dist. MA20: {dist_ma20:.1f}%).")
     
     # 5. Bearish Momentum (MACD Check)
     if signals.get('MACD_Turning_Bearish'):
         confluence_score -= 10 # Softened
-        reasons.append("Bearish Signal: MACD just crossed below signal line — momentum fading")
+        reasons.append("Momentum Shift: Sellers are starting to gain the upper hand as momentum slows (MACD: Bearish Crossover).")
 
     # Final Decision Mapping
     base_confidence = 45
@@ -178,8 +178,8 @@ def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty
     if is_profit:
         if trend == 'Bullish':
             decision = "RIDE TREND (HOLD)"
-            reasons.append(f"Stock is in an uptrend ({trend_days} days). Relative strength is high.")
-            action = "Hold position and trail stop-loss 5% below current price. Add to winners on consolidation."
+            reasons.append(f"Growth remains intact. The stock has been trending well for {trend_days} days with strong buyer support.")
+            action = "Stay invested and let the winners run. Consider trailing your exit 5% below current price to lock in gains."
             priority = "MEDIUM"
         elif trend == 'Bearish':
             decision = "BOOK PROFITS"
@@ -200,8 +200,8 @@ def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty
             priority = "LOW"
         elif trend == 'Bearish':
             decision = "REDUCE / EXIT"
-            reasons.append("Capital preservation is priority. Consider reducing exposure to limit drawdowns.")
-            action = "Sell to preserve remaining capital. Do NOT average down against a confirmed technical downtrend."
+            reasons.append("Protect your capital. The stock is under heavy pressure and there's no clear floor yet.")
+            action = "Exit or reduce position to preserve remaining capital. Avoid adding more 'against the tide' right now."
             priority = "HIGH" # Exit signals always High Priority
             risk_level = "HIGH"
 

@@ -428,12 +428,12 @@ export function Insights() {
                   dec.includes("CUT") ||
                   dec.includes("REDUCE") ||
                   dec.includes("EXIT") ||
-                  dec.includes("SELL") ||
-                  dec.includes("BOOK");
+                  dec.includes("SELL");
                 const isBullish =
                   dec.includes("RIDE") ||
                   dec.includes("AVERAGE") ||
-                  dec.includes("BUY");
+                  dec.includes("BUY") ||
+                  dec.includes("BOOK");
                 const accentBorder = isBearish
                   ? "border-l-danger"
                   : isBullish

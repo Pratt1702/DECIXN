@@ -16,12 +16,18 @@ import {
 
 import _logo from "../assets/logo.png";
 import { useAuthStore } from "../store/useAuthStore";
+import { usePortfolioStore } from "../store/usePortfolioStore";
+import { useWatchlistStore } from "../store/useWatchlistStore";
+import { MiniChart } from "../components/ui/MiniChart";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  type?: string;
+  metadata?: any;
+  ui_hints?: any;
 }
 
 export function Chat() {
@@ -30,6 +36,8 @@ export function Chat() {
   const [isTyping, setIsTyping] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { user } = useAuthStore();
+  const { data: portfolioData } = usePortfolioStore();
+  const { items: watchlistItems } = useWatchlistStore();
   const [userName, setUserName] = useState<string | null>(
     localStorage.getItem("user_chat_name"),
   );
@@ -37,6 +45,7 @@ export function Chat() {
     !localStorage.getItem("user_chat_name"),
   );
   const [tempName, setTempName] = useState("");
+  const [remainingMessages, setRemainingMessages] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +53,22 @@ export function Chat() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const id = user?.id || userName || "anonymous";
+      try {
+        const res = await fetch(`http://localhost:8000/chat/status/${id}`);
+        const data = await res.json();
+        if (data.remaining_messages !== undefined) {
+          setRemainingMessages(data.remaining_messages);
+        }
+      } catch (e) {
+        console.error("Failed to fetch chat status:", e);
+      }
+    };
+    fetchStatus();
+  }, [user, userName]);
 
   const handleQuickStart = (text: string) => {
     setInput(text);
@@ -58,7 +83,7 @@ export function Chat() {
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMsg: Message = {
@@ -73,16 +98,79 @@ export function Chat() {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
+    try {
+      // Build portfolio context
+      let portfolioContext = "";
+      if (portfolioData?.portfolio_summary) {
+        const s = portfolioData.portfolio_summary;
+        portfolioContext += `[PORTFOLIO SUMMARY] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl} (${s.win_rate} win rate).\n`;
+        
+        if (portfolioData.portfolio_analysis && portfolioData.portfolio_analysis.length > 0) {
+            portfolioContext += `[HOLDINGS LIST]\n`;
+            portfolioData.portfolio_analysis.slice(0, 15).forEach((h: any) => {
+                portfolioContext += `- ${h.symbol}: ${h.holding_context.quantity} shares @ avg ₹${h.holding_context.avg_cost}\n`;
+            });
+        }
+      } else {
+        portfolioContext = "No portfolio data uploaded.";
+      }
+
+      if (watchlistItems.length > 0) {
+          portfolioContext += ` Watchlist: ${watchlistItems.slice(0, 10).map(i => i.symbol).join(", ")}.`;
+      }
+
+      const history = messages.slice(-6).map(m => ({
+          role: m.role,
+          parts: [{ text: m.content }]
+      }));
+
+      console.log("FOXY REQUEST:", {
+        message: savedInput,
+        history: history,
+        context: portfolioContext
+      });
+
+      const response = await fetch("http://localhost:8000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: savedInput,
+          history: history,
+          portfolio_context: portfolioContext,
+          user_id: user?.id || userName || "anonymous"
+        }),
+      });
+
+      const data = await response.json();
+      console.log("FOXY RESPONSE:", data);
+      
+      if (data.metadata?.remaining_messages !== undefined) {
+          setRemainingMessages(data.metadata.remaining_messages);
+      }
+      
       const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: Date.now().toString(),
         role: "assistant",
-        content: `I've analyzed the market context for "${savedInput}". Based on the current volatility indices and sector rotation patterns, here's what the data suggests:\n\n1. Market sentiment remains cautiously bullish as the NIFTY holds its key support levels.\n2. In your specific holdings, there is a clear opportunity to optimize tax-loss harvesting before the quarter end.\n3. The Decixn Foxy v1 model identifies a high-confidence breakout in the energy sector over the next 3 trading days if volume persists.`,
+        content: data.narrative || "I couldn't generate a response.",
         timestamp: Date.now(),
+        type: data.type,
+        metadata: data.metadata,
+        ui_hints: data.ui_hints
       };
+
       setMessages((prev) => [...prev, assistantMsg]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      const errorMsg: Message = {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: "Sorry, I'm having trouble connecting to my brain right now. Please make sure the backend is running.",
+          timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const history = [
@@ -251,14 +339,25 @@ export function Chat() {
       {/* ── MAIN CHAT VIEW ── */}
       <main className="flex-1 flex flex-col min-w-0 relative">
         <div className="h-14 px-4 flex items-center gap-4">
-          {!isSidebarOpen && (
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-lg hover:bg-white/5 transition-colors group cursor-pointer"
-            >
-              <PanelLeft className="w-4 h-4 text-text-muted group-hover:text-white" />
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 rounded-lg hover:bg-white/5 transition-colors group cursor-pointer"
+              >
+                <PanelLeft className="w-4 h-4 text-text-muted group-hover:text-white" />
+              </button>
+            )}
+            
+            {remainingMessages !== null && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5">
+                <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">
+                  {remainingMessages} {remainingMessages === 1 ? 'msg' : 'msgs'} left
+                </span>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
             <span className="text-white font-semibold text-[14px] tracking-tight">
@@ -364,6 +463,53 @@ export function Chat() {
                       }`}
                     >
                       {msg.content}
+
+                      {msg.role === "assistant" && msg.metadata && (
+                          <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+                              {/* Actionable Insight Badge */}
+                              {msg.metadata.actionable_insight && (
+                                  <div className="flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-xl px-3 py-2 text-[12px] text-accent font-bold">
+                                      <Zap className="w-3.5 h-3.5" />
+                                      {msg.metadata.actionable_insight}
+                                  </div>
+                              )}
+                              
+                              {/* Sentiment Tag */}
+                              {msg.metadata.sentiment && (
+                                  <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                      msg.metadata.sentiment === "Bullish" ? "bg-green-500/10 text-green-500" :
+                                      msg.metadata.sentiment === "Bearish" ? "bg-red-500/10 text-red-500" :
+                                      "bg-white/10 text-white/50"
+                                  }`}>
+                                      <Activity className="w-3 h-3" />
+                                      {msg.metadata.sentiment}
+                                  </div>
+                              )}
+
+                              {/* Sparkline Chart */}
+                              {msg.metadata.sparkline && msg.metadata.sparkline.length > 0 && (
+                                  <MiniChart 
+                                      data={msg.metadata.sparkline.map((p: number) => ({ price: p }))} 
+                                      color={msg.metadata.sentiment === "Bearish" ? "#f43f5e" : "#10b981"}
+                                  />
+                              )}
+
+                              {/* Action Shortcuts */}
+                              {msg.metadata.tickers && msg.metadata.tickers.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 pt-2">
+                                      {msg.metadata.tickers.map((t: string) => (
+                                          <button 
+                                              key={t}
+                                              className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/20 text-white font-bold text-[11px] transition-all cursor-pointer"
+                                              onClick={() => window.open(`/stock/${t}`, '_self')}
+                                          >
+                                              View {t}
+                                          </button>
+                                      ))}
+                                  </div>
+                              )}
+                          </div>
+                      )}
                     </div>
 
                     {msg.role === "assistant" && (
@@ -423,8 +569,9 @@ export function Chat() {
                         !e.shiftKey &&
                         (e.preventDefault(), handleSend())
                       }
-                      placeholder="Message Foxy..."
-                      className="flex-1 bg-transparent border-none focus:ring-0 text-white text-[14px] font-medium px-2 py-3 resize-none outline-none placeholder:text-text-muted/30"
+                      placeholder={remainingMessages === 0 ? "You've reached your limit. Come back later!" : "Message Foxy..."}
+                      disabled={remainingMessages === 0}
+                      className="flex-1 bg-transparent border-none focus:ring-0 text-white text-[14px] font-medium px-2 py-3 resize-none outline-none placeholder:text-text-muted/30 disabled:opacity-50"
                     />
                     <button
                       onClick={handleSend}

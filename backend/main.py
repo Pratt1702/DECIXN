@@ -7,7 +7,36 @@ import csv
 import os
 import requests
 import yfinance as yf
+from services.chat_service import chat_engine
+import time
+from collections import defaultdict
 
+class RateLimiter:
+    def __init__(self, limit: int = 10, window: int = 1800):  # 10 msgs / 30 mins
+        self.limit = limit
+        self.window = window
+        # Key: user_id, Value: {"count": int, "reset_time": float}
+        self.users = defaultdict(lambda: {"count": 0, "reset_time": 0})
+
+    def get_remaining(self, user_id: str):
+        now = time.time()
+        state = self.users[user_id]
+        
+        # Reset if window passed
+        if now > state["reset_time"]:
+            state["count"] = 0
+            state["reset_time"] = now + self.window
+            
+        return max(0, self.limit - state["count"])
+
+    def increment(self, user_id: str):
+        remaining = self.get_remaining(user_id)
+        if remaining > 0:
+            self.users[user_id]["count"] += 1
+            return True
+        return False
+
+rate_limiter = RateLimiter()
 app = FastAPI(
     title="Market Intelligence Engine API",
     description="An AI-driven technical analysis API for Indian stocks.",
@@ -37,6 +66,12 @@ class PortfolioInput(BaseModel):
 
 class BatchQuotesRequest(BaseModel):
     symbols: list[str]
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+    portfolio_context: str = None
+    user_id: str = "anonymous"
 
 @app.get("/")
 def read_root():
@@ -351,6 +386,57 @@ def search_stocks(query: str):
         return {"success": True, "results": results}
     except Exception as e:
         return {"success": False, "error": str(e), "results": []}
+
+@app.get("/chat/status/{user_id}")
+async def get_chat_status(user_id: str):
+    """
+    Returns the remaining messages for a specific user.
+    """
+    remaining = rate_limiter.get_remaining(user_id)
+    return {"remaining_messages": remaining}
+
+@app.post("/chat")
+async def chat_with_foxy(payload: ChatRequest):
+    """
+    Orchestrates a conversation with Foxy v1 (Gemini) using market tools.
+    """
+    print(f"\n--- NEW CHAT REQUEST ---")
+    print(f"User: {payload.message}")
+    if payload.portfolio_context:
+        print(f"Context: {payload.portfolio_context[:100]}...")
+    
+    # Rate Limiting check
+    user_id = payload.user_id or "anonymous"
+    remaining = rate_limiter.get_remaining(user_id)
+    
+    if remaining <= 0:
+        return {
+            "type": "error",
+            "narrative": "You've reached your limit of 10 messages per 30 minutes. Please take a break and come back later!",
+            "metadata": {"remaining_messages": 0},
+            "ui_hints": {}
+        }
+
+    rate_limiter.increment(user_id)
+    new_remaining = rate_limiter.get_remaining(user_id)
+
+    try:
+        response = await chat_engine.get_response(
+            user_message=payload.message,
+            chat_history=payload.history,
+            portfolio_context=payload.portfolio_context
+        )
+        # Inject remaining messages into response
+        response["metadata"]["remaining_messages"] = new_remaining
+        return response
+    except Exception as e:
+        print(f"CHAT ERROR: {e}")
+        return {
+            "type": "general",
+            "narrative": "I'm sorry, I encountered an error while processing your request. Please try again.",
+            "metadata": {"error": str(e)},
+            "ui_hints": {}
+        }
 
 if __name__ == "__main__":
     # uvicorn main:app --reload

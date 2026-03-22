@@ -127,24 +127,33 @@ const DraggableCarousel = ({ children }: { children: React.ReactNode }) => {
 export function Explore() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { recentViews } = useExploreStore();
+  const { recentViews, marketData, setMarketData, shouldRefreshMarketData } = useExploreStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     async function loadData() {
+      if (!shouldRefreshMarketData() && marketData) {
+        setData(marketData);
+        setLoading(false);
+        return;
+      }
+      
       try {
+        setLoading(true);
         const res = await getMarketOverview();
         if (res.success) {
           setData(res);
+          setMarketData(res);
         }
       } catch (e) {
         console.error("Failed to load market overview", e);
+        if (marketData) setData(marketData); // Fallback to stale cache on error
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [shouldRefreshMarketData, marketData, setMarketData]);
 
   const renderCard = (item: any, idx: number, isPos: boolean) => {
     return (
@@ -290,8 +299,13 @@ export function Explore() {
             <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center border border-success/20">
               <TrendingUp className="w-4 h-4 text-success" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-white">
+            <h2 className="text-2xl font-black tracking-tight text-white flex items-baseline gap-2">
               Top Gainers
+              {data?.label && (
+                <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest bg-white/[0.03] px-2 py-0.5 rounded border border-white/5">
+                  {data.label}
+                </span>
+              )}
             </h2>
           </div>
 
@@ -310,8 +324,13 @@ export function Explore() {
             <div className="w-8 h-8 rounded-full bg-danger/10 flex items-center justify-center border border-danger/20">
               <TrendingDown className="w-4 h-4 text-danger" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-white">
+            <h2 className="text-2xl font-black tracking-tight text-white flex items-baseline gap-2">
               Top Losers
+              {data?.label && (
+                <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest bg-white/[0.03] px-2 py-0.5 rounded border border-white/5">
+                  {data.label}
+                </span>
+              )}
             </h2>
           </div>
 

@@ -204,7 +204,6 @@ class ChatEngine:
             if not portfolio_context: return {"success": False, "error": "No portfolio context available."}
             
             # Parse ALL holdings from the context string
-            # Format in context: "- SYMBOL: QUANTITY shares @ avg ₹AVG_COST"
             import re
             holdings = []
             pattern = r"- ([^:]+): ([\d\.]+) shares @ avg ₹([\d\.]+)"
@@ -221,12 +220,13 @@ class ChatEngine:
                 return {"success": False, "error": "Could not extract holdings from context."}
             
             from portfolio_logic import run_portfolio_analysis
+            # User explicitly requested full analysis regardless of wait time
             summary_data = run_portfolio_analysis(holdings)
             
             return {
                 "success": True,
                 "summary": summary_data.get("portfolio_summary"),
-                "holdings": summary_data.get("portfolio_analysis")[:10] # Top 10 for AI dashboard
+                "holdings": summary_data.get("portfolio_analysis")[:10] # Top 10 for AI dashboard display
             }
 
         elif name == "get_user_position":

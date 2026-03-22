@@ -8,20 +8,23 @@ def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     """
     results = []
     
-    for h in holdings_data:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def process_holding(h):
         try:
             symbol = h["symbol"]
             qty = float(h["quantity"])
             avg_cost = float(h["avg_cost"])
             pnl = float(h.get("pnl", 0.0))
-            if not symbol or qty <= 0:
-                continue
-                
-            res = analyze_single_holding(symbol, avg_cost, qty, pnl)
-            if res.get("success"):
-                results.append(res)
+            if not symbol or qty <= 0: return None
+            return analyze_single_holding(symbol, avg_cost, qty, pnl)
         except Exception as e:
             print(f"DEBUG: Critical failure on holding {h}: {e}")
+            return None
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        batch_results = list(executor.map(process_holding, holdings_data))
+        results = [r for r in batch_results if r and r.get("success")]
 
     if not results:
         return {

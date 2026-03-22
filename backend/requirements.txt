@@ -6,3 +6,7 @@ uvicorn
 httpx
 beautifulsoup4
 lxml
+trafilatura
+google-genai
+google-generativeai
+python-dotenv

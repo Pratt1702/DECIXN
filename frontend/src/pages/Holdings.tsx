@@ -349,9 +349,12 @@ export function Holdings() {
           <h2 className="text-2xl font-black text-text-bold tracking-tighter">
             Holdings
           </h2>
-          <CSVUpload onDataParsed={(holdings) => {
-            handleDataParsed(holdings);
-          }} />
+          <CSVUpload 
+            isManual={isManual}
+            onDataParsed={(holdings) => {
+              handleDataParsed(holdings);
+            }} 
+          />
         </div>
 
         {data?.portfolio_analysis && (

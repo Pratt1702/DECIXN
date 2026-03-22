@@ -8,6 +8,7 @@ import { Insights } from "./pages/Insights";
 import { StockDetails } from "./pages/StockDetails";
 import { Terminal } from "./pages/Terminal";
 import { Watchlist } from "./pages/Watchlist";
+import { PortfolioInfo } from "./pages/PortfolioInfo";
 import "./App.css";
 
 function App() {
@@ -27,6 +28,8 @@ function App() {
         </Route>
         <Route path="/terminal/:ticker" element={<Terminal />} />
       </Route>
+
+      <Route path="/info/portfolio" element={<PortfolioInfo />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

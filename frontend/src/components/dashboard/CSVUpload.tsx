@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import Papa from "papaparse";
-import { Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, Loader2, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface CSVUploadProps {
   onDataParsed: (data: any[]) => void;
+  isManual?: boolean;
 }
 
-export function CSVUpload({ onDataParsed }: CSVUploadProps) {
+export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -103,6 +104,36 @@ export function CSVUpload({ onDataParsed }: CSVUploadProps) {
 
   return (
     <div className="flex items-center gap-4">
+      <div className="text-text-muted text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 select-none">
+        {isManual ? (
+          <>
+            <span className="text-text-muted font-black opacity-80 uppercase">Portfolio Uploaded</span>
+            <HelpCircle
+              size={13}
+              className="cursor-pointer hover:text-accent transition-colors text-text-muted hover:opacity-100 opacity-70"
+              onClick={() => window.open("/info/portfolio", "_blank")}
+            />
+          </>
+        ) : (
+          <>
+            Upload your{" "}
+            <a
+              href="/info/portfolio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:text-accent/80 underline decoration-accent/30 underline-offset-4 cursor-pointer"
+            >
+              portfolio
+            </a>
+            <HelpCircle
+              size={13}
+              className="cursor-pointer hover:text-accent transition-colors"
+              onClick={() => window.open("/info/portfolio", "_blank")}
+            />
+          </>
+        )}
+      </div>
+
       <label className="cursor-pointer flex items-center gap-2.5 px-4 py-2.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20 transition-all text-sm font-medium text-white/70 hover:text-white select-none">
         {isUploading ? (
           <>

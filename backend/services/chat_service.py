@@ -38,21 +38,7 @@ TOOLS = [
                 "description": "Comprehensive health check for the ENTIRE portfolio. Use this when the user asks for a 'portfolio review', 'holdings report', or 'overall health'. Do NOT use this for single stock questions.",
                 "parameters": {
                     "type": "OBJECT",
-                    "properties": {
-                        "holdings": {
-                            "type": "ARRAY",
-                            "items": {
-                                "type": "OBJECT",
-                                "properties": {
-                                    "symbol": {"type": "string"},
-                                    "avg_cost": {"type": "number"},
-                                    "quantity": {"type": "number"}
-                                },
-                                "required": ["symbol", "avg_cost", "quantity"]
-                            }
-                        }
-                    },
-                    "required": ["holdings"]
+                    "properties": {}
                 }
             },
             {
@@ -215,13 +201,24 @@ class ChatEngine:
             return get_market_overview()
         
         elif name == "analyze_full_portfolio":
+            if not portfolio_context: return {"success": False, "error": "No portfolio context available."}
+            
+            # Parse ALL holdings from the context string
+            # Format in context: "- SYMBOL: QUANTITY shares @ avg ₹AVG_COST"
+            import re
             holdings = []
-            for h in args.get("holdings", []):
+            pattern = r"- ([^:]+): ([\d\.]+) shares @ avg ₹([\d\.]+)"
+            matches = re.finditer(pattern, portfolio_context)
+            
+            for m in matches:
                 holdings.append({
-                    "symbol": h["symbol"],
-                    "quantity": h["quantity"],
-                    "avg_cost": h["avg_cost"]
+                    "symbol": m.group(1),
+                    "quantity": float(m.group(2)),
+                    "avg_cost": float(m.group(3))
                 })
+
+            if not holdings:
+                return {"success": False, "error": "Could not extract holdings from context."}
             
             from portfolio_logic import run_portfolio_analysis
             summary_data = run_portfolio_analysis(holdings)
@@ -229,7 +226,7 @@ class ChatEngine:
             return {
                 "success": True,
                 "summary": summary_data.get("portfolio_summary"),
-                "holdings": summary_data.get("portfolio_analysis")[:10]
+                "holdings": summary_data.get("portfolio_analysis")[:10] # Top 10 for AI dashboard
             }
 
         elif name == "get_user_position":

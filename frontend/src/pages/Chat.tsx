@@ -33,6 +33,31 @@ interface Message {
   ui_hints?: any;
 }
 
+function TypewriterText({ text, onComplete }: { text: string; onComplete?: () => void }) {
+  const [displayText, setDisplayText] = useState("");
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (index < text.length) {
+      const timeout = setTimeout(() => {
+        // Boost speed: 3 chars per tick for medium messages, 5 for long ones
+        const step = text.length > 500 ? 5 : 3;
+        setDisplayText(text.substring(0, index + step));
+        setIndex((prev) => prev + step);
+      }, 10);
+      return () => clearTimeout(timeout);
+    } else if (onComplete) {
+      onComplete();
+    }
+  }, [index, text, onComplete]);
+
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+      {displayText}
+    </ReactMarkdown>
+  );
+}
+
 export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -53,9 +78,17 @@ export function Chat() {
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [completedMessages, setCompletedMessages] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        // Find the most recent assistant message container and scroll to its START
+        const assistantMsgs = scrollRef.current.querySelectorAll('.assistant-msg');
+        if (assistantMsgs.length > 0 && isTyping) {
+            assistantMsgs[assistantMsgs.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (!isTyping) {
+            scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        }
     }
   }, [messages, isTyping]);
 
@@ -115,7 +148,7 @@ export function Chat() {
           portfolioData.portfolio_analysis.length > 0
         ) {
           portfolioContext += `[HOLDINGS LIST]\n`;
-          portfolioData.portfolio_analysis.slice(0, 15).forEach((h: any) => {
+          portfolioData.portfolio_analysis.forEach((h: any) => {
             portfolioContext += `- ${h.symbol}: ${h.holding_context.quantity} shares @ avg ₹${h.holding_context.avg_cost}\n`;
           });
         }
@@ -512,57 +545,64 @@ export function Chat() {
                         msg.content
                       ) : (
                         <div className="markdown-content">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ node, ...props }) => (
-                                <p className="mb-3 last:mb-0" {...props} />
-                              ),
-                              ul: ({ node, ...props }) => (
-                                <ul
-                                  className="list-disc ml-4 mb-3 space-y-1"
-                                  {...props}
-                                />
-                              ),
-                              ol: ({ node, ...props }) => (
-                                <ol
-                                  className="list-decimal ml-4 mb-3 space-y-1"
-                                  {...props}
-                                />
-                              ),
-                              li: ({ node, ...props }) => (
-                                <li className="leading-relaxed" {...props} />
-                              ),
-                              strong: ({ node, ...props }) => (
-                                <strong
-                                  className="text-white font-bold"
-                                  {...props}
-                                />
-                              ),
-                              h1: ({ node, ...props }) => (
-                                <h1
-                                  className="text-lg font-bold mb-2 text-white"
-                                  {...props}
-                                />
-                              ),
-                              h2: ({ node, ...props }) => (
-                                <h2
-                                  className="text-md font-bold mb-2 text-white border-b border-white/5 pb-1"
-                                  {...props}
-                                />
-                              ),
-                              blockquote: ({ node, ...props }) => (
-                                <blockquote
-                                  className="border-l-2 border-accent/30 pl-3 italic my-2 text-white/70"
-                                  {...props}
-                                />
-                              ),
-                            }}
-                          >
-                            {msg.content}
-                          </ReactMarkdown>
+                          {msg.role === "assistant" && !completedMessages.has(msg.id) ? (
+                            <TypewriterText 
+                              text={msg.content} 
+                              onComplete={() => setCompletedMessages(prev => new Set(prev).add(msg.id))}
+                            />
+                          ) : (
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ node, ...props }) => (
+                                  <p className="mb-3 last:mb-0" {...props} />
+                                ),
+                                ul: ({ node, ...props }) => (
+                                  <ul
+                                    className="list-disc ml-4 mb-3 space-y-1"
+                                    {...props}
+                                  />
+                                ),
+                                ol: ({ node, ...props }) => (
+                                  <ol
+                                    className="list-decimal ml-4 mb-3 space-y-1"
+                                    {...props}
+                                  />
+                                ),
+                                li: ({ node, ...props }) => (
+                                  <li className="leading-relaxed" {...props} />
+                                ),
+                                strong: ({ node, ...props }) => (
+                                  <strong
+                                    className="text-white font-bold"
+                                    {...props}
+                                  />
+                                ),
+                                h1: ({ node, ...props }) => (
+                                  <h1
+                                    className="text-lg font-bold mb-2 text-white"
+                                    {...props}
+                                  />
+                                ),
+                                h2: ({ node, ...props }) => (
+                                  <h2
+                                    className="text-md font-bold mb-2 text-white border-b border-white/5 pb-1"
+                                    {...props}
+                                  />
+                                ),
+                                blockquote: ({ node, ...props }) => (
+                                  <blockquote
+                                    className="border-l-2 border-accent/30 pl-3 italic my-2 text-white/70"
+                                    {...props}
+                                  />
+                                ),
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          )}
 
-                          {msg.metadata && (
+                          {msg.metadata && completedMessages.has(msg.id) && (
                             <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                               {/* Actionable Insight Badge */}
                               {msg.metadata.actionable_insight && (

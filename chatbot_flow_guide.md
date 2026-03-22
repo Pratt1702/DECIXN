@@ -1,130 +1,120 @@
-# Foxy Chatbot: Low-Level Orchestration Guide
+# Foxy Chatbot: Architectural & Capability Guide
 
-This document explains exactly how the "Foxy" chatbot works, from the moment a user types a message to the rendering of interactive charts.
+This document provides a comprehensive overview of the **Foxy v1** financial co-pilot, detailing its intelligence layer, tool integrations, and the data-driven flow that powers its "expert analyst" persona.
 
-## 1. The Entry Point (Frontend)
-When you type a message in `Chat.tsx`, the `handleSend()` function is triggered.
+---
 
-```typescript
-// Chat.tsx
-const handleSend = async () => {
-  // 1. Add User Message to local state
-  // 2. Add an "Assistant" message with 'loading' status
-  // 3. POST to http://localhost:8000/chat
-  const response = await fetch("http://localhost:8000/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: input, history: ..., context: ... })
-  });
-};
-```
+## 1. System Overview
 
-## 2. The Backend Bridge (`main.py`)
-FastAPI receives the request and immediately delegates it to the `ChatEngine`. Because we use `StreamingResponse`, the connection stays open.
+Foxy is not just a standard LLM wrapper; it is an **Agentic Financial Orchestrator**. It combines the reasoning power of **Gemini 2.5 Flash** with a suite of local Python tools to provide grounded, real-time market analysis.
 
-```python
-# main.py
-@app.post("/chat")
-async def chat_endpoint(request: ChatRequest):
-    # Returns a generator that yields text chunks
-    return StreamingResponse(
-        chat_engine.get_response(request.message, request.history, request.context),
-        media_type="text/event-stream"
-    )
-```
+### High-Level Flow
 
-## 3. The Brain Orchestration (`chat_service.py`)
-This is where the magic happens. We use the **Google GenAI SDK** with **Tool Use**.
+1. **User Intent**: The user sends a natural language query.
+2. **Context Enrichment**: The frontend attaches a structured "Financial Snapshot" (Holdings, P&L, Health).
+3. **Tool Selection**: Foxy evaluates if it needs real-time data or portfolio calculations.
+4. **Execution**: The backend runs the requested tools (e.g., fetching technical indicators or calculating portfolio weights).
+5. **Narrative Generation**: Foxy synthesizes the tool results into a structured JSON response.
+6. **Streaming Delivery**: The response is streamed to the UI, allowing for a dynamic "typing" effect.
+7. **Interactive Rendering**: Metadata hints in the response trigger the appearance of charts and summary cards.
 
-- **Phase 1: Tool Selection (Synchronous)**: Gemini evaluates if it needs a tool. We wait for this decision.
-- **Phase 2: Execution (Synchronous)**: `ChatEngine` runs the tool (e.g., `yfinance`). This is local and fast, but we must wait for the data.
-- **Phase 3: Final Response (STREAMED)**: Only now do we send everything (History + Tool Result) for the final pass. The narrative text is then streamed back to the frontend chunk-by-chunk.
+---
 
-> [!NOTE]
-> We technically call the Gemini API twice if a tool is needed. This is standard for "Function Calling" to ensure the narrative is grounded in the tool's data.
+## 2. Bot Capabilities & Toolset
 
-## 4. Streaming & Concurrency
-How is it streamed? We use **FastAPI's `StreamingResponse`** which leverages Python generators (`yield`).
+Foxy has access to several specialized "skills" that it can call upon depending on the conversation's needs.
 
-```python
-# chat_service.py
-async def get_response(self, ...):
-    yield {"status": "Thinking..."}
-    # ... after tool execution ...
-    for chunk in final_response:
-        yield self._parse_json_response(chunk.text)
-```
+### A. Market Intelligence (`analyze_ticker`)
 
-### Can it handle multiple users?
-**Yes.** FastAPI is asynchronous. Each `/chat` request gets its own independent generator state. As long as the `yfinance` calls don't hit rate limits, multiple users can chat simultaneously without blocking each other.
+- **Capability**: Conducts a deep-dive technical and fundamental audit of any Nifty/Global stock.
+- **Data Fetched**: Real-time price, RSI (14-day), MACD, Moving Averages (20/50), Market Cap, PE Ratio, and 52-week ranges.
+- **Output**: A specific "Buy/Hold/Sell" decision with data-backed reasoning and a sparkline of recent price action.
 
-### Is this the most optimized version?
-This is a "State-of-the-Art" implementation for a hackathon, but for a production app with 1,000s of users, you'd consider:
-1.  **Semantic Caching**: If user A and B both ask "TCS price", don't call Gemini again.
-2.  **Pre-Tool Logic**: Detect "TCS" or "Portfolio" via regex/fuzzy match *before* calling Gemini to save one API roundtrip.
-3.  **Redis Sessions**: Moving chat history to Redis for faster retrieval.
-**Example Chunks:**
-1. `{"type": "stock_`
-2. `analysis", "narrative": "T`
-3. `CS is lookin..."}`
+### B. Portfolio Health Check (`analyze_full_portfolio`)
 
-### How the Frontend Handles It (`Chat.tsx`)
-We use a **Streaming Buffer** with **Brace Counting**. This ensures we never try to `JSON.parse()` a partial string that would throw an error.
+- **Capability**: Performs a macro-analysis of the user's entire investment strategy.
+- **Data Fetched**: Aggregated P&L, Win Rate, Working Capital Efficiency, and Sector distribution.
+- **Output**: A comprehensive "Health Score" (Strong/Fair/Weak) and an "Others" grouping for smaller holdings.
 
-```typescript
-// Chat.tsx logic (simplified)
-let buffer = "";
-let braceCount = 0;
+### C. Specific Position Lookup (`get_user_position`)
 
-for (const line of lines) {
-    buffer += line;
-    // Count { and } to find a complete JSON object
-    for (let char of line) {
-        if (char === '{') braceCount++;
-        else if (char === '}') braceCount--;
-    }
-    
-    if (braceCount === 0 && buffer.trim().startsWith('{')) {
-        // VALID, COMPLETE JSON object found!
-        const parsed = JSON.parse(buffer);
-        updateMessage(parsed);
-        buffer = ""; // Clear for next object
-    }
-}
-```
+- **Capability**: Checks if the user owns a specific stock mentioned in the chat.
+- **Data Fetched**: Quantity owned and Average Buy Price from the user's uploaded portfolio.
+- **Output**: Personalized context (e.g., "Since you bought this at ₹400, your current 20% profit makes this a safe hold").
 
-## 5. UI Rendering & Metadata Hints
-The final JSON response includes metadata. The UI looks at this and renders components:
+### D. Market Pulse (`get_market_overview`)
 
-```tsx
-// Inside Chat.tsx rendering
-{msg.metadata.charts && (
-    msg.metadata.charts.map(ticker => (
-        <StockChart key={ticker} ticker={ticker} />
-    ))
-)}
-```
+- **Capability**: Fetches the status of major indices like NIFTY 50 and SENSEX.
+- **Data Fetched**: Top gainers, top losers, and overall market sentiment.
 
-### What is a "StockChart"?
-It's an interactive component that **fetches its own history data** when it mounts, then renders with 2-decimal precision.
-- Hits: `GET /analyze/{ticker}`
-- Renders: Recharts (Line) / Apex (Candle)
+---
 
-## Data Flow Diagram
+## 3. Data Flow & API Architecture
+
+Foxy utilizes a mix of REST and Streaming architectures to provide a premium user experience.
+
+### API Endpoints Used
+
+| Endpoint             | Method | Purpose                                                                               |
+| :------------------- | :----- | :------------------------------------------------------------------------------------ |
+| `/chat`              | `POST` | The main engine. Sends message + context; returns a stream of JSON chunks.            |
+| `/analyze/{ticker}`  | `GET`  | Used by the UI components to fetch raw chart data for rendering Recharts/Apex panels. |
+| `/analyze/portfolio` | `POST` | Used by the Insights page to generate the "Deep Report" logic used by the bot.        |
+
+### The "Snapshot" (Input to AI)
+
+To keep Foxy "portfolio-aware," every request includes:
+
+- **Portfolio Summary**: Total value, overall P&L, and general health metrics.
+- **Top 15 Holdings**: A list of symbols, quantities, and average costs.
+- **User Identity**: The name or ID of the user for personalization.
+
+### The "Narrative JSON" (Output from AI)
+
+Foxy responds exclusively in a structured JSON schema. This allows the UI to programmatically decide what to show:
+
+- `narrative`: The markdown-formatted text explaining the analysis.
+- `metadata`: JSON keys like `tickers` (to show shortcut buttons) and `charts` (to trigger chart renders).
+- `sentiment`: Bullish/Bearish/Neutral tags for color-coding the UI.
+- `ui_hints`: Instructions for the UI (e.g., `show_chart: true`).
+
+---
+
+## 4. Why Streaming Matters
+
+Foxy uses **Asynchronous Generative Streaming**.
+
+- **Perceived Speed**: Instead of waiting 5-10 seconds for a complex analysis, the user sees Foxy "Thinking" and then "Typing" immediately.
+- **Chunk Stitching**: The frontend uses a "Brace Counting" buffer system. It collects partial text chunks and only updates the UI once a complete, valid JSON object is received. This prevents flickering or broken rendering.
+
+---
+
+## 5. Decision Priority Matrix
+
+If Foxy receives an ambiguous question, it follows these priority rules:
+
+1. **Specific Stock > General Portfolio**: If you say "How are my ETERNAL shares?", Foxy will call the ticker analysis tool _and_ fetch your position details rather than giving you a whole-portfolio summary.
+2. **Real-time Data > Static Knowledge**: Foxy never guesses prices. It always triggers a tool if a price is needed.
+3. **Professional Guidance > Opinions**: Foxy uses the "Decision Engine" logic to ground its advice in technical indicators rather than hallucinations.
+
+---
+
+## Sequence of Operations
+
 ```mermaid
 sequenceDiagram
     participant U as User (UI)
     participant B as Backend (FastAPI)
     participant G as Gemini AI
-    participant T as Tools (yfinance)
+    participant T as Tools (Market Data)
 
-    U->>B: POST /chat "Check TCS"
-    B->>G: What tool do I need?
-    G-->>B: Call analyze_ticker(TCS)
-    B->>T: Fetch Market Data
-    T-->>B: Raw JSON Data
-    B->>G: Generate FINAL Narrative + Metadata
-    G-->>B: { JSON String... } (Streamed)
-    B-->>U: JSON Chunks (Streamed)
-    U->>U: Stitch chunks -> Render Charts
+    U->>B: POST /chat (Prompt + Portfolio Snapshot)
+    B->>G: Decision: Which tool is needed?
+    G-->>B: Call select_tool(args)
+    B->>T: Execute Local Python Logic
+    T-->>B: Return Structured JSON Results
+    B->>G: Generate Narrative based on Tool Results
+    G-->>B: { JSON Narrative + Metadata } (Streamed)
+    B-->>U: Final UI JSON (Interpreted by Chat.tsx)
+    U->>U: Render Charts/Buttons based on Metadata
 ```

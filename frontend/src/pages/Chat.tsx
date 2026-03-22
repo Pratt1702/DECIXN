@@ -566,7 +566,15 @@ export function Chat() {
                             <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                               {/* Actionable Insight Badge */}
                               {msg.metadata.actionable_insight && (
-                                <div className="flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-xl px-3 py-2 text-[12px] text-accent font-bold">
+                                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2 text-[12px] font-bold ${
+                                  (msg.metadata.sentiment === 'Bearish' || msg.metadata.actionable_insight.toLowerCase().includes('sell') || msg.metadata.actionable_insight.toLowerCase().includes('exit')) 
+                                    ? 'bg-[#e13451]/10 border-[#e13451]/20 text-[#e13451]' 
+                                    : (msg.metadata.sentiment === 'Bullish' || msg.metadata.actionable_insight.toLowerCase().includes('buy') || msg.metadata.actionable_insight.toLowerCase().includes('hold'))
+                                    ? 'bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]'
+                                    : (msg.metadata.actionable_insight.toLowerCase().includes('caution') || msg.metadata.actionable_insight.toLowerCase().includes('risk') || msg.metadata.actionable_insight.toLowerCase().includes('warning'))
+                                    ? 'bg-yellow-400/10 border-yellow-400/20 text-yellow-400'
+                                    : 'bg-white/5 border-white/10 text-white/40' // Neutral
+                                }`}>
                                   <Zap className="w-3.5 h-3.5" />
                                   <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }}>
                                     {msg.metadata.actionable_insight}

@@ -82,8 +82,8 @@ export function PortfolioSummary({ summary, holdings }: PortfolioSummaryProps) {
             <h4 className="text-[16px] font-black text-white leading-tight">Portfolio Analysis</h4>
             <div className="flex items-center gap-2 mt-1">
                 <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                    summary.health === 'Strong' ? 'bg-green-500/10 text-green-500' : 
-                    summary.health === 'Fair' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-500'
+                    summary.health === 'Strong' ? 'bg-[#10b981]/10 text-[#10b981]' : 
+                    summary.health === 'Fair' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-[#e13451]/10 text-[#e13451]'
                 }`}>
                     {summary.health} HEALTH
                 </span>

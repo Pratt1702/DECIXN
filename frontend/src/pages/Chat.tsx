@@ -33,7 +33,13 @@ interface Message {
   ui_hints?: any;
 }
 
-function TypewriterText({ text, onComplete }: { text: string; onComplete?: () => void }) {
+function TypewriterText({
+  text,
+  onComplete,
+}: {
+  text: string;
+  onComplete?: () => void;
+}) {
   const [displayText, setDisplayText] = useState("");
   const [index, setIndex] = useState(0);
 
@@ -52,9 +58,7 @@ function TypewriterText({ text, onComplete }: { text: string; onComplete?: () =>
   }, [index, text, onComplete]);
 
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-      {displayText}
-    </ReactMarkdown>
+    <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayText}</ReactMarkdown>
   );
 }
 
@@ -78,23 +82,79 @@ export function Chat() {
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [completedMessages, setCompletedMessages] = useState<Set<string>>(new Set());
+  const [completedMessages, setCompletedMessages] = useState<Set<string>>(
+    new Set(),
+  );
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<
+    { id: string; title: string; created_at: string }[]
+  >([]);
 
   useEffect(() => {
     if (scrollRef.current) {
-        // Find the most recent assistant message container and scroll to its START
-        const assistantMsgs = scrollRef.current.querySelectorAll('.assistant-msg');
-        if (assistantMsgs.length > 0 && isTyping) {
-            assistantMsgs[assistantMsgs.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else if (!isTyping) {
-            scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-        }
+      // Find the most recent assistant message container and scroll to its START
+      const assistantMsgs =
+        scrollRef.current.querySelectorAll(".assistant-msg");
+      if (assistantMsgs.length > 0 && isTyping) {
+        assistantMsgs[assistantMsgs.length - 1].scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      } else if (!isTyping) {
+        scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      }
     }
   }, [messages, isTyping]);
 
+  const fetchSessions = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`http://localhost:8000/chat/sessions/${user.id}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setSessions(data);
+    } catch (e) {
+      console.error("Failed to fetch sessions:", e);
+    }
+  };
+
+  const loadSession = async (sid: string) => {
+    if (!user?.id) return;
+    try {
+      setSessionId(sid);
+      const res = await fetch(
+        `http://localhost:8000/chat/history/${user.id}?session_id=${sid}`,
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const historyMsgs: Message[] = data.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          metadata: m.metadata,
+          timestamp: new Date(m.created_at).getTime(),
+        }));
+        setMessages(historyMsgs);
+        setCompletedMessages(new Set(historyMsgs.map((m) => m.id)));
+      }
+    } catch (e) {
+      console.error("Failed to load session:", e);
+    }
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setSessionId(null);
+    setCompletedMessages(new Set());
+  };
+
   useEffect(() => {
-    const fetchStatus = async () => {
+    const initChat = async () => {
       const id = user?.id || userName || "anonymous";
+
+      // 1. Fetch Chat Status
       try {
         const res = await fetch(`http://localhost:8000/chat/status/${id}`);
         const data = await res.json();
@@ -104,10 +164,15 @@ export function Chat() {
       } catch (e) {
         console.error("Failed to fetch chat status:", e);
       }
-    };
-    fetchStatus();
-  }, [user, userName]);
 
+      // 2. Fetch Sessions for Sidebar
+      fetchSessions();
+
+      // 3. Load latest history by default if no sessions yet?
+      // Or just keep it empty for new chat
+    };
+    initChat();
+  }, [user, userName]);
   const handleQuickStart = (text: string) => {
     setInput(text);
   };
@@ -136,6 +201,12 @@ export function Chat() {
     setInput("");
     setIsTyping(true);
 
+    let currentSid = sessionId;
+    if (!currentSid) {
+      currentSid = crypto.randomUUID();
+      setSessionId(currentSid);
+    }
+
     try {
       // Build portfolio context
       let portfolioContext = "";
@@ -157,25 +228,20 @@ export function Chat() {
       }
 
 
-      const history = messages.slice(-6).map((m) => ({
+      const historyData = messages.slice(-6).map((m) => ({
         role: m.role,
         parts: [{ text: m.content }],
       }));
-
-      console.log("FOXY REQUEST:", {
-        message: savedInput,
-        history: history,
-        context: portfolioContext,
-      });
 
       const response = await fetch("http://localhost:8000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: savedInput,
-          history: history,
+          history: historyData,
           portfolio_context: portfolioContext,
           user_id: user?.id || userName || "anonymous",
+          session_id: currentSid,
         }),
       });
 
@@ -232,6 +298,8 @@ export function Chat() {
                 setMessages((prev) => [...prev, assistantMsg]);
                 setCurrentStatus(null);
                 setIsTyping(false);
+                // Refresh sessions list to show the new chat title if it's new
+                fetchSessions();
               }
             } catch (e) {
               console.error("Error parsing stream chunk:", e, jsonStr);
@@ -258,14 +326,6 @@ export function Chat() {
     }
   };
 
-  const history = [
-    {
-      label: "Last 7 days",
-      items: ["Portfolio Strategy", "Market Sentiment Check"],
-    },
-    { label: "Jan 2026", items: ["Q1 Projections", "Nifty 50 Analysis"] },
-    { label: "2025", items: ["FY25 Planning", "Sector Rotation Study"] },
-  ];
 
   const quickStarts = [
     {
@@ -372,7 +432,7 @@ export function Chat() {
 
         <div className="p-4">
           <button
-            onClick={() => setMessages([])}
+            onClick={handleNewChat}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all group cursor-pointer"
           >
             <div className="flex items-center gap-3">
@@ -383,23 +443,28 @@ export function Chat() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 mt-2 space-y-6 scrollbar-hide">
-          {history.map((section) => (
-            <div key={section.label}>
+          {sessions.length > 0 && (
+            <div>
               <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 px-3">
-                {section.label}
+                Recent Chats
               </p>
-              <div className="space-y-0">
-                {section.items.map((item) => (
+              <div className="space-y-0 text-white font-bold">
+                {sessions.map((session) => (
                   <button
-                    key={item}
-                    className="w-full text-left px-3 py-2 rounded-lg text-[14px] hover:bg-white/[0.03] transition-all text-text-muted hover:text-white truncate cursor-pointer"
+                    key={session.id}
+                    onClick={() => loadSession(session.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-[14px] transition-all truncate cursor-pointer ${
+                      sessionId === session.id
+                        ? "bg-white/10 text-white"
+                        : "text-text-muted hover:bg-white/[0.03] hover:text-white"
+                    }`}
                   >
-                    {item}
+                    {session.title}
                   </button>
                 ))}
               </div>
             </div>
-          ))}
+          )}
         </div>
 
         <div className="p-4 border-t border-white/5 space-y-4">
@@ -545,10 +610,15 @@ export function Chat() {
                         msg.content
                       ) : (
                         <div className="markdown-content">
-                          {msg.role === "assistant" && !completedMessages.has(msg.id) ? (
-                            <TypewriterText 
-                              text={msg.content} 
-                              onComplete={() => setCompletedMessages(prev => new Set(prev).add(msg.id))}
+                          {msg.role === "assistant" &&
+                          !completedMessages.has(msg.id) ? (
+                            <TypewriterText
+                              text={msg.content}
+                              onComplete={() =>
+                                setCompletedMessages((prev) =>
+                                  new Set(prev).add(msg.id),
+                                )
+                              }
                             />
                           ) : (
                             <ReactMarkdown
@@ -606,17 +676,45 @@ export function Chat() {
                             <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                               {/* Actionable Insight Badge */}
                               {msg.metadata.actionable_insight && (
-                                <div className={`flex items-center gap-2 border rounded-xl px-3 py-2 text-[12px] font-bold ${
-                                  (msg.metadata.sentiment === 'Bearish' || msg.metadata.actionable_insight.toLowerCase().includes('sell') || msg.metadata.actionable_insight.toLowerCase().includes('exit')) 
-                                    ? 'bg-[#e13451]/10 border-[#e13451]/20 text-[#e13451]' 
-                                    : (msg.metadata.sentiment === 'Bullish' || msg.metadata.actionable_insight.toLowerCase().includes('buy') || msg.metadata.actionable_insight.toLowerCase().includes('hold'))
-                                    ? 'bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]'
-                                    : (msg.metadata.actionable_insight.toLowerCase().includes('caution') || msg.metadata.actionable_insight.toLowerCase().includes('risk') || msg.metadata.actionable_insight.toLowerCase().includes('warning'))
-                                    ? 'bg-yellow-400/10 border-yellow-400/20 text-yellow-400'
-                                    : 'bg-white/5 border-white/10 text-white/40' // Neutral
-                                }`}>
+                                <div
+                                  className={`flex items-center gap-2 border rounded-xl px-3 py-2 text-[12px] font-bold ${
+                                    msg.metadata.sentiment === "Bearish" ||
+                                    msg.metadata.actionable_insight
+                                      .toLowerCase()
+                                      .includes("sell") ||
+                                    msg.metadata.actionable_insight
+                                      .toLowerCase()
+                                      .includes("exit")
+                                      ? "bg-[#e13451]/10 border-[#e13451]/20 text-[#e13451]"
+                                      : msg.metadata.sentiment === "Bullish" ||
+                                          msg.metadata.actionable_insight
+                                            .toLowerCase()
+                                            .includes("buy") ||
+                                          msg.metadata.actionable_insight
+                                            .toLowerCase()
+                                            .includes("hold")
+                                        ? "bg-[#10b981]/10 border-[#10b981]/20 text-[#10b981]"
+                                        : msg.metadata.actionable_insight
+                                              .toLowerCase()
+                                              .includes("caution") ||
+                                            msg.metadata.actionable_insight
+                                              .toLowerCase()
+                                              .includes("risk") ||
+                                            msg.metadata.actionable_insight
+                                              .toLowerCase()
+                                              .includes("warning")
+                                          ? "bg-yellow-400/10 border-yellow-400/20 text-yellow-400"
+                                          : "bg-white/5 border-white/10 text-white/40" // Neutral
+                                  }`}
+                                >
                                   <Zap className="w-3.5 h-3.5" />
-                                  <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }}>
+                                  <ReactMarkdown
+                                    components={{
+                                      p: ({ node, ...props }) => (
+                                        <span {...props} />
+                                      ),
+                                    }}
+                                  >
                                     {msg.metadata.actionable_insight}
                                   </ReactMarkdown>
                                 </div>

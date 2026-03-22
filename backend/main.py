@@ -73,6 +73,7 @@ class ChatRequest(BaseModel):
     history: list[dict] = []
     portfolio_context: str = None
     user_id: str = "anonymous"
+    session_id: str = None
 
 @app.get("/")
 def read_root():
@@ -288,7 +289,9 @@ async def chat_with_foxy(payload: ChatRequest):
             async for chunk in chat_engine.get_response(
                 user_message=payload.message,
                 chat_history=payload.history,
-                portfolio_context=payload.portfolio_context
+                portfolio_context=payload.portfolio_context,
+                user_id=payload.user_id,
+                session_id=payload.session_id
             ):
                 # Inject remaining messages into final or any chunk that has metadata
                 if isinstance(chunk, dict) and "type" in chunk:
@@ -307,6 +310,56 @@ async def chat_with_foxy(payload: ChatRequest):
             }) + "\n"
 
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+
+@app.get("/chat/sessions/{user_id}")
+async def get_chat_sessions(user_id: str):
+    if not user_id or len(user_id) <= 20:
+        return []
+    
+    from services.supabase_client import supabase
+    try:
+        # Get first message of each session as title
+        # In a real app, we might have a sessions table, but here we derive it
+        res = supabase.table("chat_history")\
+            .select("session_id, content, created_at")\
+            .eq("user_id", user_id)\
+            .eq("role", "user")\
+            .order("created_at", desc=True)\
+            .execute()
+        
+        # Group by session_id to get only the latest unique sessions
+        seen = set()
+        sessions = []
+        for row in res.data:
+            sid = row["session_id"]
+            if sid not in seen:
+                sessions.append({
+                    "id": sid,
+                    "title": row["content"][:40] + ("..." if len(row["content"]) > 40 else ""),
+                    "created_at": row["created_at"]
+                })
+                seen.add(sid)
+        return sessions
+    except Exception as e:
+        print(f"DB Sessions Fetch Error: {e}")
+        return []
+
+@app.get("/chat/history/{user_id}")
+async def get_chat_history(user_id: str, session_id: str = None):
+    if not user_id or len(user_id) <= 20:
+        return []
+    
+    from services.supabase_client import supabase
+    try:
+        query = supabase.table("chat_history").select("*").eq("user_id", user_id)
+        if session_id:
+            query = query.eq("session_id", session_id)
+        
+        res = query.order("created_at", desc=False).execute()
+        return res.data
+    except Exception as e:
+        print(f"DB Fetch Error: {e}")
+        return []
 
 if __name__ == "__main__":
     # uvicorn main:app --reload

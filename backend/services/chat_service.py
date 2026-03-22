@@ -94,7 +94,24 @@ class ChatEngine:
     def __init__(self):
         self.model_id = "gemini-2.5-flash"
 
-    async def get_response(self, user_message: str, chat_history: list = None, portfolio_context: str = None):
+    async def get_response(self, user_message: str, chat_history: list = None, portfolio_context: str = None, user_id: str = "anonymous", session_id: str = None):
+        # Save user message to DB if user is logged in (ID is a UUID)
+        is_logged_in = user_id and len(user_id) > 20 # Simple UUID check
+
+        if is_logged_in:
+            try:
+                from .supabase_client import supabase
+                insert_data = {
+                    "user_id": user_id,
+                    "role": "user",
+                    "content": user_message
+                }
+                if session_id: insert_data["session_id"] = session_id
+                
+                supabase.table("chat_history").insert(insert_data).execute()
+            except Exception as e:
+                print(f"DB Error (User Message): {e}")
+
         yield {"status": "Thinking..."}
         
         contents = []
@@ -165,6 +182,7 @@ class ChatEngine:
             if not res_text:
                 yield self._parse_json_response('{"narrative": "I encountered an error while calculating final insights. Please retry.", "type": "general"}')
             else:
+                self._save_assistant_message(user_id, res_text, session_id)
                 yield self._parse_json_response(res_text)
             return
 
@@ -173,6 +191,7 @@ class ChatEngine:
         for p in response.candidates[0].content.parts:
             if p.text:
                 res_text += p.text
+        self._save_assistant_message(user_id, res_text, session_id)
         yield self._parse_json_response(res_text)
 
     async def _execute_tool(self, name: str, args: dict, portfolio_context: str = None):
@@ -244,6 +263,23 @@ class ChatEngine:
             return {"owned": False, "symbol": ticker, "message": "Not in current portfolio holdings."}
         
         return {"error": "Tool not found"}
+
+    def _save_assistant_message(self, user_id, res_text, session_id=None):
+        if not user_id or len(user_id) <= 20: return
+        try:
+            from .supabase_client import supabase
+            parsed = self._parse_json_response(res_text)
+            insert_data = {
+                "user_id": user_id,
+                "role": "assistant",
+                "content": str(parsed.get("narrative", "")),
+                "metadata": parsed.get("metadata", {})
+            }
+            if session_id: insert_data["session_id"] = session_id
+
+            supabase.table("chat_history").insert(insert_data).execute()
+        except Exception as e:
+            print(f"DB Error (Assistant Message): {e}")
 
     def _parse_json_response(self, text: str):
         try:

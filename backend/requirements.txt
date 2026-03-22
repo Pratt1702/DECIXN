@@ -9,4 +9,5 @@ lxml
 trafilatura
 google-genai
 google-generativeai
+supabase
 python-dotenv

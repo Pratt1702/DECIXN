@@ -176,6 +176,19 @@ Custom user-defined price or condition alerts.
 | `created_at` | `timestamp` | `DEFAULT now()` | Alert creation time. |
 | `triggered_at` | `timestamp` | | Most recent trigger time. |
 
+### `chat_history`
+Persisted chatbot conversations and session metadata.
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `uuid` | `PK`, `DEFAULT gen_random_uuid()` | Unique identifier for the message. |
+| `user_id` | `uuid` | `FK (profiles.id)`, `NOT NULL` | Message owner. |
+| `session_id` | `uuid` | `NOT NULL`, `DEFAULT random` | Groups messages into a single chat. |
+| `role` | `text` | `CHECK (role IN ('user', 'assistant'))` | Message source. |
+| `content` | `text` | `NOT NULL` | Textual content. |
+| `metadata` | `jsonb` | `DEFAULT '{}'` | Extracted tickers, charts, sentiment. |
+| `created_at` | `timestamp` | `DEFAULT now()` | Sent timestamp. |
+
 ---
 
 > [!NOTE]

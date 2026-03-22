@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import { ChatLayout } from "./components/layout/ChatLayout";
 import { Login } from "./pages/Login";
 import { Holdings } from "./pages/Holdings";
 import { Explore } from "./pages/Explore";
@@ -9,6 +10,7 @@ import { StockDetails } from "./pages/StockDetails";
 import { Terminal } from "./pages/Terminal";
 import { Watchlist } from "./pages/Watchlist";
 import { PortfolioInfo } from "./pages/PortfolioInfo";
+import { Chat } from "./pages/Chat";
 import "./App.css";
 
 function App() {
@@ -26,6 +28,11 @@ function App() {
           <Route path="watchlist" element={<Watchlist />} />
           <Route path="stock/:ticker" element={<StockDetails />} />
         </Route>
+
+        <Route element={<ChatLayout />}>
+          <Route path="/chat" element={<Chat />} />
+        </Route>
+
         <Route path="/terminal/:ticker" element={<Terminal />} />
       </Route>
 

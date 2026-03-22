@@ -7,7 +7,37 @@ import csv
 import os
 import requests
 import yfinance as yf
+from services.chat_service import chat_engine
+from portfolio_logic import run_portfolio_analysis
+import time
+from collections import defaultdict
 
+class RateLimiter:
+    def __init__(self, limit: int = 10, window: int = 1800):  # 10 msgs / 30 mins
+        self.limit = limit
+        self.window = window
+        # Key: user_id, Value: {"count": int, "reset_time": float}
+        self.users = defaultdict(lambda: {"count": 0, "reset_time": 0})
+
+    def get_remaining(self, user_id: str):
+        now = time.time()
+        state = self.users[user_id]
+        
+        # Reset if window passed
+        if now > state["reset_time"]:
+            state["count"] = 0
+            state["reset_time"] = now + self.window
+            
+        return max(0, self.limit - state["count"])
+
+    def increment(self, user_id: str):
+        remaining = self.get_remaining(user_id)
+        if remaining > 0:
+            self.users[user_id]["count"] += 1
+            return True
+        return False
+
+rate_limiter = RateLimiter()
 app = FastAPI(
     title="Market Intelligence Engine API",
     description="An AI-driven technical analysis API for Indian stocks.",
@@ -38,147 +68,18 @@ class PortfolioInput(BaseModel):
 class BatchQuotesRequest(BaseModel):
     symbols: list[str]
 
+class ChatRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+    portfolio_context: str = None
+    user_id: str = "anonymous"
+    session_id: str = None
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
 
-def _run_portfolio_analysis(holdings_data: list[dict]) -> dict:
-    """
-    Shared core logic for both GET (CSV) and POST (JSON) portfolio analysis.
-    Accepts a list of dicts with keys: symbol, quantity, avg_cost, pnl
-    """
-    results = []
-    print(f"DEBUG: Processing portfolio with {len(holdings_data)} holdings.")
-    
-    for h in holdings_data:
-        try:
-            symbol = h["symbol"]
-            qty = float(h["quantity"])
-            avg_cost = float(h["avg_cost"])
-            pnl = float(h.get("pnl", 0.0))
-            if not symbol or qty <= 0:
-                continue
-                
-            res = analyze_single_holding(symbol, avg_cost, qty, pnl)
-            if res.get("success"):
-                results.append(res)
-                print(f"DEBUG: Analyzed {symbol} successfully.")
-            else:
-                print(f"DEBUG: Analysis failed for {symbol}: {res.get('error')}")
-        except Exception as e:
-            print(f"DEBUG: Critical failure on holding {h}: {e}")
-
-    if not results:
-        print("DEBUG: All holdings failed or portfolio is empty.")
-        return {
-            "portfolio_summary": {
-                "health": "N/A",
-                "risk_level": "Unknown",
-                "total_invested": 0,
-                "total_value_live": 0,
-                "total_pnl": 0,
-                "win_rate": "0%",
-                "insight": "Could not fetch live market data for any symbols. Please check ticker symbols.",
-                "working_capital_pct": 0,
-                "trapped_capital_pct": 0
-            },
-            "recommended_actions": ["No valid data to generate recommendations. Ensure symbols are correct."],
-            "portfolio_analysis": []
-        }
-
-    total_invested = sum(r['holding_context'].get('invested_value', 0) for r in results)
-    total_value_live = sum(r['holding_context'].get('current_value', 0) for r in results)
-    total_pnl = sum(r['holding_context'].get('current_pnl', 0) for r in results)
-
-    winners = sum(1 for r in results if r['holding_context'].get('current_pnl', 0) > 0)
-    losers = len(results) - winners
-    win_rate = f"{(winners / len(results) * 100):.1f}%" if results else "0%"
-
-    cut_losses_count = sum(1 for r in results if "CUT LOSSES" in r.get('data', {}).get('portfolio_decision', ''))
-    ride_trend_count = sum(1 for r in results if "RIDE TREND" in r.get('data', {}).get('portfolio_decision', ''))
-
-    working_capital = 0.0
-    trapped_capital = 0.0
-    recommendations = []
-
-    for r in results:
-        h_ctx = r.get('holding_context', {})
-        val = h_ctx.get('current_value', 0)
-        weight = round((val / total_value_live * 100) if total_value_live > 0 else 0.0, 2)
-        h_ctx['portfolio_weight_pct'] = weight
-        if weight > 25:
-            sym = r['symbol'].replace('.NS','')
-            recommendations.append(f"Consider trimming {sym} — {weight}% of portfolio is overweight.")
-
-        trend = r.get('data', {}).get('trend', '')
-        if trend == 'Bullish':
-            working_capital += val
-        elif trend == 'Bearish':
-            trapped_capital += val
-
-    working_capital_pct = round((working_capital / total_value_live * 100) if total_value_live > 0 else 0.0, 1)
-    trapped_capital_pct = round((trapped_capital / total_value_live * 100) if total_value_live > 0 else 0.0, 1)
-
-    risk_level = "Low"
-    health = "Strong"
-
-    bearish_count = sum(1 for r in results if r.get('data', {}).get('trend') == 'Bearish')
-    bullish_count = sum(1 for r in results if r.get('data', {}).get('trend') == 'Bullish')
-    
-    bad_stocks = [r['symbol'].replace('.NS','') for r in results if "CUT LOSSES" in r.get('data', {}).get('portfolio_decision', '')]
-    bad_stocks_weights = sum(r['holding_context'].get('portfolio_weight_pct', 0) for r in results if "CUT LOSSES" in r.get('data', {}).get('portfolio_decision', ''))
-
-    if total_pnl < 0:
-        health = "Weak" if total_pnl < -10000 else "Fair"
-    
-    if losers > winners:
-        health = "Weak"
-    elif cut_losses_count > 0:
-        health = "Fair"
-
-    if total_pnl < -1000:
-        bad_count = len([r for r in results if r['holding_context']['current_pnl'] < 0])
-        insight = f"Portfolio underwater (₹{abs(total_pnl):.0f} loss). {bad_count} of {len(results)} positions in red."
-    elif bearish_count > bullish_count:
-        insight = f"Bearish momentum across {bearish_count} holdings. Risk management is priority."
-    elif bullish_count > bearish_count:
-        insight = f"{bullish_count} holdings trending well. Capital efficiency: {working_capital_pct}%."
-    else:
-        insight = "Mixed performance. Review individual trends for adjustments."
-
-    if len(results) > 0 and (cut_losses_count / len(results)) >= 0.3:
-        risk_level = "High"
-    elif cut_losses_count > 0 or total_pnl < -5000:
-        risk_level = "Medium"
-
-    if winners > 0:
-        recommendations.append("Let winners run with trailing stop-losses.")
-    if losers > winners:
-        recommendations.append("Review win-rate; entries might need refinement.")
-
-    def sort_key(r):
-        u_map = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
-        urgency = u_map.get(r.get('data', {}).get('urgency_score', "LOW"), 3)
-        worst_pnl = r.get('holding_context', {}).get('pnl_pct', 0)
-        return (urgency, worst_pnl)
-
-    results.sort(key=sort_key)
-
-    return {
-        "portfolio_summary": {
-            "health": health,
-            "risk_level": risk_level,
-            "total_invested": round(total_invested, 2),
-            "total_value_live": round(total_value_live, 2),
-            "total_pnl": round(total_pnl, 2),
-            "win_rate": win_rate,
-            "insight": insight,
-            "working_capital_pct": working_capital_pct,
-            "trapped_capital_pct": trapped_capital_pct
-        },
-        "recommended_actions": recommendations,
-        "portfolio_analysis": results
-    }
+    return run_portfolio_analysis(holdings_data)
 
 @app.get("/analyze/portfolio")
 def analyze_portfolio():
@@ -212,7 +113,7 @@ def analyze_portfolio():
             except Exception as e:
                 print(f"Failed to parse CSV row {row}: {e}")
 
-    return _run_portfolio_analysis(holdings_data)
+    return run_portfolio_analysis(holdings_data)
 
 @app.post("/analyze/portfolio")
 def analyze_portfolio_custom(payload: PortfolioInput):
@@ -230,7 +131,7 @@ def analyze_portfolio_custom(payload: PortfolioInput):
         }
         for h in payload.holdings
     ]
-    return _run_portfolio_analysis(holdings_data)
+    return run_portfolio_analysis(holdings_data)
 
 @app.get("/market/overview")
 def get_market_overview_endpoint():
@@ -351,6 +252,114 @@ def search_stocks(query: str):
         return {"success": True, "results": results}
     except Exception as e:
         return {"success": False, "error": str(e), "results": []}
+
+@app.get("/chat/status/{user_id}")
+async def get_chat_status(user_id: str):
+    """
+    Returns the remaining messages for a specific user.
+    """
+    remaining = rate_limiter.get_remaining(user_id)
+    return {"remaining_messages": remaining}
+
+@app.post("/chat")
+async def chat_with_foxy(payload: ChatRequest):
+    """
+    Orchestrates a conversation with Foxy v1 (Gemini) using market tools with streaming status.
+    """
+    # Rate Limiting check
+    user_id = payload.user_id or "anonymous"
+    remaining = rate_limiter.get_remaining(user_id)
+    
+    if remaining <= 0:
+        return {
+            "type": "error",
+            "narrative": "You've reached your limit of 10 messages per 30 minutes. Please take a break and come back later!",
+            "metadata": {"remaining_messages": 0},
+            "ui_hints": {}
+        }
+
+    rate_limiter.increment(user_id)
+    new_remaining = rate_limiter.get_remaining(user_id)
+
+    from fastapi.responses import StreamingResponse
+    import json
+
+    async def event_generator():
+        try:
+            async for chunk in chat_engine.get_response(
+                user_message=payload.message,
+                chat_history=payload.history,
+                portfolio_context=payload.portfolio_context,
+                user_id=payload.user_id,
+                session_id=payload.session_id
+            ):
+                # Inject remaining messages into final or any chunk that has metadata
+                if isinstance(chunk, dict) and "type" in chunk:
+                    if "metadata" not in chunk:
+                        chunk["metadata"] = {}
+                    chunk["metadata"]["remaining_messages"] = new_remaining
+                
+                yield json.dumps(chunk) + "\n"
+        except Exception as e:
+            print(f"STREAM ERROR: {e}")
+            yield json.dumps({
+                "type": "general",
+                "narrative": f"I encountered an error: {str(e)}",
+                "metadata": {"error": str(e)},
+                "ui_hints": {}
+            }) + "\n"
+
+    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+
+@app.get("/chat/sessions/{user_id}")
+async def get_chat_sessions(user_id: str):
+    if not user_id or len(user_id) <= 20:
+        return []
+    
+    from services.supabase_client import supabase
+    try:
+        # Get first message of each session as title
+        # In a real app, we might have a sessions table, but here we derive it
+        res = supabase.table("chat_history")\
+            .select("session_id, content, created_at")\
+            .eq("user_id", user_id)\
+            .eq("role", "user")\
+            .order("created_at", desc=True)\
+            .execute()
+        
+        # Group by session_id to get only the latest unique sessions
+        seen = set()
+        sessions = []
+        for row in res.data:
+            sid = row["session_id"]
+            if sid not in seen:
+                sessions.append({
+                    "id": sid,
+                    "title": row["content"][:40] + ("..." if len(row["content"]) > 40 else ""),
+                    "created_at": row["created_at"]
+                })
+                seen.add(sid)
+        return sessions
+    except Exception as e:
+        print(f"DB Sessions Fetch Error: {e}")
+        return []
+
+@app.get("/chat/history/{user_id}")
+async def get_chat_history(user_id: str, session_id: str = None):
+    if not user_id or len(user_id) <= 20:
+        return []
+    
+    from services.supabase_client import supabase
+    try:
+        query = supabase.table("chat_history").select("*").eq("user_id", user_id)
+        if session_id:
+            query = query.eq("session_id", session_id)
+        
+        res = query.order("created_at", desc=False).execute()
+        return res.data
+    except Exception as e:
+        print(f"DB Fetch Error: {e}")
+        return []
 
 if __name__ == "__main__":
     # uvicorn main:app --reload

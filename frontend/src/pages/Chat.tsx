@@ -19,7 +19,7 @@ import remarkGfm from "remark-gfm";
 import _logo from "../assets/logo.png";
 import { useAuthStore } from "../store/useAuthStore";
 import { usePortfolioStore } from "../store/usePortfolioStore";
-import { MiniChart } from "../components/ui/MiniChart";
+// import { MiniChart } from "../components/ui/MiniChart";
 import { StockChart } from "../components/ui/StockChart";
 import { PortfolioSummary } from "../components/ui/PortfolioSummary";
 
@@ -227,7 +227,6 @@ export function Chat() {
         portfolioContext = "No portfolio data uploaded.";
       }
 
-
       const historyData = messages.slice(-6).map((m) => ({
         role: m.role,
         parts: [{ text: m.content }],
@@ -325,7 +324,6 @@ export function Chat() {
       setIsTyping(false);
     }
   };
-
 
   const quickStarts = [
     {

@@ -19,7 +19,6 @@ import remarkGfm from "remark-gfm";
 import _logo from "../assets/logo.png";
 import { useAuthStore } from "../store/useAuthStore";
 import { usePortfolioStore } from "../store/usePortfolioStore";
-import { useWatchlistStore } from "../store/useWatchlistStore";
 import { MiniChart } from "../components/ui/MiniChart";
 import { StockChart } from "../components/ui/StockChart";
 import { PortfolioSummary } from "../components/ui/PortfolioSummary";
@@ -41,7 +40,6 @@ export function Chat() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { user } = useAuthStore();
   const { data: portfolioData } = usePortfolioStore();
-  const { items: watchlistItems } = useWatchlistStore();
   const [userName, setUserName] = useState<string | null>(
     localStorage.getItem("user_chat_name"),
   );
@@ -125,12 +123,6 @@ export function Chat() {
         portfolioContext = "No portfolio data uploaded.";
       }
 
-      if (watchlistItems.length > 0) {
-        portfolioContext += ` Watchlist: ${watchlistItems
-          .slice(0, 10)
-          .map((i) => i.symbol)
-          .join(", ")}.`;
-      }
 
       const history = messages.slice(-6).map((m) => ({
         role: m.role,
@@ -576,7 +568,9 @@ export function Chat() {
                               {msg.metadata.actionable_insight && (
                                 <div className="flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-xl px-3 py-2 text-[12px] text-accent font-bold">
                                   <Zap className="w-3.5 h-3.5" />
-                                  {msg.metadata.actionable_insight}
+                                  <ReactMarkdown components={{ p: ({node, ...props}) => <span {...props} /> }}>
+                                    {msg.metadata.actionable_insight}
+                                  </ReactMarkdown>
                                 </div>
                               )}
 

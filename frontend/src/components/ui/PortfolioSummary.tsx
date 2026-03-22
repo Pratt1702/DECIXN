@@ -9,29 +9,62 @@ interface PortfolioSummaryProps {
 export function PortfolioSummary({ summary, holdings }: PortfolioSummaryProps) {
   if (!summary || !holdings) return null;
 
-  const topHoldings = holdings.slice(0, 5);
-  const chartSeries = topHoldings.map((h: any) => h.holding_context.portfolio_weight_pct);
-  const chartLabels = topHoldings.map((h: any) => h.symbol);
+  // Group into Top 4 + "Others" for cleaner UI
+  const sorted = [...holdings].sort((a, b) => b.holding_context.portfolio_weight_pct - a.holding_context.portfolio_weight_pct);
+  const top4 = sorted.slice(0, 4);
+  const rawOthersWeight = sorted.slice(4).reduce((acc, h) => acc + h.holding_context.portfolio_weight_pct, 0);
+  
+  const displayHoldings = [...top4];
+  if (rawOthersWeight > 0.01) {
+    displayHoldings.push({
+      symbol: "Others",
+      holding_context: { portfolio_weight_pct: parseFloat(rawOthersWeight.toFixed(2)) }
+    });
+  }
+
+  const chartSeries = displayHoldings.map((h: any) => h.holding_context.portfolio_weight_pct);
+  const chartLabels = displayHoldings.map((h: any) => h.symbol);
 
   const options: any = {
     chart: { type: 'donut', background: 'transparent' },
     labels: chartLabels,
-    colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'],
+    // Using design system colors: Accent (Mint), Indigo (Info), Blue (Secondary), Emerald (Success), Red (Danger)
+    colors: ['#50ffa7', '#818cf8', '#38bdf8', '#10b981', '#e13451'],
     stroke: { show: false },
     legend: { show: false },
     dataLabels: { enabled: false },
-    tooltip: { theme: 'dark' },
+    tooltip: { 
+        theme: 'dark',
+        y: { formatter: (val: number) => `${val.toFixed(2)}%` }
+    },
     plotOptions: {
         pie: {
             donut: {
-                size: '80%',
+                size: '75%',
                 labels: {
                     show: true,
-                    name: { show: true, fontSize: '10px', color: '#999', fontWeight: 'bold' },
-                    value: { show: true, fontSize: '16px', color: '#fff', fontWeight: 'black',
-                        formatter: (val: any) => `${val}%` 
+                    name: { show: true, fontSize: '10px', color: '#666', fontWeight: 'bold' },
+                    value: { 
+                        show: true, 
+                        fontSize: '16px', 
+                        color: '#fff', 
+                        fontWeight: 'black',
+                        formatter: (val: any) => {
+                            const num = typeof val === 'string' ? parseFloat(val) : val;
+                            return `${num.toFixed(1)}%`;
+                        }
                     },
-                    total: { show: true, label: 'WEIGHT', color: '#666', fontSize: '9px', fontWeight: 'black' }
+                    total: { 
+                        show: true, 
+                        label: 'TOTAL', 
+                        color: '#444', 
+                        fontSize: '9px', 
+                        fontWeight: 'black',
+                        formatter: (w: any) => {
+                            const total = w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
+                            return `${total.toFixed(0)}%`;
+                        }
+                    }
                 }
             }
         }
@@ -87,7 +120,7 @@ export function PortfolioSummary({ summary, holdings }: PortfolioSummaryProps) {
                   <Target className="w-4 h-4 text-white/20" />
                   <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Weighting Metrics</span>
               </div>
-              {topHoldings.map((h: any, i: number) => (
+              {displayHoldings.map((h: any, i: number) => (
                   <div key={h.symbol} className="flex items-center justify-between group">
                       <div className="flex items-center gap-3">
                           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: options.colors[i] }} />

@@ -16,7 +16,7 @@ TOOLS = [
         "function_declarations": [
             {
                 "name": "analyze_ticker",
-                "description": "Deep technical/fundamental analysis. Use this when the user asks about a specific stock (e.g. 'TCS', 'Reliance', 'Check ITC'). Also handles misspelled symbols or name-based queries.",
+                "description": "Deep technical/fundamental analysis. IMPORTANT: Use this if the user mentions personal 'holdings', 'shares', 'positions' of a SPECIFIC stock (e.g., 'Analyze my ETERNAL holdings'). Do NOT call analyze_portfolio unless they want a WHOLE-PORTFOLIO summary.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
@@ -34,8 +34,8 @@ TOOLS = [
                 }
             },
             {
-                "name": "analyze_portfolio",
-                "description": "Health check for user holdings. Use whenever they ask about 'my portfolio', 'shares I own', 'my stocks', even if misspelled as 'portfolyo' or 'holdngs'.",
+                "name": "analyze_full_portfolio",
+                "description": "Comprehensive health check for the ENTIRE portfolio. Use this when the user asks for a 'portfolio review', 'holdings report', or 'overall health'. Do NOT use this for single stock questions.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
@@ -46,14 +46,24 @@ TOOLS = [
                                 "properties": {
                                     "symbol": {"type": "string"},
                                     "avg_cost": {"type": "number"},
-                                    "quantity": {"type": "number"},
-                                    "pnl": {"type": "number"}
+                                    "quantity": {"type": "number"}
                                 },
                                 "required": ["symbol", "avg_cost", "quantity"]
                             }
                         }
                     },
                     "required": ["holdings"]
+                }
+            },
+            {
+                "name": "get_user_position",
+                "description": "Checks if the user owns a specific stock. Returns their avg cost and quantity. Use this for 'How much TCS do I own?', 'Is my Suzlon in profit?', etc.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "ticker": {"type": "string", "description": "The stock symbol to check position for"}
+                    },
+                    "required": ["ticker"]
                 }
             }
         ]
@@ -69,7 +79,8 @@ CORE RULES:
 3. **Financial Advice**: You ARE allowed and encouraged to help with portfolio allocation, stock analysis, and market strategy based on the data provided or fetched via tools.
 4. **Data Retrieval**: Always use tools to fetch real-time data for market/ticker queries. Assume NSE (.NS) if suffix is missing.
 5. **Tone**: Professional, sharp, data-driven, and slightly elite.
-6. **Portfolio Context**: If you see `[PORTFOLIO SUMMARY]` and `[HOLDINGS LIST]` in the context, USE THIS DATA. Do not ask the user for their holdings if they are already provided in the prompt. You can analyze them directly or use tools on specific symbols mentioned.
+6. **Portfolio Context**: Use tool `get_user_position` if they ask about 'my position in X'. Use `analyze_full_portfolio` for overall health reports.
+7. **Tool Chain**: You can and should call multiple tools in a single turn. For example, to analyze a user's Suzlon position, call `analyze_ticker(ticker='SUZLON')` AND `get_user_position(ticker='SUZLON')`.
 
 RESPONSE FORMAT (JSON ONLY):
 {
@@ -136,7 +147,7 @@ class ChatEngine:
                 if part.function_call:
                     fn_name = part.function_call.name
                     args = part.function_call.args
-                    result = await self._execute_tool(fn_name, args)
+                    result = await self._execute_tool(fn_name, args, portfolio_context)
                     
                     tool_results.append({
                         "function_response": {
@@ -178,9 +189,9 @@ class ChatEngine:
                 res_text += p.text
         yield self._parse_json_response(res_text)
 
-    async def _execute_tool(self, name: str, args: dict):
+    async def _execute_tool(self, name: str, args: dict, portfolio_context: str = None):
         # Local imports to avoid circularity
-        from market_intelligence import analyze_single_ticker, get_market_overview, analyze_single_holding
+        from market_intelligence import analyze_single_ticker, get_market_overview
 
         if name == "analyze_ticker":
             res = analyze_single_ticker(args["ticker"])
@@ -196,32 +207,44 @@ class ChatEngine:
                     "risk_level": d.get("risk_level"),
                     "indicators": d.get("indicators"),
                     "fundamentals": d.get("fundamentals"),
-                    "sparkline": [float(p["price"]) for p in d.get("chart_data")[-20:]] if d.get("chart_data") else []
+                    "sparkline": [float(p["price"]) for p in d.get("chart_data", [])[-20:]] if d.get("chart_data") else []
                 }
             return res
         
         elif name == "get_market_overview":
             return get_market_overview()
         
-        elif name == "analyze_portfolio":
+        elif name == "analyze_full_portfolio":
             holdings = []
-            for h in args["holdings"]:
+            for h in args.get("holdings", []):
                 holdings.append({
                     "symbol": h["symbol"],
                     "quantity": h["quantity"],
-                    "avg_cost": h["avg_cost"],
-                    "pnl": h.get("pnl", 0)
+                    "avg_cost": h["avg_cost"]
                 })
             
-            # Re-run same logic as main.py but inside service
             from portfolio_logic import run_portfolio_analysis
             summary_data = run_portfolio_analysis(holdings)
             
             return {
                 "success": True,
                 "summary": summary_data.get("portfolio_summary"),
-                "holdings": summary_data.get("portfolio_analysis")[:10] # Top 10 for AI
+                "holdings": summary_data.get("portfolio_analysis")[:10]
             }
+
+        elif name == "get_user_position":
+            ticker = args.get("ticker", "").upper().replace(".NS", "")
+            if not portfolio_context: return {"owned": False, "error": "No portfolio data"}
+            
+            lines = portfolio_context.split("\n")
+            for line in lines:
+                if line.strip().startswith(f"- {ticker}:"):
+                    return {
+                        "owned": True,
+                        "symbol": ticker,
+                        "position_details": line.strip("- ").strip()
+                    }
+            return {"owned": False, "symbol": ticker, "message": "Not in current portfolio holdings."}
         
         return {"error": "Tool not found"}
 

@@ -46,7 +46,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -341,7 +341,9 @@ async def get_chat_sessions(user_id: str):
                 seen.add(sid)
         return sessions
     except Exception as e:
-        print(f"DB Sessions Fetch Error: {e}")
+        import traceback
+        print(f"DB Sessions Fetch Error: {str(e)}")
+        traceback.print_exc()
         return []
 
 @app.get("/chat/history/{user_id}")

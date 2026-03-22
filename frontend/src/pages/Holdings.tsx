@@ -4,18 +4,28 @@ import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { HoldingsTable } from "../components/dashboard/HoldingsTable";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Trash2, BarChart3 } from "lucide-react";
+import { Loader2, Trash2, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { usePortfolioStore } from "../store/usePortfolioStore";
 
 const SESSION_KEY = "uploaded_holdings";
 
 export function Holdings() {
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
-  const { setData: setStoreData, shouldRefresh, data: cachedData, clearData } = usePortfolioStore();
+  const {
+    setData: setStoreData,
+    shouldRefresh,
+    data: cachedData,
+    clearData,
+  } = usePortfolioStore();
   const [loading, setLoading] = useState(true);
   const [isManual, setIsManual] = useState(false);
-  const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
+  const [progress, setProgress] = useState<{ current: number; total: number }>({
+    current: 0,
+    total: 0,
+  });
 
   const calculateSummary = (holdings: any[]) => {
     const totalInvested = holdings.reduce(
@@ -37,15 +47,21 @@ export function Holdings() {
         : "0%";
 
     const workingCapital = holdings.reduce(
-      (acc, h) => acc + (h.data?.trend === "Bullish" ? h.holding_context.current_value : 0),
+      (acc, h) =>
+        acc +
+        (h.data?.trend === "Bullish" ? h.holding_context.current_value : 0),
       0,
     );
     const trappedCapital = holdings.reduce(
-      (acc, h) => acc + (h.data?.trend === "Bearish" ? h.holding_context.current_value : 0),
+      (acc, h) =>
+        acc +
+        (h.data?.trend === "Bearish" ? h.holding_context.current_value : 0),
       0,
     );
-    const workingCapitalPct = currentValue > 0 ? (workingCapital / currentValue) * 100 : 0;
-    const trappedCapitalPct = currentValue > 0 ? (trappedCapital / currentValue) * 100 : 0;
+    const workingCapitalPct =
+      currentValue > 0 ? (workingCapital / currentValue) * 100 : 0;
+    const trappedCapitalPct =
+      currentValue > 0 ? (trappedCapital / currentValue) * 100 : 0;
 
     return {
       total_invested: totalInvested,
@@ -65,14 +81,15 @@ export function Holdings() {
 
   const loadData = useCallback(async () => {
     const sessionData = sessionStorage.getItem(SESSION_KEY);
-    
+
     // Priority 1: Uploaded session data (Current CSV)
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
         // Create a simple hash/identifier for this CSV session
-        const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
-        
+        const currentHash =
+          sessionData.length.toString() + (parsed[0]?.symbol || "");
+
         // If store has valid, non-expired data for THIS CSV, use it
         if (!shouldRefresh(currentHash) && cachedData) {
           setData(cachedData);
@@ -83,9 +100,10 @@ export function Holdings() {
 
         if (Array.isArray(parsed)) {
           const sessionSummary = sessionStorage.getItem("portfolio_summary");
-          const summaryParsed = (sessionSummary && sessionSummary !== "undefined") 
-            ? JSON.parse(sessionSummary) 
-            : calculateSummary(parsed);
+          const summaryParsed =
+            sessionSummary && sessionSummary !== "undefined"
+              ? JSON.parse(sessionSummary)
+              : calculateSummary(parsed);
 
           const result = {
             portfolio_analysis: parsed,
@@ -105,10 +123,10 @@ export function Holdings() {
 
     // Priority 2: Standard API/Mock data
     if (!shouldRefresh() && cachedData) {
-       setData(cachedData);
-       setIsManual(false);
-       setLoading(false);
-       return;
+      setData(cachedData);
+      setIsManual(false);
+      setLoading(false);
+      return;
     }
 
     try {
@@ -132,15 +150,33 @@ export function Holdings() {
         portfolio_analysis: [
           {
             symbol: "Karnataka Bank",
-            holding_context: { quantity: 100, avg_cost: 170.71, current_value: 23132, pnl_pct: 35.5, current_pnl: 6061 },
+            holding_context: {
+              quantity: 100,
+              avg_cost: 170.71,
+              current_value: 23132,
+              pnl_pct: 35.5,
+              current_pnl: 6061,
+            },
           },
           {
             symbol: "Coal India",
-            holding_context: { quantity: 200, avg_cost: 450, current_value: 79000, pnl_pct: -12.22, current_pnl: -11000 },
+            holding_context: {
+              quantity: 200,
+              avg_cost: 450,
+              current_value: 79000,
+              pnl_pct: -12.22,
+              current_pnl: -11000,
+            },
           },
           {
             symbol: "Tata Steel",
-            holding_context: { quantity: 100, avg_cost: 250, current_value: 15000, pnl_pct: -40.0, current_pnl: -10000 },
+            holding_context: {
+              quantity: 100,
+              avg_cost: 250,
+              current_value: 15000,
+              pnl_pct: -40.0,
+              current_pnl: -10000,
+            },
           },
         ],
       };
@@ -159,7 +195,7 @@ export function Holdings() {
     let interval: NodeJS.Timeout | null = null;
     try {
       setLoading(true);
-      
+
       // Setup Animation Synchronization
       let animatedCurrent = 0;
       const animationTarget = newHoldings.length;
@@ -169,7 +205,7 @@ export function Holdings() {
       });
 
       setProgress({ current: 0, total: animationTarget });
-      
+
       const startAnimation = () => {
         if (animationTarget === 0) {
           animationCompleteResolve();
@@ -177,9 +213,9 @@ export function Holdings() {
         }
         interval = setInterval(() => {
           animatedCurrent += 5;
-          setProgress({ 
-            current: Math.min(animatedCurrent, animationTarget), 
-            total: animationTarget 
+          setProgress({
+            current: Math.min(animatedCurrent, animationTarget),
+            total: animationTarget,
           });
           if (animatedCurrent >= animationTarget) {
             if (interval) clearInterval(interval);
@@ -191,14 +227,22 @@ export function Holdings() {
       startAnimation();
 
       const dataPromise = analyzeCustomPortfolio(newHoldings);
-      
+
       // WAIT FOR BOTH: API and Animation
       const [res] = await Promise.all([dataPromise, animationPromise]);
-      
-      const currentHash = JSON.stringify(newHoldings).length.toString() + (newHoldings[0]?.symbol || "");
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(res.portfolio_analysis));
-      sessionStorage.setItem("portfolio_summary", JSON.stringify(res.portfolio_summary));
-      
+
+      const currentHash =
+        JSON.stringify(newHoldings).length.toString() +
+        (newHoldings[0]?.symbol || "");
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify(res.portfolio_analysis),
+      );
+      sessionStorage.setItem(
+        "portfolio_summary",
+        JSON.stringify(res.portfolio_summary),
+      );
+
       setData(res);
       setStoreData(res, currentHash);
       setIsManual(true);
@@ -223,19 +267,19 @@ export function Holdings() {
     // 1. Clear session data
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem("portfolio_summary");
-    
+
     // 2. Clear Zustand store (persistent)
     clearData();
-    
+
     // 3. Clear API cache specifically
     localStorage.removeItem("decixn_portfolio");
     localStorage.removeItem("decixn_portfolio_time");
-    
+
     // 4. Force a fresh data load
     setData(null);
     setLoading(true);
     setTimeout(() => {
-        loadData();
+      loadData();
     }, 100);
   };
 
@@ -244,22 +288,27 @@ export function Holdings() {
       <div className="py-32 flex flex-col justify-center items-center gap-6">
         <div className="relative">
           <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
-          <Loader2 className="w-12 h-12 animate-spin text-accent absolute top-0 left-0" style={{ animationDuration: '3s' }} />
+          <Loader2
+            className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+            style={{ animationDuration: "3s" }}
+          />
         </div>
         <div className="text-center space-y-2">
           <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
             AI Engine Synchronizing
           </p>
           <p className="text-text-muted text-sm font-medium tracking-wide">
-            {progress.total > 0 
-              ? `Processing Asset ${Math.floor(progress.current)} of ${progress.total}...` 
+            {progress.total > 0
+              ? `Processing Asset ${Math.floor(progress.current)} of ${progress.total}...`
               : "Fetching live market intelligence..."}
           </p>
           {progress.total > 0 && (
             <div className="w-48 h-1 bg-white/5 rounded-full mx-auto mt-4 overflow-hidden">
-              <div 
-                className="h-full bg-accent transition-all duration-500" 
-                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              <div
+                className="h-full bg-accent transition-all duration-500"
+                style={{
+                  width: `${(progress.current / progress.total) * 100}%`,
+                }}
               />
             </div>
           )}
@@ -282,9 +331,13 @@ export function Holdings() {
             <h1 className="text-3xl font-black text-text-bold tracking-tighter">
               Portfolio
             </h1>
-            {isManual && (
+            {isManual ? (
               <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20">
                 Local Session
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-md bg-white/[0.03] text-[9px] font-black text-text-muted uppercase tracking-widest border border-white/10">
+                Test Mode
               </span>
             )}
           </div>
@@ -293,20 +346,29 @@ export function Holdings() {
           </p>
         </div>
 
-        <AnimatePresence>
-          {isManual && (
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              onClick={clearManualData}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm"
-            >
-              <Trash2 className="w-4 h-4 text-danger" />
-              Revert to Test Data
-            </motion.button>
-          )}
-        </AnimatePresence>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/insights", { state: { analyze: true } })}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent/75 text-white hover:bg-accent/90 cursor-pointer transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-accent/10 active:scale-95"
+          >
+            <Zap className="w-3.5 h-3.5 fill-white" />
+            Analyze Portfolio
+          </button>
+          <AnimatePresence>
+            {isManual && (
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onClick={clearManualData}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm"
+              >
+                <Trash2 className="w-4 h-4 text-danger" />
+                Revert to Test Data
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
       {/* ── SUMMARY CARDS ── */}
@@ -321,7 +383,7 @@ export function Holdings() {
           />
 
           {/* AI Insight Banner */}
-          <AnimatePresence>
+          {/* <AnimatePresence>
             {data?.portfolio_summary?.insight && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -337,9 +399,23 @@ export function Holdings() {
                 <p className="text-[13px] text-text-muted font-medium leading-relaxed">
                   {data.portfolio_summary.insight}
                 </p>
+                <div className="mt-4 pt-4 border-t border-white/5 flex justify-end">
+                  <button
+                    onClick={() => navigate("/insights", { state: { analyze: true } })}
+                    className="text-[10px] font-black text-accent uppercase tracking-[0.2em] flex items-center gap-2 group"
+                  >
+                    View Full Intelligence Report
+                    <motion.span
+                      animate={{ x: [0, 4, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                    >
+                      →
+                    </motion.span>
+                  </button>
+                </div>
               </motion.div>
             )}
-          </AnimatePresence>
+          </AnimatePresence> */}
         </div>
       )}
 
@@ -349,11 +425,11 @@ export function Holdings() {
           <h2 className="text-2xl font-black text-text-bold tracking-tighter">
             Holdings
           </h2>
-          <CSVUpload 
+          <CSVUpload
             isManual={isManual}
             onDataParsed={(holdings) => {
               handleDataParsed(holdings);
-            }} 
+            }}
           />
         </div>
 

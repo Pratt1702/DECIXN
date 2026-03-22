@@ -1,5 +1,5 @@
 import pandas as pd
-from services.data_fetcher import fetch_data
+from .data_fetcher import fetch_data
 
 def calculate_return(df, days=30):
     """Calculate percentage return over the last N days."""

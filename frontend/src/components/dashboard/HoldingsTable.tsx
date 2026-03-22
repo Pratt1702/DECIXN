@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { ArrowUpRight, ArrowDownRight, ArrowUpDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function HoldingsTable({ holdings }: { holdings: any[] }) {
   const tableRef = useRef<HTMLTableSectionElement>(null);
-  const [sortField, setSortField] = useState("current_value");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortField, setSortField] = useState(() => localStorage.getItem("holdings_table_sort_field") || "current_value");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() => (localStorage.getItem("holdings_table_sort_order") as "asc" | "desc") || "desc");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    localStorage.setItem("holdings_table_sort_field", sortField);
+    localStorage.setItem("holdings_table_sort_order", sortOrder);
+  }, [sortField, sortOrder]);
 
   useEffect(() => {
     if (tableRef.current && holdings.length > 0) {
@@ -53,7 +58,11 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
               >
                 <div className="flex items-center gap-1.5">
                   {col.label}
-                  <ArrowUpDown className={`h-3 w-3 transition-colors ${sortField === col.field ? "text-text-muted" : "text-white/10 group-hover:text-white/30"}`} />
+                  {sortField === col.field && (
+                    <span className="text-text-muted font-black">
+                      {sortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  )}
                 </div>
               </th>
             ))}

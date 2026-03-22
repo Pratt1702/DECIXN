@@ -1,3 +1,4 @@
+import requests
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -174,7 +175,9 @@ def analyze_single_ticker(symbol: str) -> dict:
         def convert_numpy(obj):
             if isinstance(obj, np.integer):
                 return int(obj)
-            elif isinstance(obj, np.floating):
+            elif isinstance(obj, (np.floating, float)):
+                if np.isnan(obj) or np.isinf(obj):
+                    return 0.0
                 return float(obj)
             elif isinstance(obj, (bool, np.bool_)):
                 return bool(obj)
@@ -241,7 +244,7 @@ def analyze_single_ticker(symbol: str) -> dict:
             "ema_200d": convert_numpy(latest_df['EMA200'])
         }
         
-        return {
+        return sanitize_data({
             "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "data": {
@@ -287,13 +290,14 @@ def analyze_single_ticker(symbol: str) -> dict:
                     "macd": clean_macd
                 }
             }
-        }
+        })
     except Exception as e:
-        return {
+        return sanitize_data({
             "symbol": symbol,
             "success": False,
             "error": str(e)
-        }
+        })
+
 
 def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
     """
@@ -304,7 +308,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         "LIT": "LT", "LNT": "LT", "L&T": "LT",
         "M&M": "M&M", "MAM": "M&M",
         "TATASTEEL": "TATASTEEL", "TATAPOWER": "TATAPOWER",
-        "TATA MOTORS": "TATAMOTORS", "TATAMOTORS": "TATAMOTORS",
+        "TATA MOTORS": "TMPV", "TATAMOTORS": "TMPV", "TMPV": "TMPV", "TMCV": "TMCV",
         "RELIANCE": "RELIANCE", "RIL": "RELIANCE",
         "HDFC": "HDFCBANK", "HDFCBANK": "HDFCBANK",
         "ICICI": "ICICIBANK", "ICICIBANK": "ICICIBANK",
@@ -454,11 +458,144 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
             "error": str(e)
         })
 
+_market_overview_cache = {
+    "data": None,
+    "timestamp": None
+}
+
+def get_market_overview() -> dict:
+    """
+    Fetches NIFTY 50, SENSEX, and Top Gainers / Losers for the Indian market.
+    Caches results for 15 minutes to improve performance.
+    """
+    global _market_overview_cache
+    cache_expiry = 900 # 15 minutes
+    
+    if (_market_overview_cache["data"] and 
+        _market_overview_cache["timestamp"] and 
+        (datetime.now() - _market_overview_cache["timestamp"]).total_seconds() < cache_expiry):
+        return _market_overview_cache["data"]
+
+    indices = []
+    is_today = False
+    
+    # Heuristic: If it's Saturday/Sunday or outside trading hrs, it's 'Last Trading Day'
+    now = datetime.now()
+    if now.weekday() >= 5: # Saturday=5, Sunday=6
+        market_status_label = "Last Trading Day"
+        is_today = False
+    else:
+        # Very crude check: 9 AM to 4 PM IST is today
+        # Current local time (from metadata) is 7:16 AM, so before market open
+        if now.hour < 9 or (now.hour >= 16):
+             market_status_label = "Last Trading Day"
+             is_today = False
+        else:
+             market_status_label = "Today"
+             is_today = True
+
+    try:
+        # Fetch NIFTY 50
+        nifty = yf.Ticker("^NSEI").history(period="5d") # Fetch 5d to ensure we can skip holidays
+        if len(nifty) >= 2:
+            prev_close = nifty['Close'].iloc[-2]
+            curr_price = nifty['Close'].iloc[-1]
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100
+        else:
+            curr_price, change, change_pct = 0, 0, 0
+            
+        indices.append({
+            "name": "NIFTY",
+            "symbol": "^NSEI",
+            "price": float(curr_price),
+            "change": float(change),
+            "changePercent": float(change_pct)
+        })
+        
+        # Fetch SENSEX
+        sensex = yf.Ticker("^BSESN").history(period="5d")
+        if len(sensex) >= 2:
+            prev_close = sensex['Close'].iloc[-2]
+            curr_price = sensex['Close'].iloc[-1]
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100
+        else:
+            curr_price, change, change_pct = 0, 0, 0
+            
+        indices.append({
+            "name": "SENSEX",
+            "symbol": "^BSESN",
+            "price": float(curr_price),
+            "change": float(change),
+            "changePercent": float(change_pct)
+        })
+    except Exception as e:
+        print(f"Error fetching indices: {e}")
+        
+    nifty50_symbols = [
+        "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "BHARTIARTL.NS",
+        "SBIN.NS", "INFY.NS", "ITC.NS", "HINDUNILVR.NS", "LT.NS",
+        "BAJFINANCE.NS", "HCLTECH.NS", "MARUTI.NS", "SUNPHARMA.NS", "TATAMOTORS.NS",
+        "ASIANPAINT.NS", "KOTAKBANK.NS", "M&M.NS", "AXISBANK.NS", "ONGC.NS",
+        "NTPC.NS", "POWERGRID.NS", "WIPRO.NS", "TATASTEEL.NS", "COALINDIA.NS",
+        "ULTRACEMCO.NS", "TITAN.NS", "BAJAJFINSV.NS", "NESTLEIND.NS", "ADANIENT.NS",
+        "ADANIPORTS.NS", "GRASIM.NS", "INDUSINDBK.NS", "BRITANNIA.NS", "TECHM.NS",
+        "HINDALCO.NS", "JSWSTEEL.NS", "EICHERMOT.NS", "DRREDDY.NS", "DIVISLAB.NS",
+        "SBILIFE.NS", "HDFCLIFE.NS", "BPCL.NS", "HEROMOTOCO.NS", "CIPLA.NS",
+        "APOLLOHOSP.NS", "UPL.NS", "BAJAJ-AUTO.NS", "TATACONSUM.NS", "SHREECEM.NS"
+    ]
+    
+    stock_data = []
+    try:
+        # Using 5d daily to be safer with holiday skips, though 1d change only takes last 2 points
+        df = yf.download(nifty50_symbols, period="5d", interval="1d", group_by="ticker", threads=True, auto_adjust=True, progress=False)
+        for symbol in nifty50_symbols:
+            try:
+                ticker_data = df[symbol].dropna() if len(nifty50_symbols) > 1 else df.dropna()
+                if len(ticker_data) >= 2:
+                    # Explicitly use the last two available trading days for 1D calculation
+                    prev_close = float(ticker_data['Close'].iloc[-2])
+                    curr_price = float(ticker_data['Close'].iloc[-1])
+                    change = curr_price - prev_close
+                    change_pct = (change / prev_close) * 100 if prev_close > 0 else 0
+                    
+                    if curr_price > 0:
+                        stock_data.append({
+                            "symbol": symbol.replace('.NS', '').replace('.BO', ''),
+                            "companyName": symbol.replace('.NS', '').replace('.BO', ''), # Fallback name
+                            "price": curr_price,
+                            "change": change,
+                            "changePercent": change_pct
+                        })
+            except:
+                continue
+    except Exception as e:
+        print(f"Error fetching batch data: {e}")
+
+    stock_data.sort(key=lambda x: x['changePercent'], reverse=True)
+    gainers = stock_data[:10] if stock_data else []
+    losers = sorted(stock_data, key=lambda x: x['changePercent'])[:10] if stock_data else []
+
+    result = {
+        "success": True,
+        "label": market_status_label,
+        "isToday": is_today,
+        "indices": indices,
+        "top_gainers": gainers,
+        "top_losers": losers
+    }
+    
+    _market_overview_cache = {
+        "data": result,
+        "timestamp": datetime.now()
+    }
+    return result
+
+
 def run_market_intelligence(stocks):
     results = {}
     print("========================================")
-    print("Market Intelligence Engine")
-    print("========================================\n")
     
     for symbol in stocks:
         df = fetch_data(symbol, period="100d")

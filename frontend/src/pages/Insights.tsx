@@ -10,7 +10,7 @@ import {
   BarChart3,
   Activity,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { usePortfolioStore } from "../store/usePortfolioStore";
 
@@ -169,6 +169,8 @@ export function Insights() {
     current: 0,
     total: 0,
   });
+  const location = useLocation();
+
   useEffect(() => {
     let interval: any = null;
     let isMounted = true;
@@ -176,6 +178,20 @@ export function Insights() {
     async function fetchHoldings() {
       try {
         const sessionData = sessionStorage.getItem(SESSION_KEY);
+        let currentHash = "";
+        let parsed: any[] = [];
+        
+        if (sessionData && sessionData !== "undefined") {
+          parsed = JSON.parse(sessionData);
+          currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
+        }
+
+        const isExpired = sessionData 
+          ? shouldRefresh(currentHash)
+          : shouldRefresh();
+        
+        const isAnalyzing = location.state?.analyze;
+        const hasCache = cachedData && !isExpired;
 
         // Setup Animation Synchronization
         let animatedCurrent = 0;
@@ -185,14 +201,18 @@ export function Insights() {
           animationCompleteResolve = resolve;
         });
 
-        const startAnimation = (total: number) => {
+        const startAnimation = (total: number, isFast: boolean = false) => {
           animationTarget = total;
           if (total === 0) {
             animationCompleteResolve();
             return;
           }
+          
+          const step = isFast ? Math.ceil(total / 10) : 5;
+          const speed = isFast ? 150 : 1000;
+
           interval = setInterval(() => {
-            animatedCurrent += 5;
+            animatedCurrent += step;
             setProgress({
               current: Math.min(animatedCurrent, animationTarget),
               total: animationTarget,
@@ -201,41 +221,43 @@ export function Insights() {
               clearInterval(interval);
               animationCompleteResolve();
             }
-          }, 1000);
+          }, speed);
         };
 
-        if (sessionData && sessionData !== "undefined") {
-          const parsed = JSON.parse(sessionData);
-          const currentHash =
-            sessionData.length.toString() + (parsed[0]?.symbol || "");
+        // UI DECISION LOGIC:
+        // 1. If we have valid cache AND user DID NOT press 'Analyze' (Navbar click) -> Immediate view
+        if (hasCache && !isAnalyzing) {
+          setData(cachedData);
+          setLoading(false);
+          return;
+        }
 
-          if (!shouldRefresh(currentHash) && cachedData) {
+        // 2. If we have local cache BUT user pressed 'Analyze' -> Show Fast satisfying UX loading
+        if (hasCache && isAnalyzing) {
+          setLoading(true);
+          const totalAssets = cachedData.portfolio_analysis?.length || 10;
+          startAnimation(totalAssets, true);
+          await animationPromise;
+          
+          if (isMounted) {
             setData(cachedData);
             setLoading(false);
-            return;
           }
+          return;
+        }
 
-          setLoading(true);
-          startAnimation(parsed.length);
-
+        // 3. Fallback: No cache or cache expired -> Show full analysis loading + fetch
+        setLoading(true);
+        if (sessionData && sessionData !== "undefined") {
+          startAnimation(parsed.length, false);
           const dataPromise = analyzeCustomPortfolio(parsed);
-
-          // WAIT FOR BOTH: API and Animation
           const [res] = await Promise.all([dataPromise, animationPromise]);
-
           if (isMounted) {
             setData(res);
             setStoreData(res, currentHash);
           }
         } else {
-          // Standard load
-          if (!shouldRefresh() && cachedData) {
-            setData(cachedData);
-            setLoading(false);
-            return;
-          }
-
-          setLoading(true);
+          // Standard fetch (index case or fallback)
           const res = await getPortfolio();
           if (isMounted) {
             setData(res);
@@ -257,7 +279,7 @@ export function Insights() {
       isMounted = false;
       if (interval) clearInterval(interval);
     };
-  }, [shouldRefresh, cachedData, setStoreData]);
+  }, [shouldRefresh, cachedData, setStoreData, location.state]);
 
   const urgencyMap: any = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
@@ -428,12 +450,12 @@ export function Insights() {
                   dec.includes("CUT") ||
                   dec.includes("REDUCE") ||
                   dec.includes("EXIT") ||
-                  dec.includes("SELL") ||
-                  dec.includes("BOOK");
+                  dec.includes("SELL");
                 const isBullish =
                   dec.includes("RIDE") ||
                   dec.includes("AVERAGE") ||
-                  dec.includes("BUY");
+                  dec.includes("BUY") ||
+                  dec.includes("BOOK");
                 const accentBorder = isBearish
                   ? "border-l-danger"
                   : isBullish

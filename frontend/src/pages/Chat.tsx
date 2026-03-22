@@ -13,12 +13,16 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import _logo from "../assets/logo.png";
 import { useAuthStore } from "../store/useAuthStore";
 import { usePortfolioStore } from "../store/usePortfolioStore";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import { MiniChart } from "../components/ui/MiniChart";
+import { StockChart } from "../components/ui/StockChart";
+import { PortfolioSummary } from "../components/ui/PortfolioSummary";
 
 interface Message {
   id: string;
@@ -45,7 +49,10 @@ export function Chat() {
     !localStorage.getItem("user_chat_name"),
   );
   const [tempName, setTempName] = useState("");
-  const [remainingMessages, setRemainingMessages] = useState<number | null>(null);
+  const [remainingMessages, setRemainingMessages] = useState<number | null>(
+    null,
+  );
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,30 +111,36 @@ export function Chat() {
       if (portfolioData?.portfolio_summary) {
         const s = portfolioData.portfolio_summary;
         portfolioContext += `[PORTFOLIO SUMMARY] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl} (${s.win_rate} win rate).\n`;
-        
-        if (portfolioData.portfolio_analysis && portfolioData.portfolio_analysis.length > 0) {
-            portfolioContext += `[HOLDINGS LIST]\n`;
-            portfolioData.portfolio_analysis.slice(0, 15).forEach((h: any) => {
-                portfolioContext += `- ${h.symbol}: ${h.holding_context.quantity} shares @ avg ₹${h.holding_context.avg_cost}\n`;
-            });
+
+        if (
+          portfolioData.portfolio_analysis &&
+          portfolioData.portfolio_analysis.length > 0
+        ) {
+          portfolioContext += `[HOLDINGS LIST]\n`;
+          portfolioData.portfolio_analysis.slice(0, 15).forEach((h: any) => {
+            portfolioContext += `- ${h.symbol}: ${h.holding_context.quantity} shares @ avg ₹${h.holding_context.avg_cost}\n`;
+          });
         }
       } else {
         portfolioContext = "No portfolio data uploaded.";
       }
 
       if (watchlistItems.length > 0) {
-          portfolioContext += ` Watchlist: ${watchlistItems.slice(0, 10).map(i => i.symbol).join(", ")}.`;
+        portfolioContext += ` Watchlist: ${watchlistItems
+          .slice(0, 10)
+          .map((i) => i.symbol)
+          .join(", ")}.`;
       }
 
-      const history = messages.slice(-6).map(m => ({
-          role: m.role,
-          parts: [{ text: m.content }]
+      const history = messages.slice(-6).map((m) => ({
+        role: m.role,
+        parts: [{ text: m.content }],
       }));
 
       console.log("FOXY REQUEST:", {
         message: savedInput,
         history: history,
-        context: portfolioContext
+        context: portfolioContext,
       });
 
       const response = await fetch("http://localhost:8000/chat", {
@@ -137,35 +150,82 @@ export function Chat() {
           message: savedInput,
           history: history,
           portfolio_context: portfolioContext,
-          user_id: user?.id || userName || "anonymous"
+          user_id: user?.id || userName || "anonymous",
         }),
       });
 
-      const data = await response.json();
-      console.log("FOXY RESPONSE:", data);
-      
-      if (data.metadata?.remaining_messages !== undefined) {
-          setRemainingMessages(data.metadata.remaining_messages);
-      }
-      
-      const assistantMsg: Message = {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: data.narrative || "I couldn't generate a response.",
-        timestamp: Date.now(),
-        type: data.type,
-        metadata: data.metadata,
-        ui_hints: data.ui_hints
-      };
+      if (!response.body) throw new Error("No response body");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Robust JSON extraction from stream buffer
+        let startIndex = buffer.indexOf("{");
+        while (startIndex !== -1) {
+          let braceCount = 0;
+          let endIndex = -1;
+          for (let i = startIndex; i < buffer.length; i++) {
+            if (buffer[i] === "{") braceCount++;
+            else if (buffer[i] === "}") braceCount--;
+
+            if (braceCount === 0) {
+              endIndex = i;
+              break;
+            }
+          }
+
+          if (endIndex !== -1) {
+            const jsonStr = buffer.substring(startIndex, endIndex + 1);
+            try {
+              const data = JSON.parse(jsonStr);
+              console.log("STREAM CHUNK:", data);
+
+              if (data.status) {
+                setCurrentStatus(data.status);
+              } else {
+                // Final assistant message
+                if (data.metadata?.remaining_messages !== undefined) {
+                  setRemainingMessages(data.metadata.remaining_messages);
+                }
+
+                const assistantMsg: Message = {
+                  id: Date.now().toString(),
+                  role: "assistant",
+                  content: data.narrative || "I couldn't generate a response.",
+                  timestamp: Date.now(),
+                  type: data.type,
+                  metadata: data.metadata,
+                  ui_hints: data.ui_hints,
+                };
+
+                setMessages((prev) => [...prev, assistantMsg]);
+                setCurrentStatus(null);
+                setIsTyping(false);
+              }
+            } catch (e) {
+              console.error("Error parsing stream chunk:", e, jsonStr);
+            }
+            buffer = buffer.substring(endIndex + 1);
+            startIndex = buffer.indexOf("{");
+          } else {
+            break; // Wait for more data to complete JSON object
+          }
+        }
+      }
     } catch (error) {
       console.error("Chat error:", error);
       const errorMsg: Message = {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: "Sorry, I'm having trouble connecting to my brain right now. Please make sure the backend is running.",
-          timestamp: Date.now()
+        id: Date.now().toString(),
+        role: "assistant",
+        content:
+          "Sorry, I'm having trouble connecting to my brain right now. Please make sure the backend is running.",
+        timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -348,12 +408,13 @@ export function Chat() {
                 <PanelLeft className="w-4 h-4 text-text-muted group-hover:text-white" />
               </button>
             )}
-            
+
             {remainingMessages !== null && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/5">
                 <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">
-                  {remainingMessages} {remainingMessages === 1 ? 'msg' : 'msgs'} left
+                  {remainingMessages} {remainingMessages === 1 ? "msg" : "msgs"}{" "}
+                  left
                 </span>
               </div>
             )}
@@ -380,7 +441,7 @@ export function Chat() {
                     <Sparkles className="w-7 h-7 text-accent" />
                   </div>
                   <h1 className="text-2xl md:text-3xl font-black text-white tracking-tighter">
-                    How can I help you scale, {userName || "Investor"}?
+                    How can I help you, {userName || "Investor"}?
                   </h1>
                 </div>
 
@@ -448,83 +509,135 @@ export function Chat() {
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex flex-col w-full ${msg.role === "user" ? "items-end" : "items-start"}`}
                   >
-                    {/* {msg.role === "user" && (
-                      <p
-                        className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 px-1`}
-                      >
-                        YOU
-                      </p>
-                    )} */}
                     <div
-                      className={`text-[15px] leading-relaxed font-medium px-3 py-2 rounded-[20px] max-w-[85%] relative group ${
+                      className={`text-[15px] leading-relaxed font-medium px-3 py-2 rounded-[24px] max-w-[85%] relative group ${
                         msg.role === "user"
                           ? "bg-[#181818] text-white border border-white/10 shadow-xl"
-                          : "text-text-bold whitespace-pre-wrap"
+                          : "text-text-bold"
                       }`}
                     >
-                      {msg.content}
+                      {msg.role === "user" ? (
+                        msg.content
+                      ) : (
+                        <div className="markdown-content">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ node, ...props }) => (
+                                <p className="mb-3 last:mb-0" {...props} />
+                              ),
+                              ul: ({ node, ...props }) => (
+                                <ul
+                                  className="list-disc ml-4 mb-3 space-y-1"
+                                  {...props}
+                                />
+                              ),
+                              ol: ({ node, ...props }) => (
+                                <ol
+                                  className="list-decimal ml-4 mb-3 space-y-1"
+                                  {...props}
+                                />
+                              ),
+                              li: ({ node, ...props }) => (
+                                <li className="leading-relaxed" {...props} />
+                              ),
+                              strong: ({ node, ...props }) => (
+                                <strong
+                                  className="text-white font-bold"
+                                  {...props}
+                                />
+                              ),
+                              h1: ({ node, ...props }) => (
+                                <h1
+                                  className="text-lg font-bold mb-2 text-white"
+                                  {...props}
+                                />
+                              ),
+                              h2: ({ node, ...props }) => (
+                                <h2
+                                  className="text-md font-bold mb-2 text-white border-b border-white/5 pb-1"
+                                  {...props}
+                                />
+                              ),
+                              blockquote: ({ node, ...props }) => (
+                                <blockquote
+                                  className="border-l-2 border-accent/30 pl-3 italic my-2 text-white/70"
+                                  {...props}
+                                />
+                              ),
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
 
-                      {msg.role === "assistant" && msg.metadata && (
-                          <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+                          {msg.metadata && (
+                            <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
                               {/* Actionable Insight Badge */}
                               {msg.metadata.actionable_insight && (
-                                  <div className="flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-xl px-3 py-2 text-[12px] text-accent font-bold">
-                                      <Zap className="w-3.5 h-3.5" />
-                                      {msg.metadata.actionable_insight}
-                                  </div>
-                              )}
-                              
-                              {/* Sentiment Tag */}
-                              {msg.metadata.sentiment && (
-                                  <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                                      msg.metadata.sentiment === "Bullish" ? "bg-green-500/10 text-green-500" :
-                                      msg.metadata.sentiment === "Bearish" ? "bg-red-500/10 text-red-500" :
-                                      "bg-white/10 text-white/50"
-                                  }`}>
-                                      <Activity className="w-3 h-3" />
-                                      {msg.metadata.sentiment}
-                                  </div>
+                                <div className="flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-xl px-3 py-2 text-[12px] text-accent font-bold">
+                                  <Zap className="w-3.5 h-3.5" />
+                                  {msg.metadata.actionable_insight}
+                                </div>
                               )}
 
-                              {/* Sparkline Chart */}
-                              {msg.metadata.sparkline && msg.metadata.sparkline.length > 0 && (
-                                  <MiniChart 
-                                      data={msg.metadata.sparkline.map((p: number) => ({ price: p }))} 
-                                      color={msg.metadata.sentiment === "Bearish" ? "#f43f5e" : "#10b981"}
+                              {/* Portfolio Analysis Summary Card */}
+                              {msg.type === "portfolio_analysis" &&
+                                msg.metadata.portfolio_summary && (
+                                  <PortfolioSummary
+                                    summary={msg.metadata.portfolio_summary}
+                                    holdings={
+                                      msg.metadata.portfolio_holdings || []
+                                    }
                                   />
-                              )}
+                                )}
 
-                              {/* Action Shortcuts */}
-                              {msg.metadata.tickers && msg.metadata.tickers.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 pt-2">
-                                      {msg.metadata.tickers.map((t: string) => (
-                                          <button 
-                                              key={t}
-                                              className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/20 text-white font-bold text-[11px] transition-all cursor-pointer"
-                                              onClick={() => window.open(`/stock/${t}`, '_self')}
-                                          >
-                                              View {t}
-                                          </button>
+                              {/* Interactive Stock Charts (Max 3) */}
+                              {msg.type !== "portfolio_analysis" &&
+                                msg.metadata.charts &&
+                                msg.metadata.charts.length > 0 && (
+                                  <div className="flex flex-col gap-4">
+                                    {msg.metadata.charts
+                                      .slice(0, 3)
+                                      .map((ticker: string) => (
+                                        <StockChart
+                                          key={ticker}
+                                          ticker={ticker}
+                                        />
                                       ))}
                                   </div>
-                              )}
-                          </div>
+                                )}
+
+                              {/* Action Ticker Shortcuts */}
+                              {msg.metadata.tickers &&
+                                msg.metadata.tickers.length > 0 && (
+                                  <div className="flex flex-wrap gap-2">
+                                    {msg.metadata.tickers.map((t: string) => (
+                                      <button
+                                        key={t}
+                                        className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/20 text-white font-bold text-[11px] transition-all cursor-pointer"
+                                        onClick={() =>
+                                          window.open(`/stock/${t}`, "_blank")
+                                        }
+                                      >
+                                        View {t}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-
                     {msg.role === "assistant" && (
                       <button
                         onClick={() => handleCopy(msg.id, msg.content)}
                         className="flex items-center gap-1.5 ml-[2px] px-3 py-1.5 mt-[-2px] rounded-lg hover:text-[11px] text-text-muted transition-all active:scale-95 cursor-pointer"
                       >
                         {copiedId === msg.id ? (
-                          <>
-                            <Check className="w-4 h-4" />
-                          </>
+                          <Check className="w-4 h-4" />
                         ) : (
-                          <>
-                            <Copy className="w-4 h-4 group-hover:text-white" />
-                          </>
+                          <Copy className="w-4 h-4 group-hover:text-white" />
                         )}
                       </button>
                     )}
@@ -532,23 +645,25 @@ export function Chat() {
                 ))}
 
                 {isTyping && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] px-1">
-                      Thinking...
-                    </p>
-                    <div className="flex gap-1.5 px-1">
-                      {[0, 1, 2].map((i) => (
-                        <motion.div
-                          key={i}
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{
-                            repeat: Infinity,
-                            duration: 1,
-                            delay: i * 0.2,
-                          }}
-                          className="w-1.5 h-1.5 rounded-full bg-accent/50"
-                        />
-                      ))}
+                  <div className="flex flex-col gap-3 max-w-[85%]">
+                    <div className="flex items-center gap-3 px-1">
+                      <div className="flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1,
+                              delay: i * 0.2,
+                            }}
+                            className="w-1.5 h-1.5 rounded-full bg-accent/50"
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 animate-pulse">
+                        {currentStatus || "Thinking..."}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -569,7 +684,11 @@ export function Chat() {
                         !e.shiftKey &&
                         (e.preventDefault(), handleSend())
                       }
-                      placeholder={remainingMessages === 0 ? "You've reached your limit. Come back later!" : "Message Foxy..."}
+                      placeholder={
+                        remainingMessages === 0
+                          ? "You've reached your limit. Come back later!"
+                          : "Message Foxy..."
+                      }
                       disabled={remainingMessages === 0}
                       className="flex-1 bg-transparent border-none focus:ring-0 text-white text-[14px] font-medium px-2 py-3 resize-none outline-none placeholder:text-text-muted/30 disabled:opacity-50"
                     />

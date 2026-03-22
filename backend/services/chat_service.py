@@ -16,18 +16,18 @@ TOOLS = [
         "function_declarations": [
             {
                 "name": "analyze_ticker",
-                "description": "Get deep technical and fundamental analysis for a specific stock ticker (e.g. RELIANCE, TCS). Returns trend, decision, and indicators.",
+                "description": "Deep technical/fundamental analysis. Use this when the user asks about a specific stock (e.g. 'TCS', 'Reliance', 'Check ITC'). Also handles misspelled symbols or name-based queries.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
-                        "ticker": {"type": "string", "description": "The stock ticker symbol (e.g. 'SBIN')"}
+                        "ticker": {"type": "string", "description": "Ticker symbol or name"}
                     },
                     "required": ["ticker"]
                 }
             },
             {
                 "name": "get_market_overview",
-                "description": "Fetch real-time market overview including NIFTY 50, SENSEX, and top gainers/losers.",
+                "description": "Current market indices (NIFTY, SENSEX) and sector movers. Use for 'How is the market?', 'Indices status', etc.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {}
@@ -35,7 +35,7 @@ TOOLS = [
             },
             {
                 "name": "analyze_portfolio",
-                "description": "Perform a comprehensive health check on a list of portfolio holdings. Requires a list of holdings with symbol, avg_cost, and quantity.",
+                "description": "Health check for user holdings. Use whenever they ask about 'my portfolio', 'shares I own', 'my stocks', even if misspelled as 'portfolyo' or 'holdngs'.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
@@ -47,7 +47,7 @@ TOOLS = [
                                     "symbol": {"type": "string"},
                                     "avg_cost": {"type": "number"},
                                     "quantity": {"type": "number"},
-                                    "pnl": {"type": "number", "description": "Optional current P&L"}
+                                    "pnl": {"type": "number"}
                                 },
                                 "required": ["symbol", "avg_cost", "quantity"]
                             }
@@ -74,15 +74,23 @@ CORE RULES:
 RESPONSE FORMAT (JSON ONLY):
 {
   "type": "portfolio_analysis" | "stock_analysis" | "market_overview" | "general" | "off_topic",
-  "narrative": "Your textual response",
+  "narrative": "Your textual response (Markdown supported)",
   "metadata": {
     "tickers": ["SYMBOL"],
+    "charts": ["SYMBOL1", "SYMBOL2"], // Max 3 tickers for interactive charts
+    "portfolio_summary": { "health": "string", "total_pnl": number, "total_value_live": number, "win_rate": "string", "working_capital_pct": number },
+    "portfolio_holdings": [{ "symbol": "string", "holding_context": { "portfolio_weight_pct": number } }], // Top 5
     "actionable_insight": "string",
-    "sentiment": "Bullish" | "Bearish" | "Neutral",
-    "sparkline": [number, ...] 
+    "sentiment": "Bullish" | "Bearish" | "Neutral"
   },
   "ui_hints": { "show_chart": true/false }
 }
+
+FORMATTING RULES:
+- Use **Bold** for tickers, prices, and key decisions.
+- Use Bullet points for multiple reasons or insights.
+- Use `###` headers for sectioning if the response is long.
+- Keep the narrative concise but professional and data-rich.
 """
 
 class ChatEngine:
@@ -90,17 +98,14 @@ class ChatEngine:
         self.model_id = "gemini-2.5-flash"
 
     async def get_response(self, user_message: str, chat_history: list = None, portfolio_context: str = None):
-        contents = []
-        if chat_history:
-            # Map "assistant" to "model" for Gemini SDK
-            for m in chat_history:
-                role = "model" if m.get("role") == "assistant" else m.get("role")
-                contents.append({"role": role, "parts": m.get("parts")})
+        yield {"status": "Thinking..."}
         
+        contents = []
+        # No history sent to avoid model confusion as per request
         prompt = f"User Message: {user_message}"
         if portfolio_context:
             prompt += f"\n\n[PORTFOLIO CONTEXT]\n{portfolio_context}"
-            
+        
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
         response = client.models.generate_content(
@@ -113,20 +118,25 @@ class ChatEngine:
         )
 
         # Handle tool calls if any
-        # Note: In a production environment, this should handle multiple turns for complex tool chains.
-        # For simplicity, we handle one round of tool calls here.
         if response.candidates[0].content.parts[0].function_call:
             tool_results = []
-            print(f"--- FOXY ORCHESTRATION: Gemini calling tools ---")
+            
+            # Emit specific status based on tools being called
+            fn_names = [part.function_call.name for part in response.candidates[0].content.parts if part.function_call]
+            if "analyze_portfolio" in fn_names:
+                yield {"status": "Checking your portfolio health..."}
+            elif "analyze_ticker" in fn_names:
+                yield {"status": "Analyzing stock data and trends..."}
+            elif "get_market_overview" in fn_names:
+                yield {"status": "Fetching latest market indicators..."}
+            else:
+                yield {"status": "Consulting financial tools..."}
+
             for part in response.candidates[0].content.parts:
                 if part.function_call:
                     fn_name = part.function_call.name
                     args = part.function_call.args
-                    
-                    print(f"  [TOOL CALL]: {fn_name} (Args: {args})")
-                    
                     result = await self._execute_tool(fn_name, args)
-                    print(f"  [TOOL SUCCESS]: {fn_name}")
                     
                     tool_results.append({
                         "function_response": {
@@ -135,10 +145,10 @@ class ChatEngine:
                         }
                     })
             
-            print(f"--- FOXY ORCHESTRATION: Generating final narrative ---")
+            yield {"status": "Generating final insights..."}
             # Send results back to Gemini for final narrative
             contents.append(response.candidates[0].content)
-            contents.append({"role": "user", "parts": tool_results}) # parts in tool response role
+            contents.append({"role": "user", "parts": tool_results})
 
             final_response = client.models.generate_content(
                 model=self.model_id,
@@ -148,11 +158,25 @@ class ChatEngine:
                     "tools": TOOLS
                 }
             )
-            print(f"DEBUG RAW FINAL: {final_response.text}")
-            return self._parse_json_response(final_response.text)
-        
-        print(f"DEBUG RAW INITIAL: {response.text}")
-        return self._parse_json_response(response.text)
+            
+            # Extract final text safely
+            res_text = ""
+            for p in final_response.candidates[0].content.parts:
+                if p.text:
+                    res_text += p.text
+            
+            if not res_text:
+                yield self._parse_json_response('{"narrative": "I encountered an error while calculating final insights. Please retry.", "type": "general"}')
+            else:
+                yield self._parse_json_response(res_text)
+            return
+
+        # Handle simple text responses without tools
+        res_text = ""
+        for p in response.candidates[0].content.parts:
+            if p.text:
+                res_text += p.text
+        yield self._parse_json_response(res_text)
 
     async def _execute_tool(self, name: str, args: dict):
         # Local imports to avoid circularity
@@ -161,26 +185,42 @@ class ChatEngine:
         if name == "analyze_ticker":
             res = analyze_single_ticker(args["ticker"])
             if res.get("success"):
-                # Extract a mini sparkline (last 20 points) for the UI
-                chart_data = res.get("data", {}).get("chart_data", [])
-                sparkline = [float(p["price"]) for p in chart_data[-20:]]
-                res["sparkline"] = sparkline
+                d = res.get("data", {})
+                return {
+                    "symbol": res.get("symbol"),
+                    "companyName": d.get("companyName"),
+                    "price": d.get("price"),
+                    "trend": d.get("trend"),
+                    "decision": d.get("decision"),
+                    "reasons": d.get("reasons"),
+                    "risk_level": d.get("risk_level"),
+                    "indicators": d.get("indicators"),
+                    "fundamentals": d.get("fundamentals"),
+                    "sparkline": [float(p["price"]) for p in d.get("chart_data")[-20:]] if d.get("chart_data") else []
+                }
             return res
         
         elif name == "get_market_overview":
             return get_market_overview()
         
         elif name == "analyze_portfolio":
-            results = []
+            holdings = []
             for h in args["holdings"]:
-                res = analyze_single_holding(h["symbol"], h["avg_cost"], h["quantity"], h.get("pnl", 0))
-                if res.get("success"):
-                    results.append(res)
+                holdings.append({
+                    "symbol": h["symbol"],
+                    "quantity": h["quantity"],
+                    "avg_cost": h["avg_cost"],
+                    "pnl": h.get("pnl", 0)
+                })
             
-            # Simple summary for AI
+            # Re-run same logic as main.py but inside service
+            from portfolio_logic import run_portfolio_analysis
+            summary_data = run_portfolio_analysis(holdings)
+            
             return {
-                "total_holdings": len(results),
-                "analyzed": results
+                "success": True,
+                "summary": summary_data.get("portfolio_summary"),
+                "holdings": summary_data.get("portfolio_analysis")[:10] # Top 10 for AI
             }
         
         return {"error": "Tool not found"}

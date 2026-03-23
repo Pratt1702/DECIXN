@@ -92,6 +92,18 @@ async def main():
 
     print("Inserted successfully. News ID:", news_id)
 
+async def news_exists(url: str) -> bool:
+
+    res = (
+        supabase
+        .table("news")
+        .select("id")
+        .eq("url", url)
+        .limit(1)
+        .execute()
+    )
+
+    return bool(res.data)
 
 if __name__ == "__main__":
     asyncio.run(main())

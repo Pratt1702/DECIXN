@@ -1,7 +1,7 @@
 from .pulse_news import fetch_et_articles
 from .article_parser import extract_article_text
 from .gemini_service import analyze_news
-from .db_service import insert_news, insert_stocks, insert_sectors
+from .db_service import insert_news, insert_stocks, insert_sectors, news_exists
 
 
 async def ingest_once(limit: int = 5, company: str | None = None):
@@ -13,7 +13,10 @@ async def ingest_once(limit: int = 5, company: str | None = None):
         return
 
     for item in articles:
-
+        if await news_exists(item["url"]):
+            print("⏭️ Already ingested, skipping")
+            continue
+            
         # 🔎 Company filter
         if company:
             text = f"{item['title']} {item.get('summary','')}".lower()

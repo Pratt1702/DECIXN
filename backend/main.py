@@ -75,10 +75,12 @@ class ChatRequest(BaseModel):
     user_id: str = "anonymous"
     session_id: str = None
 
+from typing import Union
+
 class AlertCondition(BaseModel):
     indicator: str
     operator: str
-    value: float
+    value: Union[float, str]
 
 class AlertRequest(BaseModel):
     user_id: str

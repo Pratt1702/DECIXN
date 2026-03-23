@@ -1,5 +1,5 @@
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from ..supabase_client import supabase
 from ..data_fetcher import fetch_data
 from ..technical_indicators import calculate_indicators
@@ -162,7 +162,7 @@ class AlertService:
                         supabase.table("alerts").update({
                             "is_triggered": True,
                             "is_active": False,
-                            "triggered_at": datetime.now().isoformat()
+                            "triggered_at": datetime.now(timezone.utc).isoformat()
                         }).eq("id", alert["id"]).execute()
 
         except Exception as e:

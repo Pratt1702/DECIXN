@@ -1,5 +1,5 @@
 from ..supabase_client import supabase
-from datetime import datetime
+from datetime import datetime, timezone
 
 class NotificationService:
     @staticmethod
@@ -15,7 +15,7 @@ class NotificationService:
                 "type": notif_type,
                 "metadata": metadata or {},
                 "is_read": False,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             res = supabase.table("notifications").insert(data).execute()
             return res.data

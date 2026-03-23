@@ -11,3 +11,4 @@ google-genai
 google-generativeai
 supabase
 python-dotenv
+dotenv

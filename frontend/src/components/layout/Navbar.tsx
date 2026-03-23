@@ -92,13 +92,13 @@ export function Navbar() {
 
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => navigate("/stocks")}
+              onClick={() => navigate("/stocks/holdings")}
               className={`text-base font-black tracking-tight transition-colors ${isStocks ? "text-white" : "text-text-muted hover:text-white"}`}
             >
               Stocks
             </button>
             <button 
-              onClick={() => navigate("/mutual-funds")}
+              onClick={() => navigate("/mutual-funds/holdings")}
               className={`text-base font-black tracking-tight transition-colors ${isMF ? "text-white" : "text-text-muted hover:text-white"}`}
             >
               Mutual Funds

@@ -12,6 +12,7 @@ erDiagram
     watchlists ||--o{ watchlist_items : "contains"
     news ||--o{ news_sectors : "impacts"
     news ||--o{ news_stocks : "mentions"
+    mf_schemes ||--o{ mf_nav_history : "has price"
 
     profiles {
         uuid id PK
@@ -78,6 +79,21 @@ erDiagram
         boolean is_triggered
         timestamp created_at
         timestamp triggered_at
+    }
+    
+    mf_schemes {
+        text scheme_code PK
+        text scheme_name
+        text amc_name
+        text scheme_category
+        timestamp last_updated
+    }
+
+    mf_nav_history {
+        bigint id PK
+        text scheme_code FK
+        decimal nav
+        date nav_date
     }
 ```
 
@@ -188,6 +204,27 @@ Persisted chatbot conversations and session metadata.
 | `content` | `text` | `NOT NULL` | Textual content. |
 | `metadata` | `jsonb` | `DEFAULT '{}'` | Extracted tickers, charts, sentiment. |
 | `created_at` | `timestamp` | `DEFAULT now()` | Sent timestamp. |
+
+### `mf_schemes`
+The central registry for all Indian mutual fund schemes (sourced from AMFI).
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `scheme_code` | `text` | `PK` | Unique AMFI scheme identifier. |
+| `scheme_name` | `text` | `NOT NULL` | Full name of the fund. |
+| `amc_name` | `text` | | Name of the Asset Management Company. |
+| `scheme_category`| `text` | | Fund category (e.g., Equity: Large Cap). |
+| `last_updated` | `timestamp` | | Time of last regulatory sync. |
+
+### `mf_nav_history`
+Historical price (NAV) data for mutual funds.
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `bigint` | `PK` | Unique record identifier. |
+| `scheme_code` | `text` | `FK (mf_schemes)` | Associated scheme. |
+| `nav` | `decimal` | `NOT NULL` | Net Asset Value on the given date. |
+| `nav_date` | `date` | `NOT NULL` | The date for which NAV is recorded. |
 
 ---
 

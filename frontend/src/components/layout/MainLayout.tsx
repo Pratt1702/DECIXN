@@ -1,12 +1,14 @@
 import { Outlet } from "react-router-dom";
 import { Navbar } from "./Navbar";
+import { SubNavbar } from "./SubNavbar";
 
 export function MainLayout() {
   return (
-    <div className="min-h-screen bg-bg-main text-text-muted font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-[#0a0a0a] text-text-muted font-sans antialiased overflow-x-hidden">
       <Navbar />
-      {/* max-w-4xl keeps everything in the middle with rich whitespace */}
-      <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+      <SubNavbar />
+      {/* max-w-7xl for better alignment with navbar containers */}
+      <main className="mx-auto max-w-7xl px-6 py-10 min-h-[calc(100vh-120px)]">
         <Outlet />
       </main>
     </div>

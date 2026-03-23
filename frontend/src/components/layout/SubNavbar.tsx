@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const STOCK_LINKS = [
@@ -17,7 +17,6 @@ const MF_LINKS = [
 
 export function SubNavbar() {
   const location = useLocation();
-  const navigate = useNavigate();
 
   const isStocks = location.pathname.startsWith("/stocks");
   const isMF = location.pathname.startsWith("/mutual-funds");
@@ -29,13 +28,13 @@ export function SubNavbar() {
   return (
     <div className="w-full border-b border-white/5 bg-[#0a0a0a]/40 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-6 h-12 flex items-center gap-8">
-        {links.map((link) => {
+        {links.map((link: { label: string; path: string }) => {
           const isActive = location.pathname === link.path;
           return (
-            <button
+            <Link
               key={link.path}
-              onClick={() => navigate(link.path)}
-              className={`relative h-full flex items-center text-sm font-bold tracking-tight transition-colors ${
+              to={link.path}
+              className={`relative h-full flex items-center text-sm font-bold tracking-tight transition-colors cursor-pointer ${
                 isActive ? "text-white" : "text-text-muted hover:text-text-bold"
               }`}
             >
@@ -46,7 +45,7 @@ export function SubNavbar() {
                   className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent"
                 />
               )}
-            </button>
+            </Link>
           );
         })}
       </div>

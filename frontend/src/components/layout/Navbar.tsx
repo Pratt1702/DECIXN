@@ -1,5 +1,5 @@
 import { Search, Bell, Loader2, LogOut, User } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { searchStocks } from "../../services/api";
 import { motion } from "framer-motion";
@@ -108,18 +108,18 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-6">
-            <button 
-              onClick={() => navigate("/stocks/holdings")}
-              className={`text-base font-black tracking-tight transition-colors ${isStocks ? "text-white" : "text-text-muted hover:text-white"}`}
+            <Link 
+              to="/stocks/holdings"
+              className={`text-base font-black tracking-tight transition-colors cursor-pointer ${isStocks ? "text-white" : "text-text-muted hover:text-white"}`}
             >
               Stocks
-            </button>
-            <button 
-              onClick={() => navigate("/mutual-funds/holdings")}
-              className={`text-base font-black tracking-tight transition-colors ${isMF ? "text-white" : "text-text-muted hover:text-white"}`}
+            </Link>
+            <Link 
+              to="/mutual-funds/holdings"
+              className={`text-base font-black tracking-tight transition-colors cursor-pointer ${isMF ? "text-white" : "text-text-muted hover:text-white"}`}
             >
               Mutual Funds
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -179,7 +179,7 @@ export function Navbar() {
                 className="absolute right-0 mt-3 w-80 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col"
               >
                 <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
-                  <span className="text-xs font-black text-text-bold uppercase tracking-widest">Recent Intelligence</span>
+                  <span className="text-xs font-black text-text-bold uppercase tracking-widest">Recent Notifications</span>
                   {unreadCount > 0 && (
                     <span className="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full">{unreadCount} New</span>
                   )}
@@ -216,12 +216,13 @@ export function Navbar() {
                   )}
                 </div>
 
-                <button 
-                  onClick={() => { navigate("/notifications"); setIsNotifOpen(false); }}
-                  className="w-full py-3.5 text-[10px] font-black text-accent uppercase tracking-widest bg-white/[0.02] hover:bg-white/[0.05] transition-all border-t border-white/5"
+                <Link 
+                  to="/notifications"
+                  onClick={() => setIsNotifOpen(false)}
+                  className="w-full py-3.5 text-[10px] font-black text-accent uppercase tracking-widest bg-white/[0.02] hover:bg-white/[0.05] transition-all border-t border-white/5 text-center block cursor-pointer"
                 >
-                  See All Notifications
-                </button>
+                  See All
+                </Link>
               </motion.div>
             )}
           </div>

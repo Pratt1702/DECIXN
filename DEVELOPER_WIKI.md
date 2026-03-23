@@ -9,67 +9,61 @@ Welcome to the **DECIXN** Technical Wiki. This document provides a deep-dive int
 The project is divided into a **FastAPI backend** and a **React/Vite frontend**.
 
 ### **Backend (`/backend`)**
-*   `main.py`: Entry point, API routing, and Rate Limiting (10 msgs / 30 mins).
-*   `market_intelligence.py`: High-level orchestration for single-ticker analysis, portfolio holdings, and market overview. Contains the 15-minute overview cache.
-*   `portfolio_logic.py`: Algorithms for win-rate, total P&L, and **Working vs. Trapped Capital** segmentation.
+*   `main.py`: Entry point, API routing, and Rate Limiting. Contains the **Hybrid Alert Models** (`Union[float, str]`).
+*   `market_intelligence.py`: High-level orchestration for analysis and market overview.
 *   `services/`:
-    *   `chat_service.py`: Foxy v1 (Gemini 2.5 Flash) orchestration with tool-calling capabilities.
-    *   `decision_engine.py`: The core "AI" logic. Implements normalized confluence scoring and deterministic pattern recognition.
-    *   `technical_indicators.py`: TA-Lib style calculations (RSI, MACD, SMA/EMA, ATR).
-    *   `signal_generator.py`: Converts raw indicators into primary Bullish/Bearish signals.
-    *   `data_fetcher.py`: Standardized wrapper for `yfinance` with period handling.
-    *   `pulse_news.py`: News scraping and Gemini-based sentiment analysis.
-    *   `supabase_client.py`: Auth and persistence integration.
+    *   `alerts/`:
+        *   `alert_service.py`: Evaluates active monitors against real-time signals. Implements "One-Time Trigger" logic.
+        *   `notification_service.py`: Manages persistence of triggered signals and read-states.
+    *   `pulse_news.py`: Zenodha Pulse scraper with fuzzy query matching and recency filtering.
+    *   `ingestion_service.py`: Implements **Fuzzy Header Matching** for broker CSV exports.
+    *   `chat_service.py`: Foxy v1 (Gemini 1.5 Flash) orchestration with tool-calling.
+    *   `decision_engine.py`: Core logic for confluence scoring and pattern recognition.
+    *   `technical_indicators.py`: TA-Lib style calculations (RSI, MACD, SMA/EMA).
+    *   `signal_generator.py`: Generates primary Bullish/Bearish and Strategic Pattern signals.
+    *   `supabase_client.py`: Auth and `TIMESTAMPTZ` persistence integration.
 
 ### **Frontend (`/frontend`)**
-*   `src/store/`: Zustand state management (`useAuthStore`, `usePortfolioStore`, `useWatchlistStore`, `useExploreStore`).
-*   `src/services/api.ts`: Centralized Axios client with a 5-minute local cache for portfolio data.
-*   `src/pages/`: Page components (Holdings, Explore, Chat, StockDetails, etc.).
-*   `src/components/`: Reusable UI elements, Layouts, and Dashboard widgets.
+*   `src/store/`: Zustand state management (`useAuthStore`, `usePortfolioStore`, `useWatchlistStore`, `useNotificationStore`).
+*   `src/services/api.ts`: Centralized Axios client with specialized `createAlert` and `getNotifications` endpoints.
+*   `src/components/dashboard/`: Includes the **Draggable Alert Modal** and **SVG Sparkline Engine**.
+*   `src/pages/Terminal.tsx`: Integration of the **Advanced TradingView Technical Suite**.
 
 ---
 
 ## 🧠 Technical Logic Engines
 
-### 1. **Decision Engine (The Brain)**
-The decision engine uses a **Normalized Confluence Score (0-100)** to determine ratings.
-*   **Base Score**: 45.
-*   **Boosters**:
-    *   **Breakout Strength**: Up to +40 points (normalized to 3% move threshold).
-    *   **Volume Ratio**: Up to +20 points (normalized to 2.0x volume spike).
-    *   **Trend Proximity**: +20 points for "Buy the Dip" setups near the 20-day SMA.
-    *   **RSI Oversold**: +15 points if RSI < 30 in a bullish structure.
-*   **Penalty Factors**:
-    *   **Overbought**: -15 points if RSI > 70.
-    *   **Structural Breakdown**: -10 points if price is >8% below 20-day SMA.
-    *   **Momentum Loss**: -10 points for MACD bearish crossovers.
+### 1. **Intelligent Alert Engine**
+The alert engine handles cross-type evaluation using a **Hybrid Context**:
+*   **Numeric Evaluation**: Standard operators (`>`, `<`, `==`) for Price, RSI, etc.
+*   **String Evaluation**: Case-insensitive matching (`==`, `!=`) for Trends (Bullish/Bearish) and Signals (Buy/Sell).
+*   **State Management**: Triggered alerts are automatically set to `is_active: False`.
 
-### 2. **Portfolio Health Algorithm**
-Categorizes capital based on trend alignment:
-*   **Working Capital**: Total value of holdings where the Trend is 'Bullish'.
-*   **Trapped Capital**: Total value of holdings where the Trend is 'Bearish'.
-*   **Status Logic**:
-    *   **STRONG**: Win rate > 50% and positive aggregate P&L.
-    *   **FAIR**: Negative P&L but < 30% "Cut Loss" alerts.
-    *   **WEAK**: Win rate < 50% or > 30% of holdings marked as "REDUCE / EXIT".
+### 2. **Decision Engine & Scoring**
+Employs a **Normalized Confluence Score (NCS)** from 0-100:
+*   **Base Score**: 45.
+*   **Boosters**: Breakout Strength (+40), Volume Ratio (+20), Trend Proximity (+20).
+*   **Success Metrics**: Deterministic historical successes are provided (e.g., High-Conviction Breakout: 72% success).
+*   **Momentum Guards**: Logic in `portfolio_logic.py` prevents "Averaging Down" if MA-slopes are negative.
 
 ---
 
 ## 🔄 Core Data Workflows
 
-### **CSV Ingestion Workflow**
-1.  **Frontend**: User uploads CSV (Zerodha Kite format).
-2.  **API**: Client calls `POST /analyze/portfolio` with raw holding data.
-3.  **Backend**: `run_portfolio_analysis` spawns `ThreadPoolExecutor(max_workers=10)` to analyze each holding in parallel.
-4.  **Enrichment**: Each ticker is fetched via `yfinance`, passed through `calculate_indicators` -> `generate_signals` -> `make_holding_decision`.
-5.  **Output**: Aggregated JSON containing health metrics and individual actionable insights.
+### **Privacy-First Data Architecture**
+1.  **Ingestion**: CSV data is parsed in the browser via `PapaParse` or in the backend via `ingestion_service.py`.
+2.  **Storage**: Portfolio holdings are stored **Locally** in `IndexedDB`.
+3.  **Analysis**: Backend receives symbol lists, processes technicals, and returns ephemeral results. No portfolio data is persisted in a database.
 
-### **Foxy v1 (AI Assistant) Pipeline**
-1.  **Request**: User sends message + (Optional) Portfolio Context.
-2.  **Model**: Gemini 2.5 Flash evaluates the prompt.
-3.  **Tool Call**: Model may call `analyze_ticker(symbol)` or `get_user_position(symbol)`.
-4.  **Execution**: `ChatEngine` executes the corresponding Python function locally.
-5.  **Streaming**: Final narrative + metadata (charts, summaries) is streamed back via nd-json.
+### **SVG Sparkline Engine**
+1.  **Data**: Frontend fetches 1W/1M historical close prices.
+2.  **Rendering**: `Watchlist.tsx` uses custom SVG path generation with gradated fills based on 1D performance (Success/Danger).
+3.  **Benchmarks**: Includes a dashed reference line for the **Previous Close** value.
+
+### **UTC-First Timestamp Standard**
+All time-series data utilizes `TIMESTAMPTZ`:
+*   **Backend**: Generations use `datetime.now(timezone.utc).isoformat()`.
+*   **DB**: Columns use `AT TIME ZONE 'UTC'` to ensure "Time Ago" accuracy.
 
 ---
 
@@ -77,29 +71,15 @@ Categorizes capital based on trend alignment:
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/analyze/{ticker}` | GET | Full technical & fundamental deep-dive for a symbol. |
-| `/analyze/portfolio` | GET/POST | Processes holdings (CSV or JSON) and returns health audit. |
-| `/market/overview` | GET | Fetches Nifty, Sensex, and Gainers/Losers (15m cache). |
-| `/quotes/batch` | POST | Efficient lightweight retrieval for Watchlists (inc. sparklines). |
-| `/search/{query}` | GET | Real-time Indian equity symbols autocomplete. |
+| `/analyze/{ticker}` | GET | Full technical deep-dive + Institutional Pivots. |
+| `/alerts` | POST | Create a new multi-condition monitor. |
+| `/notifications/{id}` | GET | Fetch notification feed for a specific user. |
 | `/chat` | POST | Streaming endpoint for Foxy v1 Assistant. |
-| `/chat/history/{id}` | GET | Retrieve user-specific session history. |
-
----
-
-## 🛠️ Setup & Environment
-
-**Backend (.env)**:
-*   `GEMINI_API_KEY`: Required for Foxy v1 and News Sentiment.
-*   `SUPABASE_URL` / `SUPABASE_KEY`: Required for Auth and Chat history.
-
-**Frontend (.env/config)**:
-*   `VITE_API_BASE_URL`: Defaults to `http://localhost:8000`.
-*   `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+| `/quotes/batch` | POST | Optimized retrieval for Watchlists with intraday sparklines. |
 
 ---
 
 ## 🧪 Technical Quality Standards
-*   **Numerical Safety**: `sanitize_data()` recursively cleans all API responses to handle `NaN` and `Inf` values common in financial datasets.
-*   **Concurrency**: Uses `ThreadPoolExecutor` for batch processing to minimize wait times during portfolio loads.
-*   **Sustainability**: Implements a `RateLimiter` class to prevent API key exhaustion while maintaining a generous free tier (10 msgs / 30 mins).
+*   **UI Sensitivity**: Modal units use `dragMomentum={false}` and `backdrop-blur-3xl`.
+*   **Fuzzy Matching**: Broker CSVs are matched via regex keywords (Symbol, Qty, Cost) to allow multi-broker flexibility.
+*   **Design Scale**: Typography is scaled to `text-[11px]` benchmarks for a dense terminal feel.

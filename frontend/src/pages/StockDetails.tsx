@@ -10,6 +10,7 @@ import {
   BarChart2,
   CandlestickChart,
   Bookmark,
+  Bell,
 } from "lucide-react";
 import {
   LineChart,
@@ -27,6 +28,7 @@ import {
 } from "../components/dashboard/TechnicalIndicators";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { WatchlistModal } from "../components/dashboard/WatchlistModal";
+import { AlertModal } from "../components/dashboard/AlertModal";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import gsap from "gsap";
 
@@ -66,6 +68,7 @@ export function StockDetails() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { addRecentView } = useExploreStore();
   const [modalOpen, setModalOpen] = useState(false);
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
   const { isSymbolInAnyWatchlist } = useWatchlistStore();
 
   const handlePeriodChange = (p: string) => {
@@ -263,6 +266,13 @@ export function StockDetails() {
                 title="Save to Watchlist"
               >
                 <Bookmark className={`w-6 h-6 ${isSymbolInAnyWatchlist(ticker || '') ? 'fill-accent' : ''}`} />
+              </button>
+              <button
+                onClick={() => setAlertModalOpen(true)}
+                className="ml-2 p-2 rounded-xl border border-white/10 bg-white/5 text-white/40 hover:text-white/80 hover:bg-white/10 transition-all cursor-pointer active:scale-95"
+                title="Set Alert"
+              >
+                <Bell className="w-6 h-6" />
               </button>
             </div>
           )}
@@ -728,6 +738,12 @@ export function StockDetails() {
       <WatchlistModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+        symbol={data?.symbol || ticker || ""}
+      />
+
+      <AlertModal
+        isOpen={alertModalOpen}
+        onClose={() => setAlertModalOpen(false)}
         symbol={data?.symbol || ticker || ""}
       />
     </div>

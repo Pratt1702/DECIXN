@@ -12,6 +12,8 @@ import { Watchlist } from "./pages/Watchlist";
 import { PortfolioInfo } from "./pages/PortfolioInfo";
 import { Chat } from "./pages/Chat";
 import { MFHoldings } from "./pages/MFHoldings";
+import { AlertsManagement } from "./pages/AlertsManagement";
+import { Notifications } from "./pages/Notifications";
 import "./App.css";
 
 function App() {
@@ -31,8 +33,11 @@ function App() {
             <Route path="holdings" element={<Holdings />} />
             <Route path="insights" element={<Insights />} />
             <Route path="watchlist" element={<Watchlist />} />
+            <Route path="alerts" element={<AlertsManagement />} />
             <Route path="details/:ticker" element={<StockDetails />} />
           </Route>
+
+          <Route path="notifications" element={<Notifications />} />
 
           {/* Mutual Funds Section */}
           <Route path="mutual-funds">

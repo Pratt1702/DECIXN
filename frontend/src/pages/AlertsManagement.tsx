@@ -134,13 +134,14 @@ export function AlertsManagement() {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleToggleActive(alert.id, alert.is_active)}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer active:scale-95 ${
+                      onClick={() => !alert.is_triggered && handleToggleActive(alert.id, alert.is_active)}
+                      disabled={alert.is_triggered}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${
                         alert.is_active 
                         ? "bg-accent/10 border-accent/20 text-accent hover:bg-accent/20" 
                         : "bg-white/5 border-white/10 text-text-muted hover:text-text-bold hover:bg-white/10"
                       }`}
-                      title={alert.is_active ? "Pause Alert" : "Resume Alert"}
+                      title={alert.is_triggered ? "Alert completed" : alert.is_active ? "Pause Alert" : "Resume Alert"}
                     >
                       <Power className="w-5 h-5" />
                     </button>

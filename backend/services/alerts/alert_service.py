@@ -92,6 +92,8 @@ class AlertService:
                     "rsi": signals.get("RSI"),
                     "volume_ratio": signals.get("Volume_Ratio"),
                     "trend": signals.get("Trend"),
+                    "signal": signals.get("Signal"),
+                    "pattern": signals.get("Pattern"),
                     "dist_ma20": signals.get("Dist_MA20"),
                     "dist_ma50": signals.get("Dist_MA50"),
                     "macd": signals.get("MACD", {}).get("MACD_Line"),
@@ -156,9 +158,10 @@ class AlertService:
                             }
                         )
 
-                        # Update alert state
+                        # Update alert state (Mark as triggered AND deactivate as per new requirement)
                         supabase.table("alerts").update({
                             "is_triggered": True,
+                            "is_active": False,
                             "triggered_at": datetime.now().isoformat()
                         }).eq("id", alert["id"]).execute()
 

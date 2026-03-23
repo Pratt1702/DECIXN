@@ -7,7 +7,7 @@ import { createAlert } from "../../services/api";
 interface Condition {
   indicator: string;
   operator: string;
-  value: number;
+  value: string | number;
 }
 
 interface AlertModalProps {
@@ -17,21 +17,24 @@ interface AlertModalProps {
 }
 
 const INDICATORS = [
-  { id: "price", label: "Price", unit: "₹" },
-  { id: "rsi", label: "RSI (14)", unit: "" },
-  { id: "volume_ratio", label: "Volume Ratio", unit: "x" },
-  { id: "macd", label: "MACD Line", unit: "" },
-  { id: "macd_hist", label: "MACD Histogram", unit: "" },
-  { id: "dist_ma20", label: "Price vs MA20", unit: "%" },
-  { id: "dist_ma50", label: "Price vs MA50", unit: "%" }
+  { id: "price", label: "Price", unit: "₹", type: "numeric" },
+  { id: "rsi", label: "RSI (14)", unit: "", type: "numeric" },
+  { id: "volume_ratio", label: "Volume Ratio", unit: "x", type: "numeric" },
+  { id: "trend", label: "Trend", unit: "", type: "string" },
+  { id: "signal", label: "Signal (Buy/Sell)", unit: "", type: "string" },
+  { id: "pattern", label: "Pattern", unit: "", type: "string" },
+  { id: "macd", label: "MACD Line", unit: "", type: "numeric" },
+  { id: "dist_ma20", label: "Price vs MA20", unit: "%", type: "numeric" },
+  { id: "dist_ma50", label: "Price vs MA50", unit: "%", type: "numeric" }
 ];
 
 const OPERATORS = [
-  { id: ">", label: "Greater than" },
-  { id: ">=", label: "Greater or equal" },
-  { id: "<", label: "Less than" },
-  { id: "<=", label: "Less or equal" },
-  { id: "==", label: "Exactly equal" }
+  { id: ">", label: "Greater than", types: ["numeric"] },
+  { id: ">=", label: "Greater or equal", types: ["numeric"] },
+  { id: "<", label: "Less than", types: ["numeric"] },
+  { id: "<=", label: "Less or equal", types: ["numeric"] },
+  { id: "==", label: "Equals (==)", types: ["numeric", "string"] },
+  { id: "!=", label: "Not Equals (!=)", types: ["numeric", "string"] },
 ];
 
 export function AlertModal({ isOpen, onClose, symbol }: AlertModalProps) {
@@ -57,6 +60,16 @@ export function AlertModal({ isOpen, onClose, symbol }: AlertModalProps) {
   const updateCondition = (index: number, field: keyof Condition, value: any) => {
     const newConditions = [...conditions];
     newConditions[index] = { ...newConditions[index], [field]: value };
+    
+    // If indicator changed, reset operator if incompatible
+    if (field === "indicator") {
+      const indicator = INDICATORS.find(i => i.id === value);
+      const isNumeric = indicator?.type === "numeric";
+      if (!isNumeric && !["==", "!="].includes(newConditions[index].operator)) {
+        newConditions[index].operator = "==";
+      }
+    }
+    
     setConditions(newConditions);
   };
 
@@ -80,33 +93,27 @@ export function AlertModal({ isOpen, onClose, symbol }: AlertModalProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 pointer-events-none z-[100] flex items-center justify-center">
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        
-        <motion.div
+          drag
+          dragMomentum={false}
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="pointer-events-auto relative w-full max-w-lg bg-[#0a0a0a]/90 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_32px_128px_-32px_rgba(0,0,0,1)] overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.05] cursor-move active:cursor-grabbing group/header">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-accent/10 border border-accent/20">
+              <div className="p-2.5 rounded-xl bg-accent/20 border border-accent/30 group-hover/header:scale-110 transition-transform">
                 <Bell className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-text-bold tracking-tight">
-                  Set Intelligent Alert
+                <h3 className="text-lg font-black text-text-bold tracking-tight flex items-center gap-2">
+                  Deploy Monitor <span className="text-white/20">/</span> {symbol}
                 </h3>
-                <p className="text-xs text-text-muted mt-0.5 font-bold uppercase tracking-wider">
-                  Target: <span className="text-accent">{symbol}</span>
+                <p className="text-[10px] text-text-muted mt-0.5 font-bold uppercase tracking-widest flex items-center gap-2">
+                  Draggable Intelligence Unit <span className="w-1 h-1 bg-accent rounded-full animate-pulse" />
                 </p>
               </div>
             </div>
@@ -158,16 +165,18 @@ export function AlertModal({ isOpen, onClose, symbol }: AlertModalProps) {
                       onChange={(e) => updateCondition(idx, "operator", e.target.value)}
                       className="bg-[#121212] border border-white/10 rounded-lg px-3 py-2 text-sm text-text-bold focus:outline-none focus:border-accent/50 transition-all font-bold cursor-pointer"
                     >
-                      {OPERATORS.map(o => <option key={o.id} value={o.id} className="cursor-pointer">{o.label}</option>)}
+                      {OPERATORS.filter(o => o.types.includes(INDICATORS.find(ind => ind.id === cond.indicator)?.type || "numeric")).map(o => (
+                        <option key={o.id} value={o.id} className="cursor-pointer">{o.label}</option>
+                      ))}
                     </select>
 
                     <div className="relative">
                       <input
-                        type="number"
+                        type={INDICATORS.find(i => i.id === cond.indicator)?.type === "numeric" ? "number" : "text"}
                         value={cond.value}
-                        onChange={(e) => updateCondition(idx, "value", parseFloat(e.target.value) || 0)}
+                        onChange={(e) => updateCondition(idx, "value", e.target.value)}
                         className="w-full bg-[#121212] border border-white/10 rounded-lg px-3 py-2 text-sm text-text-bold focus:outline-none focus:border-accent/50 transition-all font-black placeholder:text-white/10"
-                        placeholder="0.00"
+                        placeholder="Value..."
                       />
                       <span className="absolute right-3 top-2 text-[10px] font-black text-white/20 uppercase">
                         {INDICATORS.find(i => i.id === cond.indicator)?.unit}

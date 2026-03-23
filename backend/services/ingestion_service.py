@@ -74,3 +74,4 @@ if __name__ == "__main__":
             company="HDFC"  # 🔎 change this
         )
     )
+# python -m services.ingestion_service

@@ -117,10 +117,13 @@ export function StockDetails() {
   useEffect(() => {
     async function fetchTicker() {
       if (!ticker) return;
+      
+      const cleanTicker = ticker.toUpperCase().replace(".NS", "").replace(".BO", "");
+      
       setLoading(true);
       setData(null);
       try {
-        const res = await getTickerAnalysis(ticker);
+        const res = await getTickerAnalysis(cleanTicker);
         setData({
           symbol: res.symbol,
           companyName: res.data.companyName,

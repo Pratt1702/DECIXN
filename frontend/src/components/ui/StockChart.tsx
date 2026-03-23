@@ -217,7 +217,10 @@ export function StockChart({ ticker }: StockChartProps) {
             </div>
         </div>
         <button 
-            onClick={() => window.open(`/stock/${ticker}`, '_blank')}
+            onClick={() => {
+              const cleanTicker = ticker.replace(".NS", "").replace(".BO", "");
+              window.open(`/stocks/details/${cleanTicker}`, '_blank');
+            }}
             className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-[10px] font-black text-white/70 uppercase tracking-widest transition-all active:scale-95"
         >
             Analysis

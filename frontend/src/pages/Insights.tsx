@@ -475,7 +475,10 @@ export function Insights() {
                     transition={{ duration: 0.3, ease: "easeOut" }}
                     key={item.symbol}
                     className={`bg-bg-surface border border-border-main border-l-[3px] ${accentBorder} rounded-xl hover:border-[#333] transition-all duration-200 cursor-pointer group relative`}
-                    onClick={() => navigate(`/stock/${item.symbol}`)}
+                    onClick={() => {
+                      const cleanTicker = item.symbol.replace(".NS", "").replace(".BO", "");
+                      navigate(`/stocks/details/${cleanTicker}`);
+                    }}
                   >
                     {/* ── HEADER ── */}
                     <div className="px-6 pt-5 pb-4 flex justify-between items-start">

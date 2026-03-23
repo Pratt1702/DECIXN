@@ -753,9 +753,10 @@ export function Chat() {
                                       <button
                                         key={t}
                                         className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/20 text-white font-bold text-[11px] transition-all cursor-pointer"
-                                        onClick={() =>
-                                          window.open(`/stock/${t}`, "_blank")
-                                        }
+                                        onClick={() => {
+                                          const cleanT = t.replace(".NS", "").replace(".BO", "");
+                                          window.open(`/stocks/details/${cleanT}`, "_blank");
+                                        }}
                                       >
                                         View {t}
                                       </button>

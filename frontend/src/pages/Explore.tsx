@@ -159,7 +159,10 @@ export function Explore() {
     return (
       <div
         key={item.symbol}
-        onClick={() => navigate(`/stock/${item.symbol}`)}
+        onClick={() => {
+          const cleanTicker = item.symbol.replace(".NS", "").replace(".BO", "");
+          navigate(`/stocks/details/${cleanTicker}`);
+        }}
         className="min-w-[200px] w-[200px] sm:min-w-[220px] sm:w-[220px] bg-[#121212] border border-white/10 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:bg-white/5 hover:border-white/20 transition-all duration-300 group shrink-0 shadow-lg relative overflow-hidden"
       >
         {/* Subtle background index number for aesthetics */}

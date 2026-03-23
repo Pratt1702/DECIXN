@@ -54,7 +54,7 @@ async def fetch_article_content(client: httpx.AsyncClient, url: str, title: str)
         "source": "Economic Times"
     }
 
-async def fetch_et_articles(limit: int = 15):
+async def fetch_et_articles(limit: int | None = None):
     try:
         async with httpx.AsyncClient(headers=HEADERS) as client:
             resp = await client.get(ET_NEWS_URL, timeout=30)
@@ -124,7 +124,7 @@ def is_recent(time_raw: str | None):
 # --------------------------------------------------
 
 async def get_company_news(query: str):
-    raw_articles = await fetch_et_articles()
+    raw_articles = await fetch_et_articles(limit=None)
 
     filtered = [
         a for a in raw_articles
@@ -138,7 +138,7 @@ async def get_company_news(query: str):
 # --------------------------------------------------
 
 async def main():
-    query = "Vedanta"   # change to any company / keyword
+    query = "nifty"   # change to any company / keyword
 
     print(f"\nFetching recent ET news for: {query}\n")
 

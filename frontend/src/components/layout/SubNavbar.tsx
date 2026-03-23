@@ -6,6 +6,7 @@ const STOCK_LINKS = [
   { label: "Holdings", path: "/stocks/holdings" },
   { label: "Insights", path: "/stocks/insights" },
   { label: "Watchlist", path: "/stocks/watchlist" },
+  { label: "Alerts", path: "/stocks/alerts" },
 ];
 
 const MF_LINKS = [

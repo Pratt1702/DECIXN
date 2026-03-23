@@ -10,6 +10,7 @@ import {
   BarChart2,
   CandlestickChart,
   Bookmark,
+  Bell,
 } from "lucide-react";
 import {
   LineChart,
@@ -27,6 +28,7 @@ import {
 } from "../components/dashboard/TechnicalIndicators";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { WatchlistModal } from "../components/dashboard/WatchlistModal";
+import { AlertModal } from "../components/dashboard/AlertModal";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import gsap from "gsap";
 
@@ -66,6 +68,7 @@ export function StockDetails() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { addRecentView } = useExploreStore();
   const [modalOpen, setModalOpen] = useState(false);
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
   const { isSymbolInAnyWatchlist } = useWatchlistStore();
 
   const handlePeriodChange = (p: string) => {
@@ -234,35 +237,42 @@ export function StockDetails() {
   const strokeColor = isPos ? "#10b981" : "#f43f5e";
 
   return (
-    <div ref={containerRef} className="space-y-10 max-w-4xl mx-auto pb-12">
+    <div ref={containerRef} className="space-y-6 max-w-3xl mx-auto pb-12">
       <button
         onClick={() => navigate("/stocks/holdings")}
-        className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-all w-fit group cursor-pointer"
+        className="flex items-center gap-2 text-[11px] text-text-muted hover:text-text-bold transition-all w-fit group cursor-pointer font-bold uppercase tracking-widest"
       >
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />{" "}
+        <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />{" "}
         Back to Dashboard
       </button>
 
       <header className="flex flex-col gap-1">
         <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-1">
           {!data && loading ? (
-            <div className="h-12 w-64 bg-white/5 animate-pulse rounded-2xl" />
+            <div className="h-10 w-64 bg-white/5 animate-pulse rounded-xl" />
           ) : (
-            <div className="animate-value flex items-center gap-4">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-text-bold drop-shadow-sm truncate">
+            <div className="animate-value flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-text-bold drop-shadow-sm truncate">
                 {data?.companyName ||
                   data?.symbol?.replace(".NS", "").replace(".BO", "") ||
                   ticker}
               </h1>
-              <span className="bg-accent/10 text-accent border border-accent/20 px-3 py-1 rounded-full text-base font-bold font-mono self-end shrink-0 tracking-wider mb-1">
+              <span className="bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-md text-xs font-bold font-mono self-end shrink-0 tracking-wider mb-1">
                 {data?.symbol?.replace(".NS", "").replace(".BO", "") || ticker}
               </span>
               <button
                 onClick={() => setModalOpen(true)}
-                className={`ml-1 md:ml-3 p-2 rounded-xl border transition-all cursor-pointer active:scale-95 ${isSymbolInAnyWatchlist(ticker || '') ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
+                className={`ml-1 p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${isSymbolInAnyWatchlist(ticker || "") ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
                 title="Save to Watchlist"
               >
-                <Bookmark className={`w-6 h-6 ${isSymbolInAnyWatchlist(ticker || '') ? 'fill-accent' : ''}`} />
+                <Bookmark className={`w-5 h-5 ${isSymbolInAnyWatchlist(ticker || "") ? "fill-accent" : ""}`} />
+              </button>
+              <button
+                onClick={() => setAlertModalOpen(true)}
+                className="ml-1 p-1.5 rounded-lg border border-white/10 bg-white/5 text-white/40 hover:text-white/80 hover:bg-white/10 transition-all cursor-pointer active:scale-95"
+                title="Set Alert"
+              >
+                <Bell className="w-5 h-5" />
               </button>
             </div>
           )}
@@ -302,7 +312,7 @@ export function StockDetails() {
                 value={currentPrice}
                 prefix="₹"
                 decimals={2}
-                className="block text-4xl font-black tracking-tight text-text-bold"
+                className="block text-3xl font-black tracking-tight text-text-bold"
               />
               <div
                 className={`flex items-center gap-2 font-black mt-1.5 text-base ${isPos ? "text-success" : "text-danger"}`}
@@ -412,11 +422,11 @@ export function StockDetails() {
             </button>
           </div>
         </div>
-        <div className="h-72 sm:h-80 w-full relative mb-6 min-h-[288px]">
+        <div className="h-64 sm:h-72 w-full relative mb-6">
           {!data && loading ? (
-            <div className="h-full w-full bg-white/5 animate-pulse rounded-[2.5rem] border border-white/5 flex items-center justify-center">
-              <span className="text-sm text-text-muted font-medium tracking-widest animate-pulse">
-                SYNTHESIZING CHART...
+            <div className="h-full w-full bg-white/5 animate-pulse rounded-xl border border-white/5 flex items-center justify-center">
+              <span className="text-xs text-text-muted font-bold tracking-widest animate-pulse">
+                SYNTHESIZING...
               </span>
             </div>
           ) : (
@@ -728,6 +738,12 @@ export function StockDetails() {
       <WatchlistModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+        symbol={data?.symbol || ticker || ""}
+      />
+
+      <AlertModal
+        isOpen={alertModalOpen}
+        onClose={() => setAlertModalOpen(false)}
         symbol={data?.symbol || ticker || ""}
       />
     </div>

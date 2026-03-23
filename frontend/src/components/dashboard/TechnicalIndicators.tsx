@@ -56,7 +56,7 @@ export function YearlyRangeBar({ data }: { data: any }) {
 
   return (
     <div className="">
-      <h2 className="text-xl font-black text-text-bold mb-4 flex items-center gap-2">
+      <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
         52-Week Range{" "}
         <InfoTooltip content="Yearly price trajectory." align="left" />
       </h2>
@@ -137,7 +137,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 mb-[64px]">
         {/* Support and Resistance */}
         <div>
-          <h2 className="text-xl font-black text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
             Support and Resistance{" "}
             <InfoTooltip
               content="Key computational price levels defined by Pivot Points."
@@ -230,7 +230,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
 
         {/* Indicators */}
         <div>
-          <h2 className="text-xl font-black text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
             Indicators{" "}
             <InfoTooltip
               content="Momentum oscillators built strictly on price action."
@@ -239,11 +239,11 @@ export function TechnicalIndicators({ data }: { data: any }) {
           </h2>
           <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl overflow-hidden h-full">
             <table className="w-full text-left text-xs h-full">
-              <thead className="border-b border-white/5 text-[10px] text-text-muted uppercase tracking-[0.15em] bg-white/[0.03]">
+              <thead className="border-b border-white/5 text-[9px] text-text-muted uppercase tracking-[0.15em] bg-white/[0.03]">
                 <tr>
-                  <th className="px-5 py-4 font-bold">Indicator</th>
-                  <th className="px-5 py-4 font-bold text-right">Value</th>
-                  <th className="px-5 py-4 font-bold text-right">Verdict</th>
+                  <th className="px-4 py-3 font-bold">Indicator</th>
+                  <th className="px-4 py-3 font-bold text-right">Value</th>
+                  <th className="px-4 py-3 font-bold text-right">Verdict</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-main text-[#f3f4f6]">
@@ -303,20 +303,20 @@ export function TechnicalIndicators({ data }: { data: any }) {
 
       {/* Moving Averages */}
       <div>
-        <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
           Moving averages{" "}
           <InfoTooltip
-            content="The trailing average stock price over designated lookback time frames (SMA: Simple, EMA: Exponential). Extensively used visually to identify broad trajectory changes."
+            content="SMA: Simple, EMA: Exponential trajectory profile."
             align="left"
           />
         </h2>
         <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-white/5 bg-white/[0.03] text-[10px] uppercase tracking-[0.15em] text-text-muted font-black">
+            <thead className="border-b border-white/5 bg-white/[0.03] text-[9px] uppercase tracking-[0.12em] text-text-muted font-black">
               <tr>
-                <th className="px-8 py-5 font-bold">Period</th>
-                <th className="px-8 py-5 font-bold text-right">SMA</th>
-                <th className="px-8 py-5 font-bold text-right">EMA</th>
+                <th className="px-6 py-3.5 font-bold">Period</th>
+                <th className="px-6 py-3.5 font-bold text-right">SMA</th>
+                <th className="px-6 py-3.5 font-bold text-right">EMA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-main border-b border-border-main text-[#f3f4f6]">
@@ -368,10 +368,10 @@ export function TechnicalIndicators({ data }: { data: any }) {
       {/* Fundamentals & Delivery Volume */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
-          <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
             Fundamentals{" "}
             <InfoTooltip
-              content="Core macro-financial metrics showcasing intrinsic enterprise valuation, sheer profitability profiles, and baseline dividend yields compared intensely against industry peers."
+              content="Core macro-financial metrics profile."
               align="left"
             />
           </h2>
@@ -430,10 +430,10 @@ export function TechnicalIndicators({ data }: { data: any }) {
         </div>
 
         <div>
-          <h2 className="text-2xl font-black text-text-bold mb-4 flex items-center gap-2">
-            Delivery volume percentage{" "}
+          <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
+            Delivery volume %{" "}
             <InfoTooltip
-              content="The sheer scale of equity actively delivered to demat accounts vs intraday speculation. Robust, higher delivery explicitly outlines powerful longer-term institutional investor conviction."
+              content="Scale of equity actively delivered to demat accounts."
               align="left"
             />
           </h2>

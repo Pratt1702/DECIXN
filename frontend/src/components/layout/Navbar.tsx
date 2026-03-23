@@ -5,6 +5,8 @@ import { searchStocks } from "../../services/api";
 import { motion } from "framer-motion";
 import logo from "../../assets/logo.png";
 import { useSupabaseAuth } from "../../contexts/AuthContext";
+import { useNotificationStore } from "../../store/useNotificationStore";
+import { formatDistanceToNow } from "date-fns";
 
 export function Navbar() {
   const { user, signOut } = useSupabaseAuth();
@@ -17,6 +19,10 @@ export function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const { notifications, unreadCount, fetchNotifications, subscribeToNotifications, markAsRead } = useNotificationStore();
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const isStocks = location.pathname.startsWith("/stocks");
   const isMF = location.pathname.startsWith("/mutual-funds");
@@ -29,10 +35,21 @@ export function Navbar() {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications(user.id);
+      const unsubscribe = subscribeToNotifications(user.id);
+      return () => unsubscribe();
+    }
+  }, [user, fetchNotifications, subscribeToNotifications]);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -115,7 +132,7 @@ export function Navbar() {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
               placeholder={isMF ? "Search Mutual Funds..." : "Search stocks, indices..."}
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-text-bold placeholder-text-muted outline-none focus:bg-white/10 transition-all font-medium"
+              className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-text-bold placeholder-text-muted outline-none focus:bg-white/10 transition-all font-medium cursor-text"
             />
             {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent animate-spin" />}
 
@@ -126,14 +143,14 @@ export function Navbar() {
                     <div
                       key={i}
                       onClick={() => handleSelect(s.symbol)}
-                      className="flex justify-between items-center px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0"
+                      className="flex justify-between items-center px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 group/item"
                     >
-                      <span className="font-semibold text-text-bold text-sm">{s.name}</span>
-                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">{s.symbol.replace(".NS", "")}</span>
+                      <span className="font-semibold text-text-bold text-sm group-hover/item:text-accent transition-colors cursor-pointer">{s.name}</span>
+                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer">{s.symbol.replace(".NS", "")}</span>
                     </div>
                   ))
                 ) : !isSearching && (
-                  <div className="px-4 py-4 text-sm text-text-muted text-center">No results found</div>
+                  <div className="px-4 py-4 text-sm text-text-muted text-center italic font-bold">No results found</div>
                 )}
               </div>
             )}
@@ -142,9 +159,72 @@ export function Navbar() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-5">
-          <button className="text-text-muted hover:text-white transition-colors">
-            <Bell size={20} />
-          </button>
+          <div className="relative" ref={notifRef}>
+            <button 
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className={`relative p-2 rounded-xl border transition-all cursor-pointer active:scale-95 ${isNotifOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 bg-danger text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0a0a] shadow-lg">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="absolute right-0 mt-3 w-80 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col"
+              >
+                <div className="px-5 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+                  <span className="text-xs font-black text-text-bold uppercase tracking-widest">Recent Intelligence</span>
+                  {unreadCount > 0 && (
+                    <span className="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full">{unreadCount} New</span>
+                  )}
+                </div>
+
+                <div className="max-h-96 overflow-y-auto scrollbar-none">
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 5).map((n) => (
+                      <div 
+                        key={n.id}
+                        onClick={() => {
+                          markAsRead(n.id);
+                          setIsNotifOpen(false);
+                          if (n.metadata?.symbol) navigate(`/stocks/details/${n.metadata.symbol}`);
+                        }}
+                        className={`px-5 py-4 border-b border-white/5 hover:bg-white/[0.03] transition-colors cursor-pointer relative ${!n.is_read ? "bg-accent/[0.02]" : ""}`}
+                      >
+                        {!n.is_read && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-10 bg-accent rounded-r-full" />}
+                        <div className="flex items-start justify-between gap-3">
+                          <p className={`text-xs font-bold leading-snug ${!n.is_read ? "text-text-bold" : "text-text-muted"}`}>
+                            {n.title}
+                          </p>
+                          <span className="text-[9px] font-black text-text-muted uppercase shrink-0">
+                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true }).replace("about ", "")}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-text-muted mt-1 truncate">{n.message}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-5 py-10 text-center">
+                      <p className="text-xs text-text-muted font-bold">No notifications yet</p>
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  onClick={() => { navigate("/notifications"); setIsNotifOpen(false); }}
+                  className="w-full py-3.5 text-[10px] font-black text-accent uppercase tracking-widest bg-white/[0.02] hover:bg-white/[0.05] transition-all border-t border-white/5"
+                >
+                  See All Notifications
+                </button>
+              </motion.div>
+            )}
+          </div>
           
           <div className="relative" ref={profileRef}>
             <button 

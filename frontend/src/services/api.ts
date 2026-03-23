@@ -116,3 +116,42 @@ export const getBatchQuotes = async (symbols: string[]) => {
   return response.data;
 };
 
+// --- ALERTS ---
+
+export const createAlert = async (alertData: { user_id: string; symbol: string; condition: any[] }) => {
+  const response = await apiClient.post('/alerts', alertData);
+  return response.data;
+};
+
+export const getAlerts = async (userId: string) => {
+  const response = await apiClient.get(`/alerts/${userId}`);
+  return response.data;
+};
+
+export const deleteAlert = async (alertId: string) => {
+  const response = await apiClient.delete(`/alerts/${alertId}`);
+  return response.data;
+};
+
+export const updateAlert = async (alertId: string, updateData: { is_active?: boolean; is_triggered?: boolean }) => {
+  const response = await apiClient.patch(`/alerts/${alertId}`, updateData);
+  return response.data;
+};
+
+export const runAlertsManually = async () => {
+    const response = await apiClient.post('/alerts/run');
+    return response.data;
+}
+
+// --- NOTIFICATIONS ---
+
+export const getNotifications = async (userId: string) => {
+  const response = await apiClient.get(`/notifications/${userId}`);
+  return response.data;
+};
+
+export const markNotificationRead = async (notificationId: string) => {
+  const response = await apiClient.post(`/notifications/read/${notificationId}`);
+  return response.data;
+};
+

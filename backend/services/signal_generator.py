@@ -61,10 +61,24 @@ def generate_signals(df):
         watch_price = latest['MA20']
         watch_type = "Trend reclaim level (MA20)"
 
+    # --- SIGNAL DETERMINATION ---
+    signal = "Hold"
+    if pattern != "None Detected":
+        if "Breakout" in pattern or "Momentum" in pattern or "Bullish" in pattern or "Oversold" in pattern:
+            signal = "Buy"
+        elif "Overextended" in pattern:
+            signal = "Sell"
+    elif latest['RSI'] < 25:
+        signal = "Buy"
+    elif latest['RSI'] > 75:
+        signal = "Sell"
+
     signals = {
         'Price': latest['Close'],
         'RSI': latest['RSI'],
         'Prev_RSI': prev['RSI'],
+        'Signal': signal,
+        'Pattern': pattern,
         'Breakout': breakout_strength > 0,
         'Breakout_Strength': breakout_strength,
         'Volume_Spike': volume_ratio > 2.0,

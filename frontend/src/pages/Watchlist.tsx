@@ -406,7 +406,12 @@ export function Watchlist() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: isRemoved ? 0.3 : 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
-                        onClick={() => { if (!isEditing) navigate(`/stock/${d.symbol}`); }}
+                        onClick={() => { 
+                          if (!isEditing) {
+                            const cleanTicker = d.symbol.replace(".NS", "").replace(".BO", "");
+                            navigate(`/stocks/details/${cleanTicker}`); 
+                          }
+                        }}
                         className={`transition-colors ${isEditing ? 'cursor-default' : 'hover:bg-white/[0.04] cursor-pointer'} group`}
                       >
                         <td className="px-6 py-4">

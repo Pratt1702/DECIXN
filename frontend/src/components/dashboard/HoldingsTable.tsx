@@ -75,7 +75,10 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
             return (
               <tr
                 key={i}
-                onClick={() => navigate(`/stock/${h.symbol}`)}
+                onClick={() => {
+                  const cleanTicker = h.symbol.replace(".NS", "").replace(".BO", "");
+                  navigate(`/stocks/details/${cleanTicker}`);
+                }}
                 className="hover:bg-white/[0.04] transition-all cursor-pointer group"
               >
                 <td className="px-6 py-4 font-black text-text-bold tracking-tight">{h.symbol}</td>

@@ -117,10 +117,13 @@ export function StockDetails() {
   useEffect(() => {
     async function fetchTicker() {
       if (!ticker) return;
+      
+      const cleanTicker = ticker.toUpperCase().replace(".NS", "").replace(".BO", "");
+      
       setLoading(true);
       setData(null);
       try {
-        const res = await getTickerAnalysis(ticker);
+        const res = await getTickerAnalysis(cleanTicker);
         setData({
           symbol: res.symbol,
           companyName: res.data.companyName,
@@ -206,7 +209,7 @@ export function StockDetails() {
           </p>
         </div>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/stocks/holdings")}
           className="px-6 py-2.5 mt-4 bg-border-main hover:bg-[#3f3f46] rounded-full text-sm font-medium transition-all text-text-bold flex items-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" /> Go Back
@@ -233,7 +236,7 @@ export function StockDetails() {
   return (
     <div ref={containerRef} className="space-y-10 max-w-4xl mx-auto pb-12">
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/stocks/holdings")}
         className="flex items-center gap-2 text-sm text-text-muted hover:text-text-bold transition-all w-fit group cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />{" "}
@@ -655,7 +658,7 @@ export function StockDetails() {
       {holding && currentPrice > 0 && (
         <div
           className="bg-bg-surface border border-border-main rounded-xl px-6 py-5 mt-4 mb-4 flex flex-row items-center justify-between cursor-pointer hover:border-[#333] transition-all group"
-          onClick={() => navigate("/holdings")}
+          onClick={() => navigate("/stocks/holdings")}
         >
           <div>
             <p className="text-lg font-black text-text-bold tracking-tight">

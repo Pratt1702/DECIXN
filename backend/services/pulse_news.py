@@ -85,13 +85,16 @@ def tokenize(text: str):
     """
     return set(re.findall(r"[a-z0-9]+", text.lower()))
 
-def matches_query(title: str, query: str):
+def matches_query(article: dict, query: str):
     if not query:
         return True
-    title_words = tokenize(title)
-    query_words = tokenize(query)
 
-    return len(title_words & query_words) > 0
+    q_words = tokenize(query)
+
+    text = f"{article['title']} {article['summary']}".lower()
+    text_words = tokenize(text)
+
+    return len(q_words & text_words) > 0
 
 def is_recent(time_raw: str | None):
     """
@@ -125,8 +128,7 @@ async def get_company_news(query: str):
 
     filtered = [
         a for a in raw_articles
-        if matches_query(a["title"], query)
-        and is_recent(a["published_at"])
+        if matches_query(a, query)
     ]
 
     return filtered
@@ -140,7 +142,7 @@ async def main():
 
     print(f"\nFetching recent ET news for: {query}\n")
 
-    articles = await fetch_et_articles()
+    articles = await get_company_news(query)
 
     if not articles:
         print("No matching recent articles found.")

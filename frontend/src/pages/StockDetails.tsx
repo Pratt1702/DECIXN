@@ -29,6 +29,8 @@ import {
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { WatchlistModal } from "../components/dashboard/WatchlistModal";
 import { AlertModal } from "../components/dashboard/AlertModal";
+import { DividendPanel } from "../components/dashboard/DividendPanel";
+import { NewsPanel } from "../components/dashboard/NewsPanel";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import gsap from "gsap";
 
@@ -139,9 +141,11 @@ export function StockDetails() {
           fundamentals: res.data.fundamentals,
           pivots: res.data.pivots,
           moving_averages: res.data.moving_averages,
-          indicators: res.data.indicators,
-          benchmark_comparison: res.data.benchmark_comparison,
-        });
+           indicators: res.data.indicators,
+           benchmark_comparison: res.data.benchmark_comparison,
+           dividends: res.data.dividends,
+           news: res.data.news,
+         });
       } catch (err) {
         console.error("Failed to fetch ticker:", err);
         setData({ error: true });
@@ -731,9 +735,11 @@ export function StockDetails() {
 
       <div className="pt-2 flex flex-col gap-6">
         <YearlyRangeBar data={data} />
-        <AIIntelligencePanel data={data} />
-        <TechnicalIndicators data={data} />
-      </div>
+         <AIIntelligencePanel data={data} />
+         <TechnicalIndicators data={data} />
+         <DividendPanel data={data?.dividends || null} />
+         <NewsPanel news={data?.news || null} />
+       </div>
 
       <WatchlistModal
         isOpen={modalOpen}

@@ -10,6 +10,7 @@ from services.data_fetcher import fetch_data
 from services.technical_indicators import calculate_indicators, get_benchmark_comparison
 from services.signal_generator import generate_signals
 from services.decision_engine import make_decision, make_holding_decision
+from services.fundamental_service import get_dividend_data, get_ticker_news
 
 warnings.filterwarnings('ignore')
 
@@ -213,8 +214,13 @@ def analyze_single_ticker(symbol: str) -> dict:
             "52w_high": convert_numpy(info.get("fiftyTwoWeekHigh") or 0),
             "sector": convert_numpy(info.get("sector") or "Unknown"),
             "industry": convert_numpy(info.get("industry") or "Unknown"),
-            "quote_type": convert_numpy(info.get("quoteType") or "EQUITY"),
+            "quote_type": convert_numpy(info.get("quote_type") or "EQUITY"),
         }
+        
+        # New: Dividend and News Data
+        ticker_obj = yf.Ticker(symbol)
+        dividend_info = get_dividend_data(ticker_obj)
+        news_data = get_ticker_news(ticker_obj)
         
         last_c = df.iloc[-2] if len(df) > 1 else df.iloc[-1]
         H, L, C = last_c['High'], last_c['Low'], last_c['Close']
@@ -267,6 +273,8 @@ def analyze_single_ticker(symbol: str) -> dict:
                 "pivots": pivots,
                 "moving_averages": moving_averages,
                 "benchmark_comparison": benchmark_comparison,
+                "dividends": dividend_info,
+                "news": news_data,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),

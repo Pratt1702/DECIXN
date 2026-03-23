@@ -75,6 +75,20 @@ class ChatRequest(BaseModel):
     user_id: str = "anonymous"
     session_id: str = None
 
+class AlertCondition(BaseModel):
+    indicator: str
+    operator: str
+    value: float
+
+class AlertRequest(BaseModel):
+    user_id: str
+    symbol: str
+    condition: list[AlertCondition]
+
+class AlertUpdate(BaseModel):
+    is_active: bool = None
+    is_triggered: bool = None
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
@@ -362,6 +376,78 @@ async def get_chat_history(user_id: str, session_id: str = None):
     except Exception as e:
         print(f"DB Fetch Error: {e}")
         return []
+
+# --- ALERTS & NOTIFICATIONS ---
+
+from services.alerts.alert_service import AlertService
+from services.alerts.notification_service import NotificationService
+
+@app.post("/alerts")
+async def create_alert(payload: AlertRequest):
+    from services.supabase_client import supabase
+    try:
+        data = {
+            "user_id": payload.user_id,
+            "symbol": payload.symbol.upper(),
+            "condition": [c.dict() for c in payload.condition],
+            "is_active": True,
+            "is_triggered": False
+        }
+        res = supabase.table("alerts").insert(data).execute()
+        return {"success": True, "data": res.data[0]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/alerts/{user_id}")
+async def get_alerts(user_id: str):
+    from services.supabase_client import supabase
+    try:
+        res = supabase.table("alerts").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return res.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/alerts/{alert_id}")
+async def delete_alert(alert_id: str):
+    from services.supabase_client import supabase
+    try:
+        supabase.table("alerts").delete().eq("id", alert_id).execute()
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/alerts/{alert_id}")
+async def update_alert(alert_id: str, payload: AlertUpdate):
+    from services.supabase_client import supabase
+    try:
+        update_data = {}
+        if payload.is_active is not None: update_data["is_active"] = payload.is_active
+        if payload.is_triggered is not None: update_data["is_triggered"] = payload.is_triggered
+        
+        if not update_data:
+            return {"success": True}
+            
+        res = supabase.table("alerts").update(update_data).eq("id", alert_id).execute()
+        return {"success": True, "data": res.data[0]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/notifications/{user_id}")
+async def get_notifications(user_id: str):
+    return NotificationService.get_user_notifications(user_id)
+
+@app.post("/notifications/read/{notification_id}")
+async def mark_notification_read(notification_id: str):
+    res = NotificationService.mark_as_read(notification_id)
+    return {"success": True, "data": res}
+
+@app.post("/alerts/run")
+async def run_alerts_manually():
+    """
+    Manual trigger to run the alert evaluation engine.
+    """
+    await AlertService.process_all_alerts()
+    return {"success": True, "message": "Alert processing completed."}
 
 if __name__ == "__main__":
     # uvicorn main:app --reload

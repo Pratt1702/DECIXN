@@ -3,7 +3,7 @@ import { analyzeMFPortfolio } from "../services/api";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Trash2, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { Loader2, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 import { MFSubNav } from "../components/layout/MFSubNav";
@@ -104,6 +104,34 @@ export function MFHoldings() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const [sortField, setSortField] = useState("current_value");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+  };
+
+  const sortedHoldings = data?.portfolio_analysis ? [...data.portfolio_analysis].sort((a, b) => {
+    let valA, valB;
+    if (sortField === "scheme_name") {
+      valA = a.scheme_name || a.symbol || "";
+      valB = b.scheme_name || b.symbol || "";
+      return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    if (sortField === "isin") {
+      valA = a.isin || a.holding_context?.isin || "";
+      valB = b.isin || b.holding_context?.isin || "";
+      return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    valA = a.holding_context[sortField] ?? 0;
+    valB = b.holding_context[sortField] ?? 0;
+    return sortOrder === "desc" ? (valA < valB ? 1 : -1) : valA > valB ? 1 : -1;
+  }) : [];
 
   const handleDataParsed = async (newHoldings: any[]) => {
     let interval: NodeJS.Timeout | null = null;
@@ -265,57 +293,76 @@ export function MFHoldings() {
 
         <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
            <table className="w-full text-left border-collapse">
-             <thead>
-               <tr className="border-b border-white/[0.03] bg-white/[0.02]">
-                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Scheme Name</th>
-                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest">ISIN</th>
-                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Units</th>
-                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">NAV</th>
-                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Returns</th>
-                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Current Value</th>
-               </tr>
-             </thead>
-             <tbody>
-                {data?.portfolio_analysis?.map((h: any, i: number) => {
+              <thead>
+                <tr className="border-b border-white/[0.03] bg-white/[0.02]">
+                  {[
+                    { label: "Scheme Name", field: "scheme_name" },
+                    { label: "Units", field: "quantity" },
+                    { label: "NAV", field: "current_price" },
+                    { label: "Returns", field: "pnl_pct" },
+                    { label: "Current Value", field: "current_value" },
+                  ].map((col) => (
+                    <th
+                      key={col.label}
+                      className={`px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-[0.15em] cursor-pointer hover:text-text-bold transition-colors ${
+                        col.field === "scheme_name" ? "text-left" : "text-right"
+                      }`}
+                      onClick={() => handleSort(col.field)}
+                    >
+                      <div className={`flex items-center gap-1.5 ${
+                        col.field === "scheme_name" ? "justify-start" : "justify-end"
+                      }`}>
+                        {col.label}
+                        {sortField === col.field && (
+                          <span className="text-accent">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedHoldings.map((h: any, i: number) => {
                   const ctx = h.holding_context;
                   const isin = h.isin || ctx.isin || h.scheme_code;
+                  const isPos = ctx.current_pnl >= 0;
                   return (
-                    <tr key={i} className="border-b border-white/[0.02] hover:bg-white/[0.03] transition-all cursor-pointer group" onClick={() => navigate(`/mutual-funds/details/${isin}`)}>
-                      <td className="p-4">
-                        <div className="font-bold text-text-bold text-sm mb-1 group-hover:text-white transition-colors">
-                          {h.scheme_name || h.symbol}
-                        </div>
-                        <div className="text-[10px] text-text-muted uppercase font-black tracking-tighter">
-                          {h.category || "Active Fund"}
+                    <tr 
+                      key={i} 
+                      className="border-b border-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer group" 
+                      onClick={() => navigate(`/mutual-funds/details/${isin}`)}
+                    >
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-black text-text-bold tracking-tight group-hover:text-white transition-colors">
+                            {h.scheme_name || h.symbol}
+                          </span>
+                          <span className="text-[10px] font-mono text-text-muted opacity-60 tracking-tighter uppercase">
+                            {isin || "N/A"}
+                          </span>
                         </div>
                       </td>
-                      <td className="p-4">
-                        <span className="text-[10px] font-mono text-text-muted">{isin || "N/A"}</span>
-                      </td>
-                      <td className="p-4 text-right font-medium text-text-muted text-sm italic">
+                      <td className="px-6 py-5 text-right font-bold text-text-muted text-sm tabular-nums">
                         {ctx.quantity.toFixed(3)}
                       </td>
-                     <td className="p-4 text-right font-bold text-text-bold text-sm">
-                       ₹{ctx.current_price?.toFixed(2)}
-                     </td>
-                     <td className="p-4 text-right">
-                        <div className={`flex items-center justify-end gap-1 font-bold text-sm ${ctx.current_pnl >= 0 ? 'text-success' : 'text-danger'}`}>
-                           {ctx.current_pnl >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                           ₹{Math.abs(ctx.current_pnl).toLocaleString()}
-                        </div>
-                        <div className="text-[10px] font-black opacity-60">
-                           {ctx.pnl_pct.toFixed(2)}% Total
-                        </div>
-                     </td>
-                     <td className="p-4 text-right">
-                        <div className="font-black text-text-bold text-base">₹{ctx.current_value.toLocaleString()}</div>
-                        <div className="text-[10px] text-accent font-black uppercase tracking-widest mt-1 flex items-center justify-end gap-1">
-                           Deep Analysis <ArrowRight size={10} />
-                        </div>
-                     </td>
-                   </tr>
-                 );
-               })}
+                      <td className="px-6 py-5 text-right font-black text-text-bold text-sm tabular-nums">
+                        ₹{ctx.current_price?.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-5 text-right font-black tabular-nums">
+                         <div className={`flex items-center justify-end gap-1 text-sm ${isPos ? 'text-success' : 'text-danger'}`}>
+                            {isPos ? <ArrowUpRight size={14} className="stroke-[3]" /> : <ArrowDownRight size={14} className="stroke-[3]" />}
+                            {isPos ? '+' : ''}{ctx.pnl_pct.toFixed(2)}%
+                         </div>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                         <div className="font-black text-text-bold text-base tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                         <div className="text-[9px] text-accent font-black uppercase tracking-[0.2em] mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            DEEP ANALYSIS
+                         </div>
+                      </td>
+                    </tr>
+                  );
+                })}
              </tbody>
            </table>
         </div>

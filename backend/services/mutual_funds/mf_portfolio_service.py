@@ -91,7 +91,8 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
             "success": True,
             "symbol": name_or_isin,
             "ticker": ticker_symbol,
-            "scheme_name": valid_quote.get("shortname", name_or_isin),
+            "isin": isin or lookup_target if len(lookup_target) == 12 else None,
+            "scheme_name": valid_quote.get("shortname", name_or_isin) if not name_or_isin or len(name_or_isin) == 12 else name_or_isin,
             "holding_context": {
                 "quantity": quantity,
                 "avg_cost": avg_cost,

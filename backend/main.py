@@ -7,10 +7,11 @@ import csv
 import os
 import requests
 import yfinance as yf
-from services.chat_service import chat_engine
+from services.intelligence.chat_service import chat_engine
 from portfolio_logic import run_portfolio_analysis
 import time
 from collections import defaultdict
+from services.mutual_funds import MFDBSync
 
 class RateLimiter:
     def __init__(self, limit: int = 10, window: int = 1800):  # 10 msgs / 30 mins
@@ -160,7 +161,29 @@ def get_market_overview_endpoint():
 def analyze_ticker(ticker: str):
     """
     Analyzes a specific ticker and returns deeply nested market intelligence data.
+    Automatically resolves ISINs to Yahoo Symbols for Mutual Funds.
     """
+    # If it looks like an ISIN (starts with letters, long length)
+    if len(ticker) >= 12 and ticker[0:2].isalpha() and any(c.isdigit() for c in ticker):
+        from services.core.supabase_client import supabase
+        try:
+            # 1. Try Yahoo Search directly first
+            search = yf.Search(ticker, max_results=1)
+            if search.quotes:
+                ticker = search.quotes[0]['symbol']
+            else:
+                # 2. Fallback: Lookup name in DB and search by name
+                db_res = supabase.table('mf_schemes').select('scheme_name')\
+                    .or_(f"isin_div_payout.eq.{ticker},isin_reinvest.eq.{ticker}").execute()
+                if db_res.data:
+                    name = db_res.data[0]['scheme_name']
+                    # Search by exact name
+                    name_search = yf.Search(name, max_results=3)
+                    if name_search.quotes:
+                        ticker = name_search.quotes[0]['symbol']
+        except:
+            pass
+            
     result = analyze_single_ticker(ticker)
     
     if not result.get("success"):
@@ -269,6 +292,52 @@ def search_stocks(query: str):
     except Exception as e:
         return {"success": False, "error": str(e), "results": []}
 
+@app.get("/search/mf/{query}")
+def search_mutual_funds(query: str):
+    """
+    Performs a fuzzy search on the local mf_schemes table for high-performance MF matching.
+    """
+    from services.core.supabase_client import supabase
+    try:
+        # First attempt: Try the custom fuzzy search function (requires SQL setup)
+        try:
+            res = supabase.rpc("search_mf_fuzzy", {"search_term": query}).execute()
+            if res.data:
+                return {"success": True, "results": res.data}
+        except:
+            pass # Fallback to ilike if RPC isn't setup yet
+            
+        # Fallback: Multi-word ilike with space normalization
+        # We search for words as-is, but also try to catch "midcap" vs "mid cap"
+        search_term = query.lower()
+        
+        # Simple normalization: if "midcap" is in query, also search for "mid cap" and vice versa
+        if "midcap" in search_term:
+            query = query.replace("midcap", "mid cap")
+        elif "mid cap" in search_term:
+            query = query.replace("mid cap", "midcap")
+            
+        words = query.split()
+        search_query = supabase.table("mf_schemes").select("*")
+        for word in words:
+            search_query = search_query.ilike("scheme_name", f"%{word}%")
+        
+        res = search_query.limit(10).execute()
+        return {"success": True, "results": res.data}
+    except Exception as e:
+        return {"success": False, "error": str(e), "results": []}
+
+@app.post("/mutual-funds/sync")
+def sync_mutual_funds():
+    """
+    Triggers a manual sync with AMFI data to update schemes and NAV history.
+    """
+    sync = MFDBSync()
+    result = sync.sync_all()
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Sync failed"))
+    return result
+
 @app.get("/chat/status/{user_id}")
 async def get_chat_status(user_id: str):
     """
@@ -332,7 +401,7 @@ async def get_chat_sessions(user_id: str):
     if not user_id or len(user_id) <= 20:
         return []
     
-    from services.supabase_client import supabase
+    from services.core.supabase_client import supabase
     try:
         # Get first message of each session as title
         # In a real app, we might have a sessions table, but here we derive it
@@ -367,7 +436,7 @@ async def get_chat_history(user_id: str, session_id: str = None):
     if not user_id or len(user_id) <= 20:
         return []
     
-    from services.supabase_client import supabase
+    from services.core.supabase_client import supabase
     try:
         query = supabase.table("chat_history").select("*").eq("user_id", user_id)
         if session_id:
@@ -386,7 +455,7 @@ from services.alerts.notification_service import NotificationService
 
 @app.post("/alerts")
 async def create_alert(payload: AlertRequest):
-    from services.supabase_client import supabase
+    from services.core.supabase_client import supabase
     try:
         data = {
             "user_id": payload.user_id,
@@ -402,7 +471,7 @@ async def create_alert(payload: AlertRequest):
 
 @app.get("/alerts/{user_id}")
 async def get_alerts(user_id: str):
-    from services.supabase_client import supabase
+    from services.core.supabase_client import supabase
     try:
         res = supabase.table("alerts").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
         return res.data
@@ -411,7 +480,7 @@ async def get_alerts(user_id: str):
 
 @app.delete("/alerts/{alert_id}")
 async def delete_alert(alert_id: str):
-    from services.supabase_client import supabase
+    from services.core.supabase_client import supabase
     try:
         supabase.table("alerts").delete().eq("id", alert_id).execute()
         return {"success": True}
@@ -420,7 +489,7 @@ async def delete_alert(alert_id: str):
 
 @app.patch("/alerts/{alert_id}")
 async def update_alert(alert_id: str, payload: AlertUpdate):
-    from services.supabase_client import supabase
+    from services.core.supabase_client import supabase
     try:
         update_data = {}
         if payload.is_active is not None: update_data["is_active"] = payload.is_active

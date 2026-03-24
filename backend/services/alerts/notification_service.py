@@ -1,4 +1,4 @@
-from ..supabase_client import supabase
+from ..core.supabase_client import supabase
 from datetime import datetime, timezone
 
 class NotificationService:

@@ -1,7 +1,8 @@
 from google import genai
-from .config import GEMINI_API_KEY
-from .data_fetcher import fetch_data
-from .technical_indicators import calculate_indicators
+from ..core.config import GEMINI_API_KEY
+from ..core.supabase_client import supabase
+from ..data.data_fetcher import fetch_data
+from ..data.technical_indicators import calculate_indicators
 from .signal_generator import generate_signals
 from .decision_engine import make_decision, make_holding_decision
 import json
@@ -100,7 +101,6 @@ class ChatEngine:
 
         if is_logged_in:
             try:
-                from .supabase_client import supabase
                 insert_data = {
                     "user_id": user_id,
                     "role": "user",
@@ -267,7 +267,6 @@ class ChatEngine:
     def _save_assistant_message(self, user_id, res_text, session_id=None):
         if not user_id or len(user_id) <= 20: return
         try:
-            from .supabase_client import supabase
             parsed = self._parse_json_response(res_text)
             insert_data = {
                 "user_id": user_id,

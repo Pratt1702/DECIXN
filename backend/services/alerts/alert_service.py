@@ -1,9 +1,10 @@
 import pandas as pd
 from datetime import datetime, timezone
-from ..supabase_client import supabase
-from ..data_fetcher import fetch_data
-from ..technical_indicators import calculate_indicators
-from ..signal_generator import generate_signals
+import yfinance as yf
+from ..core.supabase_client import supabase
+from ..data.data_fetcher import fetch_data
+from ..data.technical_indicators import calculate_indicators
+from ..intelligence.signal_generator import generate_signals 
 from .notification_service import NotificationService
 
 class AlertService:

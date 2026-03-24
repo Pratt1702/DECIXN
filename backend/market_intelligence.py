@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 import warnings
 
 # Import from modules
-from services.data_fetcher import fetch_data
-from services.technical_indicators import calculate_indicators, get_benchmark_comparison
-from services.signal_generator import generate_signals
-from services.decision_engine import make_decision, make_holding_decision
+from services.data.data_fetcher import fetch_data
+from services.data.technical_indicators import calculate_indicators, get_benchmark_comparison
+from services.intelligence.signal_generator import generate_signals
+from services.intelligence.decision_engine import make_decision, make_holding_decision
 
 warnings.filterwarnings('ignore')
 

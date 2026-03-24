@@ -88,6 +88,16 @@ export const searchStocks = async (query: string) => {
   return response.data;
 };
 
+export const searchMutualFunds = async (query: string) => {
+  const response = await apiClient.get(`/search/mf/${query}`);
+  return response.data;
+};
+
+export const syncMutualFunds = async () => {
+  const response = await apiClient.post('/mutual-funds/sync');
+  return response.data;
+};
+
 /**
  * Posts uploaded CSV holdings to the backend for live AI analysis.
  * Each element in `holdings` matches the shape stored in sessionStorage.

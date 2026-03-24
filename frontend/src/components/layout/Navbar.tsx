@@ -1,7 +1,7 @@
 import { Search, Bell, Loader2, LogOut, User } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { searchStocks } from "../../services/api";
+import { searchStocks, searchMutualFunds } from "../../services/api";
 import { motion } from "framer-motion";
 import logo from "../../assets/logo.png";
 import { useSupabaseAuth } from "../../contexts/AuthContext";
@@ -59,9 +59,21 @@ export function Navbar() {
       }
       setIsSearching(true);
       try {
-        const res = await searchStocks(search);
-        if (res.success) {
-          setSuggestions(res.results.slice(0, 6));
+        if (isMF) {
+          const res = await searchMutualFunds(search);
+          if (res.success) {
+            setSuggestions(res.results.map((r: any) => ({
+              ...r,
+              symbol: r.isin_div_payout || r.scheme_code,
+              name: r.scheme_name,
+              type: 'MUTUALFUND'
+            })).slice(0, 8));
+          }
+        } else {
+          const res = await searchStocks(search);
+          if (res.success) {
+            setSuggestions(res.results.slice(0, 6));
+          }
         }
       } catch (e) {
         console.error("Search failed", e);
@@ -86,11 +98,18 @@ export function Navbar() {
     }
   };
 
-  const handleSelect = (symbol: string) => {
+  const handleSelect = (suggestion: any) => {
     setSearch("");
     setShowDropdown(false);
-    const cleanSymbol = symbol.replace(".NS", "").replace(".BO", "");
-    navigate(`/stocks/details/${cleanSymbol}`);
+    
+    if (suggestion.type === 'MUTUALFUND') {
+      // Navigate using the ISIN (or scheme code as fallback)
+      const identifier = suggestion.isin_div_payout || suggestion.scheme_code;
+      navigate(`/mutual-funds/details/${identifier}`);
+    } else {
+      const cleanSymbol = suggestion.symbol.replace(".NS", "").replace(".BO", "");
+      navigate(`/stocks/details/${cleanSymbol}`);
+    }
   };
 
   return (
@@ -142,11 +161,21 @@ export function Navbar() {
                   suggestions.map((s, i) => (
                     <div
                       key={i}
-                      onClick={() => handleSelect(s.symbol)}
+                      onClick={() => handleSelect(s)}
                       className="flex justify-between items-center px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 group/item"
                     >
-                      <span className="font-semibold text-text-bold text-sm group-hover/item:text-accent transition-colors cursor-pointer">{s.name}</span>
-                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer">{s.symbol.replace(".NS", "")}</span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-text-bold text-sm group-hover/item:text-accent transition-colors cursor-pointer line-clamp-1">{s.name}</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] text-text-muted font-bold tracking-widest uppercase">{s.type === 'MUTUALFUND' ? 'Mutual Fund' : 'Stock'}</span>
+                           {s.type === 'MUTUALFUND' && s.amc_name && (
+                             <span className="text-[9px] text-accent/60 font-medium truncate max-w-[150px]">• {s.amc_name}</span>
+                           )}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer shrink-0">
+                        {(s.isin_div_payout || s.symbol || "").replace(".NS", "")}
+                      </span>
                     </div>
                   ))
                 ) : !isSearching && (

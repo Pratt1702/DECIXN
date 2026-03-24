@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMFDetails } from "../services/api";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -9,20 +10,41 @@ import {
   Shield,
   Zap,
   TrendingUp,
-  TrendingDown,
-  Info
+  Info,
+  Brain,
+  Target
 } from "lucide-react";
 import {
+  LineChart,
+  Line,
   ResponsiveContainer,
   YAxis,
   Tooltip,
-  AreaChart,
-  Area,
+  ReferenceLine,
 } from "recharts";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import gsap from "gsap";
 
 const PERIODS = ["1M", "6M", "1Y", "3Y", "5Y", "MAX"];
+
+const METRIC_EXPLANATIONS: Record<string, { label: string; desc: string }> = {
+  volatility: { 
+    label: "Volatility (Risk)", 
+    desc: "How much the fund's price swings. Lower is steadier." 
+  },
+  sharpe_ratio: { 
+    label: "Return Efficiency", 
+    desc: "How much return you get for the risk taken. Above 1.0 is great." 
+  },
+  alpha: { 
+    label: "Market Outperformance", 
+    desc: "How much the fund beat the market average (Nifty 50)." 
+  },
+  beta: { 
+    label: "Market Sensitivity", 
+    desc: "1.0 means it moves with the market. Lower is more defensive." 
+  }
+};
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -34,14 +56,25 @@ const CustomTooltip = ({ active, payload }: any) => {
         </div>
         <div className="space-y-2">
             <div className="flex items-center justify-between gap-4">
-                <span className="text-[10px] font-bold text-accent uppercase font-black">Fund NAV</span>
-                <span className="text-[#f3f4f6] font-black">₹{Number(data.nav).toFixed(2)}</span>
+                <span className="text-[10px] font-bold text-accent uppercase font-black">Fund Return</span>
+                <span className="text-[#f3f4f6] font-black">{Number(data.nav).toFixed(2)}%</span>
             </div>
-            {data.benchmarkNav && (
-                <div className="flex items-center justify-between gap-4 opacity-60">
-                    <span className="text-[10px] font-bold text-text-muted uppercase">Benchmark</span>
-                    <span className="text-text-muted font-bold">₹{Number(data.benchmarkNav).toFixed(2)}</span>
-                </div>
+            <div className="flex items-center justify-between gap-4 opacity-60">
+                <span className="text-[9px] font-bold text-text-muted uppercase">Actual NAV</span>
+                <span className="text-text-muted font-bold text-[10px]">₹{Number(data.realNav).toFixed(2)}</span>
+            </div>
+            {data.realBench && (
+                <>
+                    <div className="h-px bg-white/5 my-1" />
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-[10px] font-bold text-text-muted uppercase font-black">Bench. Return</span>
+                        <span className="text-[#f3f4f6] font-black">{Number(data.benchmarkNav).toFixed(2)}%</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 opacity-60">
+                        <span className="text-[9px] font-bold text-text-muted uppercase">Actual Index</span>
+                        <span className="text-text-muted font-bold text-[10px]">{Number(data.realBench).toLocaleString()}</span>
+                    </div>
+                </>
             )}
         </div>
       </div>
@@ -120,23 +153,47 @@ export function MFDetails() {
     );
   }
 
-  const history = data.history || [];
-  const benchmarkHistory = data.benchmark_history || [];
+  const allHistory = data.history || [];
+  const allBenchmarkHistory = data.benchmark_history || [];
   
-  // Sync benchmark with fund dates for chart display
+  // Client-side period slicing
+  const getSlicedData = (history: any[], p: string) => {
+    if (p === "MAX") return history;
+    const now = new Date();
+    let months = 12;
+    if (p === "1M") months = 1;
+    if (p === "6M") months = 6;
+    if (p === "1Y") months = 12;
+    if (p === "3Y") months = 36;
+    if (p === "5Y") months = 60;
+    
+    const cutoff = new Date();
+    cutoff.setMonth(now.getMonth() - months);
+    return history.filter(h => new Date(h.date) >= cutoff);
+  };
+
+  const history = getSlicedData(allHistory, period);
+  const benchmarkHistory = getSlicedData(allBenchmarkHistory, period);
+  
+  const firstNavReal = history.length > 0 ? history[0].nav : 0;
+  const firstBenchReal = benchmarkHistory.length > 0 ? benchmarkHistory[0].nav : 0;
+  const latestNav = history.length > 0 ? history[history.length - 1].nav : 0;
+
   const chartData = history.map((h: any) => {
     const bMatch = benchmarkHistory.find((b: any) => b.date === h.date);
     return {
-      ...h,
-      benchmarkNav: bMatch ? bMatch.nav : null
+      date: h.date,
+      nav: firstNavReal !== 0 ? ((h.nav - firstNavReal) / firstNavReal) * 100 : 0,
+      benchmarkNav: (bMatch && firstBenchReal !== 0) ? ((bMatch.nav - firstBenchReal) / firstBenchReal) * 100 : null,
+      realNav: h.nav,
+      realBench: bMatch ? bMatch.nav : null
     };
   });
 
-  const latestNav = history.length > 0 ? history[history.length - 1].nav : 0;
-  const firstNav = history.length > 0 ? history[0].nav : 0;
-  const navChange = latestNav - firstNav;
-  const navChangePct = (navChange / firstNav) * 100;
+  const navChange = latestNav - firstNavReal;
+  const navChangePct = firstNavReal !== 0 ? (navChange / firstNavReal) * 100 : 0;
   const isPos = navChange >= 0;
+  const strokeColor = isPos ? "#10b981" : "#f43f5e";
 
   // Dynamic Decixn Score logic
   const metrics = data.metrics || {};
@@ -146,38 +203,60 @@ export function MFDetails() {
   const decixnScore = Math.min(Math.max(Number(rawScore.toFixed(1)), 1.0), 9.9);
 
   return (
-    <div ref={containerRef} className="max-w-4xl mx-auto pb-20 space-y-8">
+    <div ref={containerRef} className="max-w-3xl mx-auto pb-20 space-y-8">
       <button
         onClick={() => navigate("/mutual-funds/holdings")}
         className="flex items-center gap-2 text-[10px] text-text-muted hover:text-text-bold transition-all w-fit font-black uppercase tracking-widest group"
       >
         <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-        Back to Portfolio
+        Back to Dashboard
       </button>
 
       <header className="animate-mf space-y-4">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-                <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20">
-                    Mutual Fund
-                </span>
-                <span className="text-[10px] text-text-muted font-bold uppercase tracking-tighter">
-                   ISIN: {id}
+        <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl md:text-3xl font-black text-text-bold tracking-tighter leading-tight">
+                    {data.scheme_name}
+                </h1>
+                <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20 self-center">
+                    {data.stats?.category || "Equity"}
                 </span>
             </div>
-            <h1 className="text-3xl font-black text-text-bold tracking-tighter leading-tight max-w-2xl">
-              {data.scheme_name}
-            </h1>
-          </div>
-          <div className="text-left md:text-right">
-             <AnimatedNumber value={latestNav} prefix="₹" decimals={4} className="text-3xl font-black text-text-bold tracking-tighter" />
-             <div className={`flex items-center md:justify-end gap-1.5 font-bold mt-1 ${isPos ? 'text-success' : 'text-danger'}`}>
-                {isPos ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                <AnimatedNumber value={navChangePct} showPlusSign decimals={2} suffix="%" />
-                <span className="text-[10px] text-text-muted font-black uppercase tracking-widest ml-1">Across Period</span>
-             </div>
-          </div>
+            <div className="flex items-center gap-4 text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                <span>ISIN: {id}</span>
+                <span className="w-1 h-1 rounded-full bg-white/10" />
+                <span>{data.ticker}</span>
+            </div>
+        </div>
+
+        <div className="pt-4 space-y-1">
+           <AnimatedNumber value={latestNav} prefix="₹" decimals={2} className="text-4xl font-black text-text-bold tracking-tight" />
+           <div className={`flex items-center gap-2 font-black text-base ${isPos ? 'text-success' : 'text-danger'}`}>
+                <AnimatedNumber value={navChange} showPlusSign decimals={2} prefix="₹" />
+                <span>(
+                    <AnimatedNumber value={navChangePct} showPlusSign decimals={2} suffix="%" />
+                )</span>
+                <div className="w-1 h-1 rounded-full bg-white/20" />
+                <span className="text-[10px] text-text-muted font-black uppercase tracking-widest">{period}</span>
+           </div>
+        </div>
+
+        {/* Horizontal Stats Bar (Stock Style) */}
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-6 border-y border-white/5 py-6">
+            <div className="flex items-center gap-2 border-r border-white/10 pr-8">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Expense</span>
+                <span className="text-sm font-black text-text-bold italic">{(data.stats?.expense_ratio * 100).toFixed(2)}%</span>
+            </div>
+            <div className="flex items-center gap-2 border-r border-white/10 pr-8">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">AUM</span>
+                <span className="text-sm font-black text-text-bold italic">₹{(data.stats?.aum / 10000000).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Alpha</span>
+                <span className={`text-sm font-black ${metrics.alpha >= 0 ? 'text-success' : 'text-danger'}`}>
+                    {metrics.alpha >= 0 ? '+' : ''}{metrics.alpha?.toFixed(2)}%
+                </span>
+            </div>
         </div>
       </header>
 
@@ -211,120 +290,197 @@ export function MFDetails() {
 
       <div className="animate-mf bg-bg-surface border border-border-main rounded-2xl p-6 shadow-2xl shadow-black/20 relative group">
         <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2 text-text-bold">
+                <Activity size={16} className="text-accent" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Growth Analytics</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/5 rounded-lg text-[10px] font-black text-text-muted uppercase tracking-widest">
+                <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                Benchmark Sync
+            </div>
+        </div>
+
+        <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                    <YAxis domain={['dataMin', 'dataMax']} hide />
+                    <Tooltip 
+                        content={<CustomTooltip />} 
+                        cursor={{
+                            stroke: "#2e303a",
+                            strokeWidth: 1,
+                            strokeDasharray: "4 4",
+                        }}
+                    />
+                    {chartData.length > 0 && (
+                        <ReferenceLine 
+                            y={0} 
+                            stroke="#4b5563" 
+                            strokeDasharray="3 3" 
+                        />
+                    )}
+                    <Line 
+                        type="monotone" 
+                        dataKey="benchmarkNav" 
+                        stroke="#ffffff20" 
+                        strokeWidth={1}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        isAnimationActive={true}
+                    />
+                    <Line 
+                        type="monotone" 
+                        dataKey="nav" 
+                        stroke={strokeColor} 
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{
+                            r: 5,
+                            fill: strokeColor,
+                            stroke: "#121212",
+                            strokeWidth: 2,
+                        }}
+                        isAnimationActive={true}
+                    />
+                </LineChart>
+            </ResponsiveContainer>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 mt-8 border-t border-white/5 pt-6">
+            <div className="flex-1" />
+            
+            <div className="flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none">
                 {PERIODS.map(p => (
                     <button 
                         key={p} 
                         onClick={() => setPeriod(p)}
-                        className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest ${period === p ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-muted hover:text-text-bold'}`}
+                        className={`px-4 py-1.5 rounded-full text-[10px] font-black transition-all uppercase tracking-widest cursor-pointer ${period === p ? 'bg-white/10 text-white border border-white/10' : 'text-text-muted hover:text-text-bold hover:bg-white/5'}`}
                     >
                         {p}
                     </button>
                 ))}
             </div>
-            <div className="flex items-center gap-2 text-text-muted">
-                <Zap size={14} className="text-accent" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Live yfinance Feed</span>
-            </div>
-        </div>
 
-        <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                    <defs>
-                        <linearGradient id="navGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
-                        </linearGradient>
-                         <linearGradient id="benchGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#666" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#666" stopOpacity={0}/>
-                        </linearGradient>
-                    </defs>
-                    <YAxis domain={['dataMin', 'dataMax']} hide />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area 
-                        type="monotone" 
-                        dataKey="benchmarkNav" 
-                        stroke="#444" 
-                        strokeWidth={1}
-                        strokeDasharray="5 5"
-                        fill="url(#benchGradient)"
-                        isAnimationActive={true}
-                    />
-                    <Area 
-                        type="monotone" 
-                        dataKey="nav" 
-                        stroke="var(--color-accent)" 
-                        strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#navGradient)" 
-                        isAnimationActive={true}
-                    />
-                </AreaChart>
-            </ResponsiveContainer>
+            <div className="flex-1 flex justify-end">
+                <button 
+                    disabled
+                    className="flex items-center gap-2 bg-white/5 border border-white/5 text-text-muted/40 px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-not-allowed group"
+                >
+                    <span className="opacity-50">Terminal</span>
+                    <Zap size={12} className="opacity-30" />
+                </button>
+            </div>
         </div>
       </div>
 
-      <div className="animate-mf grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-bg-surface border border-border-main rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-                <Info size={14} className="text-text-muted" />
-                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Fund Overview</span>
+      <div className="animate-mf grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-bg-surface border border-border-main rounded-2xl p-6 space-y-6">
+            <div className="flex items-center gap-2">
+                <Brain size={16} className="text-accent" />
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Specialist's Take</span>
             </div>
             <div className="space-y-4">
-                <div className="flex justify-between items-center group/item">
-                    <span className="text-xs font-bold text-text-muted group-hover/item:text-text-bold transition-colors">Expense Ratio</span>
-                    <span className="text-sm font-black text-text-bold italic">{(data.stats?.expense_ratio * 100).toFixed(2)}%</span>
-                </div>
-                <div className="flex justify-between items-center group/item">
-                    <span className="text-xs font-bold text-text-muted group-hover/item:text-text-bold transition-colors">Exit Load</span>
-                    <span className="text-[10px] font-black text-text-bold italic max-w-[100px] text-right">{data.stats?.exit_load || "1.0%"}</span>
-                </div>
-                <div className="flex justify-between items-center group/item">
-                    <span className="text-xs font-bold text-text-muted group-hover/item:text-text-bold transition-colors">AUM</span>
-                    <span className="text-sm font-black text-text-bold italic">₹{(data.stats?.aum / 10000000).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr</span>
+                {metrics.alpha > 0 ? (
+                    <div className="flex gap-4">
+                        <div className="p-2 bg-success/10 rounded-lg h-fit"><TrendingUp className="text-success" size={14} /></div>
+                        <div>
+                            <p className="text-xs font-black text-text-bold uppercase tracking-tight">Market Overperformer</p>
+                            <p className="text-[11px] text-text-muted leading-relaxed">This fund consistently beats the market average, making it an Alpha-generating asset for your portfolio.</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex gap-4">
+                        <div className="p-2 bg-text-muted/10 rounded-lg h-fit"><Target className="text-text-muted" size={14} /></div>
+                        <div>
+                            <p className="text-xs font-black text-text-bold uppercase tracking-tight">Index Matcher</p>
+                            <p className="text-[11px] text-text-muted leading-relaxed">Returns are closely aligned with the market broad indexes. Low individual risk but tracks the average.</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex gap-4">
+                    <div className="p-2 bg-accent/10 rounded-lg h-fit"><Shield className="text-accent" size={14} /></div>
+                    <div>
+                        <p className="text-xs font-black text-text-bold uppercase tracking-tight">
+                            {metrics.sharpe_ratio > 1.2 ? "High Return Efficiency" : "Standard Efficiency"}
+                        </p>
+                        <p className="text-[11px] text-text-muted leading-relaxed">
+                            {metrics.sharpe_ratio > 1.2 
+                              ? "Excellent returns per unit of risk taken. A sign of a disciplined fund manager." 
+                              : "The fund covers its risk well, matching average industry standards for steady growth."}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div className="bg-bg-surface border border-border-main rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-                <Activity size={14} className="text-text-muted" />
-                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Risk Metrics</span>
-            </div>
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-text-muted">Volatility (SD)</span>
-                    <span className="text-sm font-black text-text-bold">{data.metrics?.volatility?.toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-text-muted">Sharpe Ratio</span>
-                    <span className={`text-sm font-black ${data.metrics?.sharpe_ratio > 1 ? 'text-success' : 'text-accent'}`}>{data.metrics?.sharpe_ratio?.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-text-muted">Alpha</span>
-                    <span className={`text-sm font-black ${data.metrics?.alpha >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {data.metrics?.alpha >= 0 ? '+' : ''}{data.metrics?.alpha?.toFixed(2)}%
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <div className="bg-bg-surface border border-border-main rounded-2xl p-6 bg-gradient-to-br from-bg-surface to-white/[0.02]">
+        <div className="bg-bg-surface border border-border-main rounded-2xl p-6 bg-gradient-to-br from-bg-surface to-white/[0.02] flex flex-col justify-between">
             <div className="flex items-center gap-2 mb-4">
                 <Zap size={14} className="text-accent" />
-                <span className="text-[10px] font-black text-accent uppercase tracking-widest">Decixn Score</span>
+                <span className="text-[10px] font-black text-accent uppercase tracking-widest">Portfolio IQ Score</span>
             </div>
-            <div className="flex flex-col items-center justify-center py-2">
-                <div className="text-4xl font-black text-text-bold italic tracking-tighter mb-1">
+            <div className="flex flex-col items-center justify-center py-4">
+                <div className="text-5xl font-black text-text-bold italic tracking-tighter mb-1">
                     {decixnScore}
                 </div>
                 <p className={`text-[10px] font-black uppercase tracking-widest ${decixnScore > 7.5 ? 'text-success' : decixnScore > 5 ? 'text-accent' : 'text-danger'}`}>
-                    {decixnScore > 7.5 ? 'Very Bullish' : decixnScore > 5 ? 'Balanced' : 'Underperformer'}
+                    {decixnScore > 7.5 ? 'Strong Potential' : decixnScore > 5 ? 'Steady Asset' : 'Needs Review'}
                 </p>
-                <div className="w-full h-1.5 bg-white/5 rounded-full mt-4 overflow-hidden">
-                    <div className="h-full bg-accent transition-all duration-1000" style={{ width: `${decixnScore * 10}%` }} />
+                <div className="w-full h-1.5 bg-white/5 rounded-full mt-6 overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }} 
+                      animate={{ width: `${decixnScore * 10}%` }} 
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className="h-full bg-accent" 
+                    />
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="animate-mf grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-bg-surface border border-border-main rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+                <Activity size={14} className="text-text-muted" />
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Advanced Risk Metrics</span>
+            </div>
+            <div className="space-y-6">
+                {Object.entries(METRIC_EXPLANATIONS).map(([key, info]) => {
+                    const val = metrics[key as keyof typeof metrics];
+                    return (
+                        <div key={key} className="space-y-1 group">
+                            <div className="flex justify-between items-center bg-white/[0.01] hover:bg-white/[0.03] p-3 rounded-xl border border-white/[0.03] transition-all">
+                                <div>
+                                    <p className="text-[10px] font-black text-text-bold uppercase tracking-tight">{info.label}</p>
+                                    <p className="text-[9px] text-text-muted max-w-[150px]">{info.desc}</p>
+                                </div>
+                                <span className={`text-sm font-black transition-colors ${key === 'alpha' ? (val >= 0 ? 'text-success' : 'text-danger') : 'text-text-bold'}`}>
+                                    {key === 'alpha' ? (val >= 0 ? '+' : '') : ''}{val?.toFixed(2)}{key === 'volatility' ? '%' : ''}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+        
+        <div className="bg-bg-surface border border-border-main rounded-2xl p-6 flex flex-col">
+            <div className="flex items-center gap-2 mb-6">
+                <Info size={14} className="text-text-muted" />
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Fund Metadata</span>
+            </div>
+            <div className="space-y-4 flex-1 flex flex-col justify-center">
+                <div className="flex justify-between items-center p-3 border-b border-white/5">
+                    <span className="text-xs font-bold text-text-muted">Exit Load</span>
+                    <span className="text-[11px] font-black text-text-bold text-right max-w-[120px]">{data.stats?.exit_load}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 border-b border-white/5">
+                    <span className="text-xs font-bold text-text-muted">Min Investment</span>
+                    <span className="text-[11px] font-black text-text-bold text-right italic">₹500.00</span>
+                </div>
+                <div className="flex justify-between items-center p-3">
+                    <span className="text-xs font-bold text-text-muted">Lock-in</span>
+                    <span className="text-[11px] font-black text-text-bold text-right italic">None</span>
                 </div>
             </div>
         </div>
@@ -340,7 +496,7 @@ export function MFDetails() {
             <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Based on this fund's {period} performance.</p>
          </header>
 
-         <SIPCalculator cagr={((latestNav - firstNav) / firstNav) * 100} />
+         <SIPCalculator cagr={firstNavReal !== 0 ? ((latestNav - firstNavReal) / firstNavReal) * 100 : 0} />
       </section>
     </div>
   );

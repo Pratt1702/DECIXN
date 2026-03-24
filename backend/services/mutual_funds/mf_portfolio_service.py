@@ -39,32 +39,45 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
         valid_quote = None
         
         if search.quotes:
-            # Filter for Indian Mutual Funds (BSE/NSI usually)
-            for q in search.quotes:
-                if q.get("exchange") in ["BSE", "NSI"] or q.get("quoteType") == "MUTUALFUND":
+            # Prioritize Indian Mutual Funds (BSE/NSI)
+            # Some global funds (Mirae, etc) might show global tickers first
+            quotes = search.quotes
+            # Sort: Prioritize symbols ending in .BO or .NS, then general Indian exchanges
+            quotes.sort(key=lambda x: (
+                1 if x.get("symbol", "").endswith((".BO", ".NS")) else
+                2 if x.get("exchange") in ["BSE", "NSI"] else
+                3
+            ))
+            
+            for q in quotes:
+                if q.get("exchange") in ["BSE", "NSI"] or q.get("symbol", "").endswith((".BO", ".NS")) or q.get("quoteType") == "MUTUALFUND":
                     valid_quote = q
                     break
         
+        # 2. Fallback: If no Indian ticker found for ISIN, try searching by Name
+        if not valid_quote and isin:
+            db_scheme = supabase.table("mf_schemes").select("scheme_name").or_(f"isin_div_payout.eq.{isin},isin_reinvest.eq.{isin}").limit(1).execute()
+            if db_scheme.data:
+                name = db_scheme.data[0]["scheme_name"]
+                search = yf.Search(name)
+                if search.quotes:
+                    for q in search.quotes:
+                        if q.get("symbol", "").endswith((".BO", ".NS")) or q.get("exchange") in ["BSE", "NSI"]:
+                            valid_quote = q
+                            break
+                            
         if not valid_quote:
-            # Try getting ISIN from DB if not provided and yf search failed
-            if not isin:
-                db_isin = get_isin_from_db(name_or_isin)
-                if db_isin:
-                    search = yf.Search(db_isin)
-                    if search.quotes:
-                        valid_quote = search.quotes[0]
-        
-        if not valid_quote:
-            return {"success": False, "error": f"Could not map fund to yfinance: {lookup_target}"}
+            return {"success": False, "error": f"Invalid mapping: {lookup_target} not found on BSE/NSI"}
         
         ticker_symbol = valid_quote["symbol"]
         ticker = yf.Ticker(ticker_symbol)
         
         # Get latest price
-        # yfinance history 1d is usually enough
-        hist = ticker.history(period="1d")
+        # yfinance history '1d' is flaky for mutual funds/NAV (often returns 'possibly delisted')
+        # We use a 5-day window and take the last available NAV for robustness
+        hist = ticker.history(period="5d")
         if hist.empty:
-            return {"success": False, "error": f"No price data for ticker: {ticker_symbol}"}
+            return {"success": False, "error": f"No price data found for ticker: {ticker_symbol} (ISIN: {lookup_target})"}
             
         latest_nav = float(hist['Close'].iloc[-1])
         nav_date = hist.index[-1].strftime('%Y-%m-%d')

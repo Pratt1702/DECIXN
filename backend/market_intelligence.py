@@ -299,7 +299,7 @@ def analyze_single_ticker(symbol: str) -> dict:
         })
 
 
-def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
+def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float, fund_name: str = None) -> dict:
     """
     Analyzes a holding with P&L-adjusted decisions.
     """
@@ -317,12 +317,20 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
     }
     symbol = mappings.get(symbol, symbol)
     
-    if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
-        symbol += '.NS'
+    is_mf = symbol.startswith('INF') or symbol.startswith('IN')
+    
+    if not is_mf:
+        if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
+            symbol += '.NS'
+    
     symbol = symbol.upper()
 
     original_symbol = symbol.replace('.NS', '').replace('.BO', '')
-    symbols_to_try = [f"{original_symbol}.NS", f"{original_symbol}.BO"]
+    
+    if is_mf:
+        symbols_to_try = [original_symbol] # Try ISIN directly
+    else:
+        symbols_to_try = [f"{original_symbol}.NS", f"{original_symbol}.BO"]
     
     df = None
     final_symbol = None
@@ -416,7 +424,8 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "52w_high": fifty_two_week_high if fifty_two_week_high else None,
             },
             "data": {
-                "companyName": company_name,
+                "companyName": fund_name if fund_name else company_name,
+                "fund_name": fund_name,
                 "sector": sector,
                 "industry": industry,
                 "quote_type": quote_type,
@@ -520,16 +529,41 @@ def get_market_overview() -> dict:
             curr_price = sensex['Close'].iloc[-1]
             change = curr_price - prev_close
             change_pct = (change / prev_close) * 100
-        else:
-            curr_price, change, change_pct = 0, 0, 0
-            
-        indices.append({
-            "name": "SENSEX",
-            "symbol": "^BSESN",
-            "price": float(curr_price),
-            "change": float(change),
-            "changePercent": float(change_pct)
-        })
+            indices.append({
+                "name": "SENSEX",
+                "symbol": "^BSESN",
+                "price": float(curr_price),
+                "change": float(change),
+                "changePercent": float(change_pct)
+            })
+
+        # Fetch MIDCAP
+        midcap = yf.Ticker("^NSEMDCP100").history(period="5d")
+        if len(midcap) >= 2:
+            prev_close = midcap['Close'].iloc[-2]
+            curr_price = midcap['Close'].iloc[-1]
+            change_pct = ((curr_price - prev_close) / prev_close) * 100
+            indices.append({
+                "name": "MIDCAP",
+                "symbol": "^NSEMDCP100",
+                "price": float(curr_price),
+                "change": float(curr_price - prev_close),
+                "changePercent": float(change_pct)
+            })
+
+        # Fetch SMALLCAP
+        smallcap = yf.Ticker("^NSESCP100").history(period="5d")
+        if len(smallcap) >= 2:
+            prev_close = smallcap['Close'].iloc[-2]
+            curr_price = smallcap['Close'].iloc[-1]
+            change_pct = ((curr_price - prev_close) / prev_close) * 100
+            indices.append({
+                "name": "SMALLCAP",
+                "symbol": "^NSESCP100",
+                "price": float(curr_price),
+                "change": float(curr_price - prev_close),
+                "changePercent": float(change_pct)
+            })
     except Exception as e:
         print(f"Error fetching indices: {e}")
         

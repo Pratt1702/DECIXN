@@ -16,8 +16,9 @@ def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
             qty = float(h["quantity"])
             avg_cost = float(h["avg_cost"])
             pnl = float(h.get("pnl", 0.0))
+            fund_name = h.get("fund_name")
             if not symbol or qty <= 0: return None
-            return analyze_single_holding(symbol, avg_cost, qty, pnl)
+            return analyze_single_holding(symbol, avg_cost, qty, pnl, fund_name=fund_name)
         except Exception as e:
             print(f"DEBUG: Critical failure on holding {h}: {e}")
             return None

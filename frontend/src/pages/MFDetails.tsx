@@ -12,6 +12,62 @@ import {
 } from "recharts";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 
+function WealthProjection({ cagr, schemeName }: { cagr: number, schemeName: string }) {
+  const [sip, setSip] = useState(10000);
+  const years = 10;
+  const rate = cagr / 100 / 12;
+  const months = years * 12;
+  const futureValue = sip * ((Math.pow(1 + rate, months) - 1) / rate) * (1 + rate);
+  const totalInvested = sip * months;
+  const gains = futureValue - totalInvested;
+
+  return (
+    <div className="bg-bg-surface border border-border-main rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden">
+       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
+          <div className="flex items-center gap-3">
+             <div className="p-3 bg-success/10 rounded-2xl text-success">
+                <TrendingUp size={24} />
+             </div>
+             <div>
+                <h3 className="text-2xl font-black text-text-bold tracking-tight italic uppercase">Wealth Machine</h3>
+                <p className="text-xs text-text-muted font-bold tracking-wide">10-Year SIP Projection @ {cagr}% CAGR</p>
+             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+             <span className="text-[10px] font-black uppercase tracking-widest text-text-muted px-1">Monthly SIP (₹)</span>
+             <input 
+               type="number" 
+               value={sip} 
+               onChange={(e) => setSip(Number(e.target.value))}
+               className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xl font-black text-accent outline-none focus:border-accent/50 w-40"
+             />
+          </div>
+       </div>
+
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="space-y-1">
+             <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Total Invested</p>
+             <p className="text-2xl font-black text-text-bold tracking-tighter">₹{(totalInvested/100000).toFixed(1)}L</p>
+          </div>
+          <div className="space-y-1">
+             <p className="text-[10px] font-black uppercase tracking-widest text-success">Est. Wealth</p>
+             <p className="text-4xl font-black text-success tracking-tighter">₹{(futureValue/100000).toFixed(1)}L</p>
+          </div>
+          <div className="space-y-1">
+             <p className="text-[10px] font-black uppercase tracking-widest text-accent">Compounded Gains</p>
+             <p className="text-2xl font-black text-accent tracking-tighter">₹{(gains/100000).toFixed(1)}L</p>
+          </div>
+       </div>
+       
+       <div className="mt-8 pt-8 border-t border-white/5">
+          <p className="text-xs text-text-muted font-medium leading-relaxed italic">
+            "Investing ₹{sip.toLocaleString()} monthly in <span className="text-text-bold">{schemeName}</span> could potentially yield a wealth corpus of <span className="text-success font-black">₹{(futureValue/100000).toFixed(2)} Lakhs</span> by 2036, assuming consistent past performance."
+          </p>
+       </div>
+    </div>
+  );
+}
+
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -129,16 +185,23 @@ export function MFDetails() {
               <span className="text-[10px] font-black uppercase tracking-[0.25em] text-text-muted/60">{data?.symbol || symbol}</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-black text-text-bold tracking-tighter leading-none">
-              {data?.companyName}
+              {data?.companyName || mf.scheme_name || "Scheme Intelligence"}
             </h1>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
+           <button
+             onClick={() => navigate(`/mutual-funds/compare?mf1=${symbol}`)}
+             className="flex items-center gap-2 px-6 py-4 rounded-xl bg-white/5 border border-white/10 text-text-bold hover:bg-white/10 transition-all font-black text-xs uppercase tracking-widest active:scale-95"
+           >
+             <BarChart3 size={16} className="text-accent" />
+             Compare Fund
+           </button>
            <div className="px-6 py-4 rounded-2xl bg-bg-surface border border-border-main text-right">
               <p className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1">Current NAV</p>
               <div className="flex items-center gap-2 justify-end">
-                <span className="text-3xl font-black text-text-bold">₹{data?.price?.toFixed(2)}</span>
+                <span className="text-3xl font-black text-text-bold">₹{(data?.price || mf.nav || 0).toFixed(2)}</span>
                 {isPos ? <ArrowUpRight className="text-success" size={20} /> : <ArrowDownRight className="text-danger" size={20} />}
               </div>
            </div>
@@ -227,6 +290,9 @@ export function MFDetails() {
                 )}
              </div>
           </div>
+
+          {/* SIP Wealth Machine */}
+          <WealthProjection cagr={mf.cagr_3y || 12} schemeName={data?.companyName || "Fund"} />
 
           {/* Strategy Insight */}
           <div className="bg-bg-surface border border-border-main rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden">

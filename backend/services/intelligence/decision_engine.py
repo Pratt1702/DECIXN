@@ -71,14 +71,37 @@ def make_decision(signals):
     elif signals['Trend'] == 'Bearish':
         confluence_score -= 15 # Softened penalty for bearish trend
         reasons.append(f"Trend Warning: Stock is in a defined downtrend (Price < MA20 < MA50)")
-        
-        # Differentiation among losers (Bad vs Worst)
-        if signals.get('Trend_Days', 1) > 20:
-            confluence_score -= 10
-            reasons.append("Prolonged Downtrend: Sustained bearish pressure over 20+ sessions")
-        if dist_ma20 < -8:
-            confluence_score -= 10
-            reasons.append("Structural Break: Price deeply below 20-day moving average")
+        indices = [] # Initialize indices list
+        sensex = yf.Ticker("^BSESN").history(period="5d")
+        if len(sensex) >= 2:
+            prev_close = sensex['Close'].iloc[-2]
+            curr_price = sensex['Close'].iloc[-1]
+            change = curr_price - prev_close
+            change_pct = (change / prev_close) * 100
+        else:
+            curr_price, change, change_pct = 0, 0, 0
+            
+        indices.append({
+            "name": "SENSEX",
+            "symbol": "^BSESN",
+            "price": float(curr_price),
+            "change": float(change),
+            "changePercent": float(change_pct)
+        })
+
+        # Fetch MIDCAP
+        midcap = yf.Ticker("^NSEMDCP100").history(period="5d")
+        if len(midcap) >= 2:
+            prev_close = midcap['Close'].iloc[-2]
+            curr_price = midcap['Close'].iloc[-1]
+            change_pct = ((curr_price - prev_close) / prev_close) * 100
+            indices.append({
+                "name": "MIDCAP",
+                "symbol": "^NSEMDCP100",
+                "price": float(curr_price),
+                "change": float(curr_price - prev_close),
+                "changePercent": float(change_pct)
+            })
     
     if dist_ma20 > 8:
         risk_level = "HIGH"
@@ -151,59 +174,67 @@ def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty
     """
     Produce a professional portfolio decision based on current holding status (P&L) vs Market Trend.
     """
+    is_mf = symbol.startswith('INF') or symbol.startswith('IN') or len(symbol) >= 12
+    
     decision = "HOLD"
     reasons = []
     severity = "MODERATE"
 
     trend = signals['Trend']
     trend_days = signals.get('Trend_Days', 1)
-    overbought = signals['Overbought']
-    oversold = signals['Oversold']
-    breakout = signals['Breakout']
     price = signals['Price']
-    macd_turning_bullish = signals.get('MACD_Turning_Bullish', False)
-    macd_turning_bearish = signals.get('MACD_Turning_Bearish', False)
-    macd_accel_bearish = signals.get('MACD_Accelerating_Bearish', False)
 
     is_profit = pnl > 0
-
-    # 52-week proximity context
-    near_52w_low = fifty_two_week_low and price <= fifty_two_week_low * 1.08
-    near_52w_high = fifty_two_week_high and price >= fifty_two_week_high * 0.95
 
     action = "Monitor price action at recent support/resistance levels."
     priority = "LOW"
     risk_level = "LOW"
     
-    if is_profit:
+    if is_mf:
+        # --- MUTUAL FUND LONG-TERM LOGIC ---
         if trend == 'Bullish':
-            decision = "RIDE TREND (HOLD)"
-            reasons.append(f"Growth remains intact. The stock has been trending well for {trend_days} days with strong buyer support.")
-            action = "Stay invested and let the winners run. Consider trailing your exit 5% below current price to lock in gains."
+            decision = "SIP / ACCUMULATE"
+            reasons.append("Fund is in a healthy growth phase. Historical compounding remains strong.")
+            action = "Continue SIP or add on dips. Focus on wealth accumulation over 5-10 year horizon."
             priority = "MEDIUM"
-        elif trend == 'Bearish':
-            decision = "BOOK PROFITS"
-            reasons.append(f"Trend reversed ({trend_days} days ago). Don't let gains evaporate.")
-            action = "Sell current position to realize gains. Re-entry possible at lower support."
-            priority = "HIGH" # Sell alerts always High Priority
-            risk_level = "MEDIUM"
-    else: # Loss
-        if trend == 'Bullish' and signals.get('MACD_Turning_Bullish'):
-            decision = "AVERAGE DOWN / HOLD"
-            reasons.append(f"Bullish reversal detected ({trend_days} days) with MACD momentum.")
-            action = "Buy additional shares to lower cost basis. Conviction: Medium."
-            priority = "MEDIUM"
-        elif trend == 'Bullish':
-            decision = "HOLD"
-            reasons.append("Waiting for bullish momentum confirmation before averaging down.")
-            action = "Hold current position. Avoid averaging down until MACD turns bullish."
-            priority = "LOW"
-        elif trend == 'Bearish':
-            decision = "REDUCE / EXIT"
-            reasons.append("Protect your capital. The stock is under heavy pressure and there's no clear floor yet.")
-            action = "Exit or reduce position to preserve remaining capital. Avoid adding more 'against the tide' right now."
-            priority = "HIGH" # Exit signals always High Priority
-            risk_level = "HIGH"
+        else: # Bearish trend in MF
+            if is_profit:
+                decision = "WEALTH MACHINE (HOLD)"
+                reasons.append("Short-term correction in a long-term winner. Don't let volatility shake your compounding.")
+                action = "Maintain position. This is a wealth machine; short-term dips are typical for mid/small-cap allocations."
+                priority = "LOW"
+            else:
+                decision = "UNDERPERFORMER (REVIEW)"
+                reasons.append("Fund is showing persistent relative weakness vs benchmark. Check for fund manager changes.")
+                action = "Hold for now but compare with Category Average. Consider reallocating if underperformance persists for 2+ quarters."
+                priority = "MEDIUM"
+                risk_level = "MEDIUM"
+    else:
+        # --- STANDARD STOCK LOGIC ---
+        if is_profit:
+            if trend == 'Bullish':
+                decision = "RIDE TREND (HOLD)"
+                reasons.append(f"Growth remains intact. The stock has been trending well for {trend_days} days.")
+                action = "Stay invested and let the winners run. Consider trailing your exit 5% below current price."
+                priority = "MEDIUM"
+            elif trend == 'Bearish':
+                decision = "BOOK PROFITS"
+                reasons.append(f"Trend reversed ({trend_days} days ago). Don't let gains evaporate.")
+                action = "Sell current position to realize gains. Re-entry possible at lower support."
+                priority = "HIGH"
+                risk_level = "MEDIUM"
+        else: # Loss
+            if trend == 'Bullish':
+                decision = "AVERAGE DOWN / HOLD"
+                reasons.append(f"Bullish reversal detected ({trend_days} days) with MACD momentum.")
+                action = "Buy additional shares to lower cost basis."
+                priority = "MEDIUM"
+            elif trend == 'Bearish':
+                decision = "REDUCE / EXIT"
+                reasons.append("Protect your capital. The stock is under heavy pressure.")
+                action = "Exit or reduce position to preserve remaining capital."
+                priority = "HIGH"
+                risk_level = "HIGH"
 
     if benchmark_comparison and benchmark_comparison.get('status') == 'UNDERPERFORMING':
         reasons.append(f"Risk factor: Underperforming Nifty 50 by {abs(benchmark_comparison['relative_strength'])}% lately.")

@@ -83,6 +83,16 @@ export const getTickerAnalysis = async (ticker: string) => {
   return response.data;
 };
 
+export const getCompareAnalysis = async (mf1: string, mf2: string) => {
+  const response = await apiClient.get(`/analyze/compare?mf1=${mf1}&mf2=${mf2}`);
+  return response.data;
+};
+
+export const getMarketOverview = async () => {
+  const response = await apiClient.get('/market/overview');
+  return response.data;
+};
+
 export const searchStocks = async (query: string) => {
   const response = await apiClient.get(`/search/${query}`);
   return response.data;
@@ -94,7 +104,7 @@ export const searchMutualFunds = async (query: string) => {
 };
 
 export const syncMutualFunds = async () => {
-  const response = await apiClient.post('/mutual-funds/sync');
+  const response = await apiClient.post('/portfolio/sync/mf');
   return response.data;
 };
 
@@ -113,11 +123,6 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
     })),
   };
   const response = await apiClient.post('/analyze/portfolio', payload);
-  return response.data;
-};
-
-export const getMarketOverview = async () => {
-  const response = await apiClient.get('/market/overview');
   return response.data;
 };
 

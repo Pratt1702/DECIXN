@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { getPortfolio } from "../services/api";
-import { motion } from "framer-motion";
+import { getPortfolio, getMarketOverview } from "../services/api";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   PieChart as PieChartIcon, ShieldAlert, Zap, 
-  TrendingUp, Info, ArrowUpRight, Target,
+  TrendingUp, Info, ArrowUpRight, AlertTriangle,
   Filter, Layers, LayoutDashboard
 } from "lucide-react";
 import { 
@@ -16,11 +16,30 @@ export function MFInsights() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Investor Profile State
+  const [profile, setProfile] = useState(() => {
+    const saved = localStorage.getItem("investor_profile");
+    return saved ? JSON.parse(saved) : { age: 30, risk: "Moderate", horizon: 10, goal: "Wealth Creation" };
+  });
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+
+  const saveProfile = (newProfile: any) => {
+    setProfile(newProfile);
+    localStorage.setItem("investor_profile", JSON.stringify(newProfile));
+    setShowProfileEdit(false);
+  };
+
+  const [marketData, setMarketData] = useState<any>(null);
+
   useEffect(() => {
     async function loadPortfolio() {
       try {
-        const res = await getPortfolio();
+        const [res, mkt] = await Promise.all([
+          getPortfolio(),
+          getMarketOverview()
+        ]);
         setData(res);
+        setMarketData(mkt);
       } catch (e) {
         console.error("Failed to load portfolio for insights");
       } finally {
@@ -39,11 +58,11 @@ export function MFInsights() {
 
   // Derive insights from portfolio
   const holdings = data?.portfolio_analysis || [];
-  const mfHoldings = holdings.filter((h: any) => h.symbol.length >= 10); // Simple heuristic for now
+  const mfHoldings = holdings.filter((h: any) => h.symbol.length >= 10); 
   
   const totalValue = mfHoldings.reduce((acc: number, h: any) => acc + h.holding_context.current_value, 0);
   
-  // Categorization (Mocked for now since we don't have metadata for all funds)
+  // Categorization (Heuristic based on symbol or just mock if no data)
   const categories = [
     { name: "Small Cap", value: 45, color: "#10b981" },
     { name: "Mid Cap", value: 25, color: "#3b82f6" },
@@ -60,10 +79,42 @@ export function MFInsights() {
   ];
 
   const alerts = [
-    { type: "WARNING", title: "Small Cap Saturation", msg: "45% of your portfolio is in Small Caps. High volatility risk in bearish regimes.", icon: <ShieldAlert className="text-danger" /> },
+    { 
+      type: "WARNING", 
+      title: "Risk-Profile Mismatch", 
+      msg: profile.risk === "Conservative" && categories[0].value > 30 
+        ? "Your profile is Conservative, but 45% of your portfolio is in high-risk Small Caps. Extreme volatility risk!" 
+        : "Small Cap Saturation: 45% in Small Caps is high even for aggressive investors.", 
+      icon: <ShieldAlert className="text-danger" /> 
+    },
     { type: "OPTIMIZE", title: "Expense Ratio Leak", msg: "Switching to Direct Plans for HDFC Index could save ~0.8% annually.", icon: <Zap className="text-amber-400" /> },
-    { type: "INSIGHT", title: "SIP Momentum", msg: "Your average entry in Quant Small Cap is 15% below CMNAV. Strong accumulation.", icon: <TrendingUp className="text-success" /> }
+    { 
+      type: "INSIGHT", 
+      title: `${profile.goal} Progress`, 
+      msg: `At current CAGR, you are on track to meet your ${profile.goal} target in ${profile.horizon} years.`, 
+      icon: <TrendingUp className="text-success" /> 
+    }
   ];
+
+  // Market Context High-Priority Alert
+  const midcap = marketData?.indices?.find((i: any) => i.name === "MIDCAP");
+  const smallcap = marketData?.indices?.find((i: any) => i.name === "SMALLCAP");
+
+  if (midcap && midcap.changePercent < -1.5) {
+    alerts.unshift({
+      type: "WARNING",
+      title: "Midcap Correction",
+      msg: `The Midcap index is down ${midcap.changePercent.toFixed(1)}%. Broad market weakness might impact your small/midcap funds.`,
+      icon: <AlertTriangle className="text-danger" />
+    });
+  } else if (smallcap && smallcap.changePercent < -1.5) {
+    alerts.unshift({
+      type: "WARNING",
+      title: "Smallcap Stress",
+      msg: `Smallcap index corrected ${smallcap.changePercent.toFixed(1)}%. High-alpha funds might see near-term drawdown.`,
+      icon: <AlertTriangle className="text-danger" />
+    });
+  }
 
   return (
     <motion.div
@@ -71,7 +122,7 @@ export function MFInsights() {
       animate={{ opacity: 1 }}
       className="max-w-6xl mx-auto space-y-12 pb-32 pt-8"
     >
-      <header className="flex flex-col md:flex-row justify-between items-end gap-6">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <LayoutDashboard size={14} className="text-accent" />
@@ -82,14 +133,61 @@ export function MFInsights() {
         </div>
         
         <div className="flex items-center gap-3">
-           <button className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-text-bold hover:bg-white/10 transition-all flex items-center gap-2">
-             <Filter size={14} /> Filter AMC
-           </button>
-           <button className="px-5 py-2.5 rounded-xl bg-accent text-[10px] font-black uppercase tracking-widest text-white hover:brightness-110 shadow-lg shadow-accent/20 transition-all flex items-center gap-2">
-             <Target size={14} /> Rebalance Plan
+           <div className="flex flex-col items-end mr-4">
+              <span className="text-[9px] font-black text-text-muted uppercase tracking-widest mb-1">Current Profile</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-accent">{profile.risk}</span>
+                <span className="text-white/10">•</span>
+                <span className="text-xs font-black text-text-bold">{profile.horizon} Yrs</span>
+              </div>
+           </div>
+           <button 
+             onClick={() => setShowProfileEdit(!showProfileEdit)}
+             className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-text-bold hover:bg-white/10 transition-all flex items-center gap-2"
+           >
+             <Filter size={14} /> {showProfileEdit ? 'Close Profile' : 'Edit Profile'}
            </button>
         </div>
       </header>
+
+      {/* ── PROFILING DRAWER ── */}
+      <AnimatePresence>
+        {showProfileEdit && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-accent/5 border border-accent/10 rounded-[2.5rem] p-10 grid grid-cols-1 md:grid-cols-4 gap-8"
+          >
+            {[
+              { label: "Investor Age", key: "age", type: "number" },
+              { label: "Risk Appetite", key: "risk", type: "select", options: ["Conservative", "Moderate", "Aggressive"] },
+              { label: "Time Horizon (Yrs)", key: "horizon", type: "number" },
+              { label: "Primary Goal", key: "goal", type: "text" }
+            ].map((field) => (
+              <div key={field.key} className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-text-muted">{field.label}</label>
+                {field.type === 'select' ? (
+                  <select 
+                    value={profile[field.key]}
+                    onChange={(e) => saveProfile({ ...profile, [field.key]: e.target.value })}
+                    className="w-full bg-bg-surface border border-border-main rounded-xl px-4 py-3 text-sm font-bold text-text-bold outline-none focus:border-accent group"
+                  >
+                    {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                ) : (
+                  <input 
+                    type={field.type}
+                    value={profile[field.key]}
+                    onChange={(e) => saveProfile({ ...profile, [field.key]: e.target.value })}
+                    className="w-full bg-bg-surface border border-border-main rounded-xl px-4 py-3 text-sm font-bold text-text-bold outline-none focus:border-accent"
+                  />
+                )}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── TOP LAYER: ALLOCATION & RISK ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

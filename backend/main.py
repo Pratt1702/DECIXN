@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
+from market_intelligence import analyze_single_ticker, get_market_overview
 import csv
 import os
 import requests
@@ -11,7 +11,8 @@ from services.intelligence.chat_service import chat_engine
 from portfolio_logic import run_portfolio_analysis
 import time
 from collections import defaultdict
-from services.mutual_funds import MFDBSync
+from services.mutual_funds import MFDBSync, MFPortfolioParser
+from services.mutual_funds import MFAnalyticsService # Ensuring this is also available if needed
 
 class RateLimiter:
     def __init__(self, limit: int = 10, window: int = 1800):  # 10 msgs / 30 mins
@@ -101,36 +102,65 @@ def read_root():
 @app.get("/analyze/portfolio")
 def analyze_portfolio():
     """
-    Reads the Kite holdings CSV (holdings_kite.csv) as a fallback data source,
-    then delegates to the shared analysis pipeline.
+    Reads the Kite holdings CSV (holdings_kite.csv) and MF holdings (mf_holdings.json)
+    as the local data source, then delegates to the shared analysis pipeline.
     """
-    csv_path = os.path.join(os.path.dirname(__file__), "assets", "holdings_kite.csv")
-    if not os.path.exists(csv_path):
-        raise HTTPException(status_code=404, detail="Holdings CSV not found in backend directory.")
-
+    assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+    csv_path = os.path.join(assets_dir, "holdings_kite.csv")
+    mf_path = os.path.join(assets_dir, "mf_holdings.json")
+    
     holdings_data = []
-    with open(csv_path, mode='r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        next(reader, None)  # skip header
-        for row in reader:
-            if not row or len(row) < 3:
-                continue
-            try:
-                symbol = row[0].replace('"', '').replace("'", '').strip()
-                qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
-                avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
-                
-                if symbol and qty > 0:
-                    holdings_data.append({
-                        "symbol": symbol, 
-                        "quantity": qty, 
-                        "avg_cost": avg_cost, 
-                        "pnl": 0.0  # Force recalculation by providing zero fallback
-                    })
-            except Exception as e:
-                print(f"Failed to parse CSV row {row}: {e}")
+
+    # 1. Load Stock Holdings
+    if os.path.exists(csv_path):
+        with open(csv_path, mode='r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            next(reader, None)  # skip header
+            for row in reader:
+                if not row or len(row) < 3: continue
+                try:
+                    symbol = row[0].replace('"', '').replace("'", '').strip()
+                    qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
+                    avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
+                    if symbol and qty > 0:
+                        holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": 0.0})
+                except Exception as e:
+                    print(f"Failed to parse CSV row {row}: {e}")
+
+    # 2. Load Mutual Fund Holdings
+    if os.path.exists(mf_path):
+        mf_holdings = MFPortfolioParser.load_portfolio(mf_path)
+        for h in mf_holdings:
+            holdings_data.append({
+                "symbol": h["symbol"], # ISIN
+                "quantity": h["quantity"],
+                "avg_cost": h["avg_cost"],
+                "pnl": 0.0,
+                "asset_type": "MUTUAL_FUND"
+            })
 
     return run_portfolio_analysis(holdings_data)
+
+@app.post("/portfolio/sync/mf")
+def sync_mf_portfolio():
+    """
+    Parses the Kite Mutual Fund Excel from test_data and updates the local assets.
+    """
+    excel_path = r"f:\Coding\ETGenAIHackathon\test_data\mfs\kite_mutual_funds.xlsx"
+    output_path = os.path.join(os.path.dirname(__file__), "assets", "mf_holdings.json")
+    
+    if not os.path.exists(excel_path):
+        raise HTTPException(status_code=404, detail="Kite MF Excel not found at test_data path.")
+    
+    holdings = MFPortfolioParser.parse_kite_excel(excel_path)
+    if not holdings:
+        raise HTTPException(status_code=500, detail="Failed to parse Kite MF Excel or file is empty.")
+    
+    success = MFPortfolioParser.save_portfolio(holdings, output_path)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to save parsed MF portfolio locally.")
+    
+    return {"success": True, "count": len(holdings), "message": "Mutual Fund portfolio synchronized successfully."}
 
 @app.post("/analyze/portfolio")
 def analyze_portfolio_custom(payload: PortfolioInput):
@@ -150,6 +180,24 @@ def analyze_portfolio_custom(payload: PortfolioInput):
     ]
     return run_portfolio_analysis(holdings_data)
 
+@app.get("/analyze/compare")
+async def analyze_compare(mf1: str, mf2: str):
+    """
+    Side-by-side comparison of two mutual funds.
+    """
+    try:
+        data1 = analyze_single_ticker(mf1)
+        data2 = analyze_single_ticker(mf2)
+        return {
+            "success": True,
+            "funds": {
+                mf1: data1,
+                mf2: data2
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.get("/market/overview")
 def get_market_overview_endpoint():
     """
@@ -164,49 +212,69 @@ def analyze_ticker(ticker: str):
     Automatically resolves ISINs to Yahoo Symbols for Mutual Funds.
     """
     # Track if this was an ISIN and what its scheme_code is
+    # --- ISIN Resolution Strategy ---
     scheme_code = None
-    is_isin = len(ticker) >= 12 and ticker[0:2].isalpha() and any(c.isdigit() for c in ticker)
-    
-    if is_isin:
-        from services.core.supabase_client import supabase
-        from services.mutual_funds import MFAnalyticsService
+    if ticker.startswith('INF') or ticker.startswith('IN'):
+        isin = ticker
         try:
-            # 0. Get scheme_code and name from DB for later analytics
+            # 1. Try to find name and internal scheme_code in our DB
+            from services.core.supabase_client import supabase
             db_res = supabase.table('mf_schemes').select('scheme_code, scheme_name')\
-                .or_(f"isin_div_payout.eq.{ticker},isin_reinvest.eq.{ticker}").execute()
+                .or_(f"isin_div_payout.eq.{isin},isin_reinvest.eq.{isin}").execute()
             
+            resolved_ticker = None
             if db_res.data:
                 scheme_code = db_res.data[0]['scheme_code']
                 name = db_res.data[0]['scheme_name']
-
-                # 1. Try Yahoo Search directly first
-                search = yf.Search(ticker, max_results=1)
-                if search.quotes:
-                    ticker = search.quotes[0]['symbol']
-                else:
-                    # 2. Search Yahoo by name
-                    name_search = yf.Search(name, max_results=3)
-                    if name_search.quotes:
-                        ticker = name_search.quotes[0]['symbol']
-        except:
-            pass
+                # 2. Search Yahoo by name — much more reliable than searching by ISIN
+                name_search = yf.Search(name, max_results=3)
+                if name_search.quotes:
+                    resolved_ticker = name_search.quotes[0]['symbol']
             
-    result = analyze_single_ticker(ticker)
+            if not resolved_ticker:
+                # 3. Fallback: Try searching by ISIN directly but with a strict timeout/limit
+                isin_search = yf.Search(isin, max_results=1)
+                if isin_search.quotes:
+                    resolved_ticker = isin_search.quotes[0]['symbol']
+            
+            if resolved_ticker:
+                ticker = resolved_ticker
+            else:
+                # 4. Critical: If still an ISIN, yfinance will hang or fail. 
+                # We skip deep technicals and will rely on our DB analytics below using scheme_code.
+                pass
+        except Exception as e:
+            print(f"ISIN Resolution failed for {isin}: {e}")
+
+    # If it's still an ISIN after resolution attempts, we handle it specially
+    is_unresolved_mf = ticker.startswith('INF') or ticker.startswith('IN')
+            
+    if is_unresolved_mf:
+        # Create a lightweight fallback result instead of calling analyze_single_ticker (which hangs)
+        result = {
+            "success": True,
+            "symbol": ticker,
+            "data": {"asset_class": "MUTUAL_FUND"},
+            "charts": {"1M": [], "3M": [], "1Y": [], "5Y": [], "All": []}
+        }
+    else:
+        result = analyze_single_ticker(ticker)
     
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))
 
-    # If we have a scheme_code, enrich with deep MF analytics from our DB
+    # Enrich with deep MF analytics from our DB if it's a mutual fund
     if scheme_code:
         from services.core.supabase_client import supabase
         from services.mutual_funds import MFAnalyticsService
         mf_data = MFAnalyticsService.get_fund_analytics(supabase, scheme_code)
         if mf_data:
-            # Merge MF analytics into the result metadata
             if "data" not in result: result["data"] = {}
             result["data"]["mf_intelligence"] = mf_data
-            # For MFs, we prioritize long-term CAGR and Risk over technical signals
             result["data"]["asset_class"] = "MUTUAL_FUND"
+            # Ensure price if missing from yfinance
+            if "price" not in result.get("data", {}):
+                result["data"]["price"] = mf_data.get("nav", 0)
         
     return result
 

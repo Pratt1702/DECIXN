@@ -91,8 +91,8 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
                 <td className="px-8 py-6">
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-3">
-                      <span className="font-black text-text-bold text-base tracking-tighter group-hover/row:text-accent transition-colors">
-                        {h.symbol.replace(".NS", "").replace(".BO", "")}
+                      <span className="font-black text-text-bold text-base tracking-tighter group-hover/row:text-accent transition-colors line-clamp-1 max-w-[280px]" title={h.data?.companyName || h.symbol}>
+                        {h.data?.companyName || h.symbol.replace(".NS", "").replace(".BO", "")}
                       </span>
                       {isMF ? (
                         <span className="text-[9px] font-black bg-accent/10 text-accent px-2 py-0.5 rounded border border-accent/20 uppercase tracking-widest">MF</span>

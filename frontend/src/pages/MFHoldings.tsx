@@ -3,9 +3,10 @@ import { analyzeMFPortfolio } from "../services/api";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Trash2, Zap, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { Loader2, Trash2, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
+import { MFSubNav } from "../components/layout/MFSubNav";
 
 const SESSION_KEY = "uploaded_mf_holdings";
 
@@ -220,13 +221,6 @@ export function MFHoldings() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/insights", { state: { analyze_mf: true } })}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent/75 text-white hover:bg-accent/90 cursor-pointer transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-accent/10 active:scale-95"
-          >
-            <Zap className="w-3.5 h-3.5 fill-white" />
-            Portfolio IQ
-          </button>
           <AnimatePresence>
             {isManual && (
               <motion.button
@@ -243,6 +237,8 @@ export function MFHoldings() {
           </AnimatePresence>
         </div>
       </header>
+
+      <MFSubNav />
 
       {data?.portfolio_summary && (
         <SummaryCards
@@ -272,6 +268,7 @@ export function MFHoldings() {
              <thead>
                <tr className="border-b border-white/[0.03] bg-white/[0.02]">
                  <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Scheme Name</th>
+                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest">ISIN</th>
                  <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Units</th>
                  <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">NAV</th>
                  <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Returns</th>
@@ -279,21 +276,25 @@ export function MFHoldings() {
                </tr>
              </thead>
              <tbody>
-               {data?.portfolio_analysis?.map((h: any, i: number) => {
-                 const ctx = h.holding_context;
-                 return (
-                   <tr key={i} className="border-b border-white/[0.02] hover:bg-white/[0.03] transition-all cursor-pointer group" onClick={() => navigate(`/mutual-fund/${h.scheme_code || h.ticker}`)}>
-                     <td className="p-4">
-                       <div className="font-bold text-text-bold text-sm mb-1 group-hover:text-white transition-colors">
-                         {h.scheme_name || h.symbol}
-                       </div>
-                       <div className="text-[10px] text-text-muted uppercase font-black tracking-tighter">
-                         {h.category || "Active Fund"}
-                       </div>
-                     </td>
-                     <td className="p-4 text-right font-medium text-text-muted text-sm italic">
-                       {ctx.quantity.toFixed(3)}
-                     </td>
+                {data?.portfolio_analysis?.map((h: any, i: number) => {
+                  const ctx = h.holding_context;
+                  const isin = h.isin || ctx.isin || h.scheme_code;
+                  return (
+                    <tr key={i} className="border-b border-white/[0.02] hover:bg-white/[0.03] transition-all cursor-pointer group" onClick={() => navigate(`/mutual-funds/details/${isin}`)}>
+                      <td className="p-4">
+                        <div className="font-bold text-text-bold text-sm mb-1 group-hover:text-white transition-colors">
+                          {h.scheme_name || h.symbol}
+                        </div>
+                        <div className="text-[10px] text-text-muted uppercase font-black tracking-tighter">
+                          {h.category || "Active Fund"}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-[10px] font-mono text-text-muted">{isin || "N/A"}</span>
+                      </td>
+                      <td className="p-4 text-right font-medium text-text-muted text-sm italic">
+                        {ctx.quantity.toFixed(3)}
+                      </td>
                      <td className="p-4 text-right font-bold text-text-bold text-sm">
                        ₹{ctx.current_price?.toFixed(2)}
                      </td>

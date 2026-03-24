@@ -57,13 +57,12 @@ export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
           };
 
           const symbolStr = (
-            getVal(/Instrument|Instrumer|Symbol|Ticker|Stock/i) || "Unknown"
+            getVal(/Instrument|Instrumer|Symbol|Ticker|Stock|Scheme.*Name/i) || "Unknown"
           )
             .toString()
-            .trim()
-            .toUpperCase();
+            .trim();
 
-          const quantity = parseSafeNum(getVal(/Qty|Quantity|Shares/i));
+          const quantity = parseSafeNum(getVal(/Qty|Quantity|Shares|Quantity.*Available|Units|Holding/i));
           const avgCost = parseSafeNum(
             getVal(/Avg.*cost|Average.*Cost|Price|Buy/i)
           );

@@ -96,7 +96,8 @@ export function Navbar() {
     setSearch("");
     setShowDropdown(false);
     if (isMF) {
-      navigate(`/mutual-fund/${item.scheme_code}`);
+      const id = item.isin_div_payout || item.isin_reinvest || item.scheme_code;
+      navigate(`/mutual-funds/details/${id}`);
     } else {
       const cleanSymbol = item.symbol.replace(".NS", "").replace(".BO", "");
       navigate(`/stocks/details/${cleanSymbol}`);

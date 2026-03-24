@@ -139,7 +139,7 @@ export function MFDetails() {
                     Mutual Fund
                 </span>
                 <span className="text-[10px] text-text-muted font-bold uppercase tracking-tighter">
-                   Scheme Code: {id}
+                   ISIN: {id}
                 </span>
             </div>
             <h1 className="text-3xl font-black text-text-bold tracking-tighter leading-tight max-w-2xl">

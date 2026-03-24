@@ -24,11 +24,19 @@ def get_mf_historical_nav(scheme_code: str, period: str = "1y"):
     Uses our DB to find the ISIN, then yfinance to get history.
     """
     try:
-        # 1. Get ISIN from our DB
-        res = supabase.table("mf_schemes").select("isin_div_payout, isin_reinvest, scheme_name")\
-            .eq("scheme_code", scheme_code)\
-            .limit(1)\
-            .execute()
+        # 1. Determine if we have an ISIN or a Scheme Code
+        is_isin = len(scheme_code) == 12 and any(c.isdigit() for c in scheme_code)
+        
+        if is_isin:
+            res = supabase.table("mf_schemes").select("isin_div_payout, isin_reinvest, scheme_name")\
+                .or_(f"isin_div_payout.eq.{scheme_code},isin_reinvest.eq.{scheme_code}")\
+                .limit(1)\
+                .execute()
+        else:
+            res = supabase.table("mf_schemes").select("isin_div_payout, isin_reinvest, scheme_name")\
+                .eq("scheme_code", scheme_code)\
+                .limit(1)\
+                .execute()
         
         if not res.data:
             return {"success": False, "error": "Scheme not found in database."}

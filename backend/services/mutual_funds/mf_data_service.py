@@ -83,9 +83,12 @@ def get_mf_ticker_from_isin(isin: str):
     try:
         search = yf.Search(isin)
         if search.quotes:
+            # Sort by exchange priority (NSE/BSE first)
             for q in search.quotes:
-                if q.get("exchange") in ["BSE", "NSI"] or q.get("quoteType") == "MUTUALFUND":
+                if q.get("exchange") in ["BSE", "NSI"] or q.get("quoteType") in ["MUTUALFUND", "EQUITY", "ETF"]:
                     return q["symbol"]
+            # Fallback to the first quote if no exchange match
+            return search.quotes[0]["symbol"]
         return None
     except Exception as e:
         print(f"Ticker lookup error for {isin}: {e}")
@@ -112,18 +115,31 @@ def get_mf_historical_nav(scheme_code: str, period: str = "1y"):
                 .execute()
         
         if not res.data:
-            return {"success": False, "error": "Scheme not found in database."}
+            # Fallback: Treat the scheme_code as a direct ticker or ISIN even if not in DB
+            isin = scheme_code if is_isin else None
+            scheme_name = isin if isin else "Unknown Asset"
+        else:
+            scheme = res.data[0]
+            isin = scheme.get("isin_div_payout") or scheme.get("isin_reinvest")
+            scheme_name = scheme.get("scheme_name")
         
-        scheme = res.data[0]
-        isin = scheme.get("isin_div_payout") or scheme.get("isin_reinvest")
-        
-        if not isin:
-            return {"success": False, "error": "No ISIN available for this scheme."}
+        if not isin and not is_isin:
+            return {"success": False, "error": "No ISIN available and code is not an ISIN."}
             
         # 2. Map ISIN to yfinance ticker
-        ticker_symbol = get_mf_ticker_from_isin(isin)
+        ticker_symbol = get_mf_ticker_from_isin(isin or scheme_code)
+        
+        # Fallback: Search by Name if ISIN search failed
+        if not ticker_symbol and scheme_name:
+            print(f"ISIN search failed for {isin}. Trying name-based search: {scheme_name}")
+            ticker_symbol = get_mf_ticker_from_isin(scheme_name)
+            
         if not ticker_symbol:
-            return {"success": False, "error": f"Could not map ISIN {isin} to yfinance ticker."}
+            # Final fallback: Try the code itself as a ticker
+            ticker_symbol = scheme_code if not is_isin else None
+            
+        if not ticker_symbol:
+            return {"success": False, "error": f"Could not resolve {scheme_code} to a valid market ticker."}
             
         # 3. Fetch history
         ticker = yf.Ticker(ticker_symbol)
@@ -151,7 +167,7 @@ def get_mf_historical_nav(scheme_code: str, period: str = "1y"):
         
         return {
             "success": True,
-            "scheme_name": scheme.get("scheme_name"),
+            "scheme_name": scheme_name or info.get("longName") or info.get("shortName") or isin,
             "ticker": ticker_symbol,
             "isin": isin,
             "history": history_data,

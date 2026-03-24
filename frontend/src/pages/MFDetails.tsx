@@ -195,6 +195,23 @@ export function MFDetails() {
   const isPos = navChange >= 0;
   const strokeColor = isPos ? "#10b981" : "#f43f5e";
 
+  // Calculate CAGR (Annualized Return)
+  let yearsInput = 1;
+  if (period === "1M") yearsInput = 1/12;
+  else if (period === "6M") yearsInput = 0.5;
+  else if (period === "1Y") yearsInput = 1;
+  else if (period === "3Y") yearsInput = 3;
+  else if (period === "5Y") yearsInput = 5;
+  else if (period === "MAX") {
+      const start = new Date(history[0].date);
+      const end = new Date(history[history.length - 1].date);
+      yearsInput = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365);
+  }
+  
+  const annualizedReturn = firstNavReal !== 0 
+    ? (Math.pow(latestNav / firstNavReal, 1 / Math.max(yearsInput, 0.083)) - 1) * 100 
+    : 0;
+
   // Dynamic Decixn Score logic
   const metrics = data.metrics || {};
   const alpha = metrics.alpha || 0;
@@ -231,14 +248,25 @@ export function MFDetails() {
 
         <div className="pt-4 space-y-1">
            <AnimatedNumber value={latestNav} prefix="₹" decimals={2} className="text-4xl font-black text-text-bold tracking-tight" />
-           <div className={`flex items-center gap-2 font-black text-base ${isPos ? 'text-success' : 'text-danger'}`}>
-                <AnimatedNumber value={navChange} showPlusSign decimals={2} prefix="₹" />
-                <span>(
-                    <AnimatedNumber value={navChangePct} showPlusSign decimals={2} suffix="%" />
-                )</span>
-                <div className="w-1 h-1 rounded-full bg-white/20" />
-                <span className="text-[10px] text-text-muted font-black uppercase tracking-widest">{period}</span>
-           </div>
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 font-black text-sm md:text-base ${isPos ? 'text-success' : 'text-danger'}`}>
+                <div className="flex items-center gap-1.5 border-r border-white/10 pr-4">
+                    <span className="text-[10px] text-text-muted uppercase tracking-widest">Total</span>
+                    <div className="flex items-center">
+                        <AnimatedNumber value={navChange} showPlusSign decimals={2} prefix="₹" />
+                        <span className="ml-1">(<AnimatedNumber value={navChangePct} showPlusSign decimals={2} suffix="%" />)</span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-text-muted uppercase tracking-widest">Annualized</span>
+                    <div className="flex items-center italic">
+                        <AnimatedNumber value={annualizedReturn} showPlusSign decimals={2} suffix="%" />
+                    </div>
+                </div>
+                <div className="w-full md:w-auto flex items-center gap-2 mt-1 md:mt-0">
+                    <div className="w-1 h-1 rounded-full bg-white/20 hidden md:block" />
+                    <span className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em] bg-white/5 px-2 py-0.5 rounded border border-white/5">{period}</span>
+                </div>
+            </div>
         </div>
 
         {/* Horizontal Stats Bar (Stock Style) */}

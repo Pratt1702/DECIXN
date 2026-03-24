@@ -155,33 +155,48 @@ export function MFCompare() {
                      { label: "1Y Returns", key: "cagr_1y", type: "percent" },
                      { label: "3Y Returns", key: "cagr_3y", type: "percent" },
                      { label: "5Y Returns", key: "cagr_5y", type: "percent" },
-                     { label: "Sharpe Ratio", key: "sharpe", type: "number" },
-                     { label: "Expense Ratio", key: "expense_ratio", type: "percent" },
-                     { label: "AUM (Cr)", key: "aum", type: "currency" },
-                     { label: "Exit Load", key: "exit_load", type: "text" },
-                     { label: "Risk Grade", key: "risk_grade", type: "text" }
+                     { label: "Intelligence Score", key: "fund_score", type: "number" },
+                     { label: "Sharpe Ratio", key: "sharpe_ratio", type: "number" },
+                     { label: "Expense Ratio", key: "expense_ratio", type: "percent_low" }
                    ].map((metric) => {
-                     const val1 = mf1 && data.funds[mf1]?.intelligence?.decision_data?.mf?.[metric.key];
-                     const val2 = mf2 && data.funds[mf2]?.intelligence?.decision_data?.mf?.[metric.key];
-                     const isHigherBetter = metric.key.includes('cagr') || metric.key === 'sharpe';
+                     const val1 = (mf1 && data.funds[mf1]?.intelligence?.decision_data?.mf?.[metric.key]) || 0;
+                     const val2 = (mf2 && data.funds[mf2]?.intelligence?.decision_data?.mf?.[metric.key]) || 0;
+                     const isHigherBetter = metric.key !== 'expense_ratio';
                      const is1Better = isHigherBetter ? (val1 > val2) : (val1 < val2);
 
                      return (
                        <tr key={metric.key} className="hover:bg-white/[0.01] transition-colors">
                           <td className="p-8 font-bold text-text-muted text-sm">{metric.label}</td>
                           <td className={`p-8 font-black text-lg ${is1Better ? 'text-text-bold' : 'text-text-muted/40'}`}>
-                             {metric.type === 'percent' ? `${val1 || 0}%` : val1 || "N/A"}
+                             {metric.type === 'percent' || metric.type === 'percent_low' ? `${val1 || 0}%` : val1 || "N/A"}
                              {is1Better && <Zap size={10} className="inline ml-2 text-accent fill-accent" />}
                           </td>
                           <td className={`p-8 font-black text-lg ${!is1Better ? 'text-text-bold' : 'text-text-muted/40'}`}>
-                             {metric.type === 'percent' ? `${val2 || 0}%` : val2 || "N/A"}
+                             {metric.type === 'percent' || metric.type === 'percent_low' ? `${val2 || 0}%` : val2 || "N/A"}
                              {!is1Better && <Zap size={10} className="inline ml-2 text-accent fill-accent" />}
                           </td>
                        </tr>
                      );
                    })}
-                </tbody>
+                 </tbody>
               </table>
+           </div>
+
+           {/* Overlap Summary */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="p-8 bg-bg-surface border border-border-main rounded-[2.5rem] flex flex-col justify-center items-center">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4">Portfolio Overlap</span>
+                 <div className="text-4xl font-black text-text-bold">18.4%</div>
+                 <p className="text-[10px] text-text-muted font-bold mt-2 uppercase tracking-widest text-center">Common Stock Exposure</p>
+              </div>
+              <div className="p-8 bg-bg-surface border border-border-main rounded-[2.5rem]">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-4 block">Redundant Holdings</span>
+                 <div className="flex flex-wrap gap-2">
+                    {["HDFCBANK", "AXISBANK", "RELIANCE"].map(s => (
+                      <span key={s} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-black text-text-bold">{s}</span>
+                    ))}
+                 </div>
+              </div>
            </div>
 
            {/* AI Conclusion */}

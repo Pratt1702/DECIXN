@@ -191,24 +191,36 @@ def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty
     risk_level = "LOW"
     
     if is_mf:
-        # --- MUTUAL FUND LONG-TERM LOGIC ---
-        if trend == 'Bullish':
-            decision = "SIP / ACCUMULATE"
-            reasons.append("Fund is in a healthy growth phase. Historical compounding remains strong.")
-            action = "Continue SIP or add on dips. Focus on wealth accumulation over 5-10 year horizon."
+        # --- MUTUAL FUND DECISION INTELLIGENCE 2.0 ---
+        score = signals.get('fund_score', 70)
+        
+        if score > 80:
+            decision = "ALPHA GENERATOR (HOLD)"
+            reasons.append(f"Top-tier performance profile (Score: {score}/100). Fund consistency remains exceptional.")
+            action = "Maintain position. This is a core wealth builder."
             priority = "MEDIUM"
-        else: # Bearish trend in MF
-            if is_profit:
-                decision = "WEALTH MACHINE (HOLD)"
-                reasons.append("Short-term correction in a long-term winner. Don't let volatility shake your compounding.")
-                action = "Maintain position. This is a wealth machine; short-term dips are typical for mid/small-cap allocations."
-                priority = "LOW"
-            else:
-                decision = "UNDERPERFORMER (REVIEW)"
-                reasons.append("Fund is showing persistent relative weakness vs benchmark. Check for fund manager changes.")
-                action = "Hold for now but compare with Category Average. Consider reallocating if underperformance persists for 2+ quarters."
-                priority = "MEDIUM"
-                risk_level = "MEDIUM"
+        elif score < 40:
+            decision = "UNDERPERFORMER (EXIT?)"
+            reasons.append(f"Low intelligence score ({score}/100). Fund is lagging behind peers in the same category.")
+            action = "Consider switching to a higher-rated fund in the same category."
+            priority = "HIGH"
+            severity = "STRONG"
+        elif trend == 'Bullish':
+            decision = "SIP / ACCUMULATE"
+            reasons.append("Fund is in a healthy growth phase. Momentum alignment detected.")
+            action = "Continue SIP. Long-term compounding is in your favor."
+            priority = "MEDIUM"
+        else:
+            decision = "HOLD / MONITOR"
+            reasons.append("Short-term volatility detected, but long-term fundamentals remain intact.")
+            action = "Wait for trend reversal before adding more capital."
+            priority = "LOW"
+
+        # Behavioral Intelligence Layer
+        if signals.get('Volatility_Ratio', 0) > 0.05:
+            reasons.append("Behavior Alert: High volatility might trigger panic. Remember your 10-year horizon.")
+            risk_level = "HIGH"
+            
     else:
         # --- STANDARD STOCK LOGIC ---
         if is_profit:

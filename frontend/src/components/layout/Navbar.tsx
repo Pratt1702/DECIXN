@@ -1,7 +1,7 @@
 import { Search, Bell, Loader2, LogOut, User } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { searchStocks } from "../../services/api";
+import { searchStocks, searchMF } from "../../services/api";
 import { motion } from "framer-motion";
 import logo from "../../assets/logo.png";
 import { useSupabaseAuth } from "../../contexts/AuthContext";
@@ -59,7 +59,7 @@ export function Navbar() {
       }
       setIsSearching(true);
       try {
-        const res = await searchStocks(search);
+        const res = isMF ? await searchMF(search) : await searchStocks(search);
         if (res.success) {
           setSuggestions(res.results.slice(0, 6));
         }
@@ -80,17 +80,27 @@ export function Navbar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (search.trim()) {
-      const cleanSearch = search.trim().toUpperCase().replace(".NS", "").replace(".BO", "");
-      navigate(`/stocks/details/${cleanSearch}`);
+      if (isMF) {
+        // For MF, we usually need to select from suggestions as names are long
+        // But if they type a code, we can try
+        navigate(`/mutual-fund/${search.trim()}`);
+      } else {
+        const cleanSearch = search.trim().toUpperCase().replace(".NS", "").replace(".BO", "");
+        navigate(`/stocks/details/${cleanSearch}`);
+      }
       setShowDropdown(false);
     }
   };
 
-  const handleSelect = (symbol: string) => {
+  const handleSelect = (item: any) => {
     setSearch("");
     setShowDropdown(false);
-    const cleanSymbol = symbol.replace(".NS", "").replace(".BO", "");
-    navigate(`/stocks/details/${cleanSymbol}`);
+    if (isMF) {
+      navigate(`/mutual-fund/${item.scheme_code}`);
+    } else {
+      const cleanSymbol = item.symbol.replace(".NS", "").replace(".BO", "");
+      navigate(`/stocks/details/${cleanSymbol}`);
+    }
   };
 
   return (
@@ -142,11 +152,22 @@ export function Navbar() {
                   suggestions.map((s, i) => (
                     <div
                       key={i}
-                      onClick={() => handleSelect(s.symbol)}
+                      onClick={() => handleSelect(s)}
                       className="flex justify-between items-center px-4 py-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 group/item"
                     >
-                      <span className="font-semibold text-text-bold text-sm group-hover/item:text-accent transition-colors cursor-pointer">{s.name}</span>
-                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer">{s.symbol.replace(".NS", "")}</span>
+                      <div className="flex flex-col flex-1 min-w-0 pr-4">
+                        <span className="font-semibold text-text-bold text-sm group-hover/item:text-accent transition-colors cursor-pointer truncate">
+                          {isMF ? s.scheme_name : s.name}
+                        </span>
+                        {isMF && (
+                          <span className="text-[10px] text-text-muted font-medium truncate">
+                            {s.amc_name} • {s.category}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer shrink-0">
+                        {isMF ? s.scheme_code : s.symbol.replace(".NS", "")}
+                      </span>
                     </div>
                   ))
                 ) : !isSearching && (

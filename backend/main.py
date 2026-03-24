@@ -11,6 +11,9 @@ from services.chat_service import chat_engine
 from portfolio_logic import run_portfolio_analysis
 import time
 from collections import defaultdict
+from services.mutual_funds.mf_search_service import search_mf_fuzzy as mf_search
+from services.mutual_funds.mf_portfolio_service import run_mf_portfolio_analysis
+from services.mutual_funds.mf_data_service import get_mf_latest_details
 
 class RateLimiter:
     def __init__(self, limit: int = 10, window: int = 1800):  # 10 msgs / 30 mins
@@ -59,8 +62,9 @@ class HoldingInput(BaseModel):
     symbol: str
     quantity: float
     avg_cost: float
-    current_value: float
-    pnl: float
+    current_value: float = 0.0
+    pnl: float = 0.0
+    isin: str = None
 
 class PortfolioInput(BaseModel):
     holdings: list[HoldingInput]
@@ -268,6 +272,36 @@ def search_stocks(query: str):
         return {"success": True, "results": results}
     except Exception as e:
         return {"success": False, "error": str(e), "results": []}
+
+@app.get("/mf/search")
+def search_mf(q: str):
+    """
+    Search for mutual fund schemes.
+    """
+    return mf_search(q)
+
+@app.post("/mf/analyze/portfolio")
+def analyze_mf_portfolio(payload: PortfolioInput):
+    """
+    Analyzes a mutual fund portfolio from JSON input.
+    """
+    holdings_data = [
+        {
+            "symbol": h.symbol,
+            "quantity": h.quantity,
+            "avg_cost": h.avg_cost,
+            "isin": h.isin
+        }
+        for h in payload.holdings
+    ]
+    return run_mf_portfolio_analysis(holdings_data)
+
+@app.get("/mf/details/{scheme_code}")
+def get_mf_details(scheme_code: str):
+    """
+    Get everything we know about a fund: Current NAV, historical points, info.
+    """
+    return get_mf_latest_details(scheme_code)
 
 @app.get("/chat/status/{user_id}")
 async def get_chat_status(user_id: str):

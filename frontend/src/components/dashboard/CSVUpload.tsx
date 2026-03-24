@@ -68,15 +68,19 @@ export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
             getVal(/Avg.*cost|Average.*Cost|Price|Buy/i)
           );
 
+          const isin = getVal(/ISIN/i)?.toString().trim() || null;
+
 
           return {
             symbol: symbolStr,
+            isin: isin,
             holding_context: {
               quantity,
               avg_cost: avgCost,
               current_value: 0,
               pnl_pct: 0,
               current_pnl: 0,
+              isin: isin
             },
           };
         }).filter(

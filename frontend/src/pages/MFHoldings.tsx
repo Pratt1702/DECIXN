@@ -1,115 +1,323 @@
-import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { analyzeMFPortfolio } from "../services/api";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
+import { CSVUpload } from "../components/dashboard/CSVUpload";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, Trash2, Zap, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 
-const MOCK_MF_HOLDINGS = [
-  {
-    name: "Quant Small Cap Fund - Direct Plan - Growth",
-    category: "Equity - Small Cap",
-    invested: 50000,
-    currentValue: 62450,
-    pnl: 12450,
-    pnlPct: 24.9,
-    units: 245.8,
-    lastNav: 254.07
-  },
-  {
-    name: "Parag Parikh Flexi Cap Fund - Direct Plan - Growth",
-    category: "Equity - Flexi Cap",
-    invested: 100000,
-    currentValue: 118200,
-    pnl: 18200,
-    pnlPct: 18.2,
-    units: 1540.2,
-    lastNav: 76.74
-  },
-  {
-    name: "HDFC Index S&P BSE Sensex Fund - Direct Plan - Growth",
-    category: "Equity - Index fund",
-    invested: 30000,
-    currentValue: 32100,
-    pnl: 2100,
-    pnlPct: 7.0,
-    units: 124.5,
-    lastNav: 257.83
-  }
-];
+const SESSION_KEY = "uploaded_mf_holdings";
 
 export function MFHoldings() {
-  const totalInvested = MOCK_MF_HOLDINGS.reduce((acc, h) => acc + h.invested, 0);
-  const totalValue = MOCK_MF_HOLDINGS.reduce((acc, h) => acc + h.currentValue, 0);
-  const totalPnL = totalValue - totalInvested;
+  const navigate = useNavigate();
+  const [data, setData] = useState<any>(null);
+  const {
+    setData: setStoreData,
+    shouldRefresh,
+    data: cachedData,
+    clearData,
+  } = useMFPortfolioStore();
+  const [loading, setLoading] = useState(true);
+  const [isManual, setIsManual] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number }>({
+    current: 0,
+    total: 0,
+  });
+
+  const loadData = useCallback(async () => {
+    const sessionData = sessionStorage.getItem(SESSION_KEY);
+
+    if (sessionData && sessionData !== "undefined") {
+      try {
+        const parsed = JSON.parse(sessionData);
+        const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
+
+        if (!shouldRefresh(currentHash) && cachedData) {
+          setData(cachedData);
+          setIsManual(true);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Invalid session data:", err);
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    }
+
+    if (!shouldRefresh() && cachedData) {
+      setData(cachedData);
+      setIsManual(false);
+      setLoading(false);
+      return;
+    }
+
+    // Default: Mock data for MF if nothing uploaded
+    const mockResult = {
+        portfolio_summary: {
+          health: "Strong",
+          risk_level: "Medium",
+          total_invested: 180000,
+          total_value_live: 212750,
+          total_pnl: 32750,
+          win_rate: "100%",
+          insight: "Pooled capital showing steady compounding.",
+          working_capital_pct: 100,
+          trapped_capital_pct: 0
+        },
+        portfolio_analysis: [
+          {
+            scheme_name: "Quant Small Cap Fund - Direct Plan",
+            holding_context: {
+              quantity: 245.8,
+              avg_cost: 203.41,
+              current_price: 254.07,
+              current_value: 62450,
+              current_pnl: 12450,
+              pnl_pct: 24.9,
+            },
+          },
+          {
+             scheme_name: "Parag Parikh Flexi Cap Fund - Direct Plan",
+             holding_context: {
+               quantity: 1540.2,
+               avg_cost: 64.92,
+               current_price: 76.74,
+               current_value: 118200,
+               current_pnl: 18200,
+               pnl_pct: 18.2,
+             },
+          }
+        ],
+      };
+      
+      // Delay for effect
+      setTimeout(() => {
+        setData(mockResult);
+        setStoreData(mockResult);
+        setLoading(false);
+      }, 500);
+
+  }, [shouldRefresh, cachedData, setStoreData]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleDataParsed = async (newHoldings: any[]) => {
+    let interval: NodeJS.Timeout | null = null;
+    try {
+      setLoading(true);
+      let animatedCurrent = 0;
+      const animationTarget = newHoldings.length;
+      let animationCompleteResolve: () => void;
+      const animationPromise = new Promise<void>((resolve) => {
+        animationCompleteResolve = resolve;
+      });
+
+      setProgress({ current: 0, total: animationTarget });
+
+      const startAnimation = () => {
+        if (animationTarget === 0) {
+          animationCompleteResolve();
+          return;
+        }
+        interval = setInterval(() => {
+          animatedCurrent += 2;
+          setProgress({
+            current: Math.min(animatedCurrent, animationTarget),
+            total: animationTarget,
+          });
+          if (animatedCurrent >= animationTarget) {
+            if (interval) clearInterval(interval);
+            animationCompleteResolve();
+          }
+        }, 500);
+      };
+
+      startAnimation();
+
+      const res = await analyzeMFPortfolio(newHoldings);
+      await animationPromise;
+
+      const currentHash = JSON.stringify(newHoldings).length.toString() + (newHoldings[0]?.symbol || "");
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
+
+      setData(res);
+      setStoreData(res, currentHash);
+      setIsManual(true);
+    } catch (err) {
+      console.error("Failed to analyze MF portfolio", err);
+      if (interval) clearInterval(interval);
+    } finally {
+      setLoading(false);
+      setProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const clearManualData = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    clearData();
+    setData(null);
+    setLoading(true);
+    setTimeout(() => {
+      loadData();
+    }, 100);
+  };
+
+  if (loading) {
+    return (
+      <div className="py-32 flex flex-col justify-center items-center gap-6">
+        <div className="relative">
+          <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+          <Loader2 className="w-12 h-12 animate-spin text-accent absolute top-0 left-0" style={{ animationDuration: "3s" }} />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+            MF Engine Synchronizing
+          </p>
+          <p className="text-text-muted text-sm font-medium tracking-wide">
+            {progress.total > 0
+              ? `Scanning Scheme ${Math.floor(progress.current)} of ${progress.total}...`
+              : "Fetching live NAV data..."}
+          </p>
+          {progress.total > 0 && (
+            <div className="w-48 h-1 bg-white/5 rounded-full mx-auto mt-4 overflow-hidden">
+                <div className="h-full bg-accent transition-all duration-500" style={{ width: `${(progress.current / progress.total) * 100}%` }} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-5xl mx-auto pb-20 pt-8 space-y-8"
     >
-      <header>
-         <h1 className="text-3xl font-black text-text-bold tracking-tighter mb-2">
-            Mutual Fund Investments
-         </h1>
-         <p className="text-text-muted text-sm font-medium">
-            Track your pooled capital performance and SIP health.
-         </p>
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-black text-text-bold tracking-tighter">
+              Mutual Funds
+            </h1>
+            {isManual ? (
+              <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20">
+                Live Upload
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-md bg-white/[0.03] text-[9px] font-black text-text-muted uppercase tracking-widest border border-white/10">
+                Demo Mode
+              </span>
+            )}
+          </div>
+          <p className="text-text-muted text-sm font-medium">
+             Long-term wealth allocation & pooled asset oversight.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/insights", { state: { analyze_mf: true } })}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent/75 text-white hover:bg-accent/90 cursor-pointer transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-accent/10 active:scale-95"
+          >
+            <Zap className="w-3.5 h-3.5 fill-white" />
+            Portfolio IQ
+          </button>
+          <AnimatePresence>
+            {isManual && (
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onClick={clearManualData}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm"
+              >
+                <Trash2 className="w-4 h-4 text-danger" />
+                Reset
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
-      <SummaryCards 
-        invested={totalInvested}
-        current={totalValue}
-        pnl={totalPnL}
-        workingCapitalPct={85}
-        trappedCapitalPct={15}
-      />
+      {data?.portfolio_summary && (
+        <SummaryCards
+          invested={data.portfolio_summary.total_invested}
+          current={data.portfolio_summary.total_value_live}
+          pnl={data.portfolio_summary.total_pnl}
+          workingCapitalPct={data.portfolio_summary.working_capital_pct}
+          trappedCapitalPct={data.portfolio_summary.trapped_capital_pct}
+        />
+      )}
 
-      <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-white/[0.03] bg-white/[0.02]">
-              <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Scheme Name</th>
-              <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Units</th>
-              <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">NAV</th>
-              <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Returns</th>
-              <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Current Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_MF_HOLDINGS.map((h, i) => (
-              <tr key={i} className="border-b border-white/[0.02] hover:bg-white/[0.03] transition-all cursor-pointer group">
-                <td className="p-4">
-                  <div className="font-bold text-text-bold text-sm mb-1 group-hover:text-white transition-colors">
-                    {h.name}
-                  </div>
-                  <div className="text-[10px] text-text-muted uppercase font-black tracking-tighter">
-                    {h.category}
-                  </div>
-                </td>
-                <td className="p-4 text-right font-medium text-text-muted text-sm italic">
-                  {h.units}
-                </td>
-                <td className="p-4 text-right font-bold text-text-bold text-sm">
-                  ₹{h.lastNav}
-                </td>
-                <td className="p-4 text-right">
-                   <div className={`flex items-center justify-end gap-1 font-bold text-sm ${h.pnl >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {h.pnl >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      ₹{h.pnl.toLocaleString()}
-                   </div>
-                   <div className="text-[10px] font-black opacity-60">
-                      {h.pnlPct}% Total
-                   </div>
-                </td>
-                <td className="p-4 text-right">
-                   <div className="font-black text-text-bold text-base">₹{h.currentValue.toLocaleString()}</div>
-                   <div className="text-[10px] text-accent font-black uppercase tracking-widest mt-1 flex items-center justify-end gap-1">
-                      Details <ArrowRight size={10} />
-                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-4">
+        <div className="flex items-end justify-between">
+          <h2 className="text-2xl font-black text-text-bold tracking-tighter">
+            Holdings
+          </h2>
+          <CSVUpload
+            isManual={isManual}
+            onDataParsed={(holdings) => {
+              handleDataParsed(holdings);
+            }}
+          />
+        </div>
+
+        <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
+           <table className="w-full text-left border-collapse">
+             <thead>
+               <tr className="border-b border-white/[0.03] bg-white/[0.02]">
+                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest">Scheme Name</th>
+                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Units</th>
+                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">NAV</th>
+                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Returns</th>
+                 <th className="p-4 text-[10px] font-black text-text-muted uppercase tracking-widest text-right">Current Value</th>
+               </tr>
+             </thead>
+             <tbody>
+               {data?.portfolio_analysis?.map((h: any, i: number) => {
+                 const ctx = h.holding_context;
+                 return (
+                   <tr key={i} className="border-b border-white/[0.02] hover:bg-white/[0.03] transition-all cursor-pointer group" onClick={() => navigate(`/mutual-fund/${h.scheme_code || h.ticker}`)}>
+                     <td className="p-4">
+                       <div className="font-bold text-text-bold text-sm mb-1 group-hover:text-white transition-colors">
+                         {h.scheme_name || h.symbol}
+                       </div>
+                       <div className="text-[10px] text-text-muted uppercase font-black tracking-tighter">
+                         {h.category || "Active Fund"}
+                       </div>
+                     </td>
+                     <td className="p-4 text-right font-medium text-text-muted text-sm italic">
+                       {ctx.quantity.toFixed(3)}
+                     </td>
+                     <td className="p-4 text-right font-bold text-text-bold text-sm">
+                       ₹{ctx.current_price?.toFixed(2)}
+                     </td>
+                     <td className="p-4 text-right">
+                        <div className={`flex items-center justify-end gap-1 font-bold text-sm ${ctx.current_pnl >= 0 ? 'text-success' : 'text-danger'}`}>
+                           {ctx.current_pnl >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                           ₹{Math.abs(ctx.current_pnl).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] font-black opacity-60">
+                           {ctx.pnl_pct.toFixed(2)}% Total
+                        </div>
+                     </td>
+                     <td className="p-4 text-right">
+                        <div className="font-black text-text-bold text-base">₹{ctx.current_value.toLocaleString()}</div>
+                        <div className="text-[10px] text-accent font-black uppercase tracking-widest mt-1 flex items-center justify-end gap-1">
+                           Deep Analysis <ArrowRight size={10} />
+                        </div>
+                     </td>
+                   </tr>
+                 );
+               })}
+             </tbody>
+           </table>
+        </div>
       </div>
     </motion.div>
   );

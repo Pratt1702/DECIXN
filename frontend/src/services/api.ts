@@ -88,6 +88,11 @@ export const searchStocks = async (query: string) => {
   return response.data;
 };
 
+export const searchMF = async (query: string) => {
+  const response = await apiClient.get(`/mf/search?q=${query}`);
+  return response.data;
+};
+
 /**
  * Posts uploaded CSV holdings to the backend for live AI analysis.
  * Each element in `holdings` matches the shape stored in sessionStorage.
@@ -106,8 +111,31 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
   return response.data;
 };
 
+export const analyzeMFPortfolio = async (holdings: any[]) => {
+  const payload = {
+    holdings: holdings.map((h) => ({
+      symbol: h.symbol,
+      quantity: h.holding_context.quantity,
+      avg_cost: h.holding_context.avg_cost,
+      isin: h.isin || h.holding_context.isin,
+    })),
+  };
+  const response = await apiClient.post('/mf/analyze/portfolio', payload);
+  return response.data;
+};
+
 export const getMarketOverview = async () => {
   const response = await apiClient.get('/market/overview');
+  return response.data;
+};
+
+export const getMFDetails = async (id: string) => {
+  const response = await apiClient.get(`/mf/details/${id}`);
+  return response.data;
+};
+
+export const analyzeMFInsights = async (holdings: any[], profile: any) => {
+  const response = await apiClient.post("/mf/analyze/insights", { holdings, profile });
   return response.data;
 };
 

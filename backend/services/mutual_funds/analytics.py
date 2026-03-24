@@ -175,13 +175,24 @@ class MFAnalyticsService:
             # Calculate final score
             score = cls.calculate_fund_score(c3y, risk["sharpe_ratio"], expense, meta["consistency_score"])
             
-            # Get chart data
+            # Get chart data for different periods
             chart_df = df.iloc[::-1].copy()
-            step = max(1, len(chart_df) // 100)
-            sampled_chart = chart_df.iloc[::step].copy()
             
+            def filter_period(days):
+                cutoff = df.iloc[0]['nav_date'] - timedelta(days=days)
+                subset = chart_df[chart_df['nav_date'] >= cutoff]
+                # Sample to max 100 points for frontend performance
+                step = max(1, len(subset) // 100)
+                return [{"date": r.nav_date.strftime("%Y-%m-%d"), "price": float(r.nav), "nav": float(r.nav)} for _, r in subset.iloc[::step].iterrows()]
+
             charts = {
-                "3Y": [{"date": r.nav_date.strftime("%Y-%m-%d"), "price": float(r.nav)} for _, r in sampled_chart.iterrows()]
+                "1M": filter_period(30),
+                "3M": filter_period(90),
+                "6M": filter_period(180),
+                "1Y": filter_period(365),
+                "3Y": filter_period(1095),
+                "5Y": filter_period(1825),
+                "All": [{"date": r.nav_date.strftime("%Y-%m-%d"), "price": float(r.nav), "nav": float(r.nav)} for _, r in chart_df.iloc[::max(1, len(chart_df)//200)].iterrows()]
             }
 
             return {

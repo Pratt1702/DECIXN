@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { getCompareAnalysis, searchStocks } from "../services/api";
+import { getCompareAnalysis, searchMutualFunds } from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Search, AlertTriangle, 
@@ -31,8 +31,8 @@ export function MFCompare() {
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.length > 2) {
-      const results = await searchStocks(query);
-      setSearchResults(results.filter((r: any) => r.symbol.length >= 10)); // Only MFs
+      const results = await searchMutualFunds(query);
+      setSearchResults(results); 
     } else {
       setSearchResults([]);
     }

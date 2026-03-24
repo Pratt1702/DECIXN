@@ -57,8 +57,9 @@ def analyze_single_ticker(symbol: str) -> dict:
         charts = {}
         try:
             t = yf.Ticker(sym_code)
+            is_mf = sym_code.endswith('.BO') or sym_code.endswith('.NS') # Heuristic for Indian MFs if resolved this way
             
-            # Fetch 5y data daily
+            # Fetch 5y data daily to check if ticker exists
             df_5y = t.history(period="5y", interval="1d")
             if not df_5y.empty:
                 def make_chart(df_sliced):
@@ -67,18 +68,15 @@ def analyze_single_ticker(symbol: str) -> dict:
                         "time": int(d.timestamp()),
                         "date": d.strftime("%Y-%m-%d"), 
                         "price": float(p),
-                        "open": float(o),
-                        "high": float(h),
-                        "low": float(l),
-                        "volume": float(v)
-                    } for d, o, h, l, p, v in zip(df_sliced.index, df_sliced['Open'], df_sliced['High'], df_sliced['Low'], df_sliced['Close'], df_sliced['Volume'])]
+                        "nav": float(p) # Add nav alias for MFs
+                    } for d, p in zip(df_sliced.index, df_sliced['Close'])]
                 
-                # Fetch different granularities to optimize performance and look
+                # Fetch different granularities
                 df_max = t.history(period="max", interval="1mo")
                 charts['All'] = make_chart(df_max)
 
-                df_5y = t.history(period="5y", interval="1wk")
-                charts['5Y'] = make_chart(df_5y)
+                df_5y_wk = t.history(period="5y", interval="1wk")
+                charts['5Y'] = make_chart(df_5y_wk)
                 
                 df_3y = t.history(period="3y", interval="1wk")
                 charts['3Y'] = make_chart(df_3y)
@@ -92,39 +90,37 @@ def analyze_single_ticker(symbol: str) -> dict:
                 df_3m = t.history(period="3mo", interval="1d")
                 charts['3M'] = make_chart(df_3m)
                 
-                df_1mo = t.history(period="1mo", interval="1h")
-                charts['1M'] = [{
-                    "time": int(d.timestamp()),
-                    "date": d.strftime("%b %d %H:%M"),
-                    "price": float(p),
-                    "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
-                } for d, o, h, l, p, v in zip(df_1mo.index, df_1mo['Open'], df_1mo['High'], df_1mo['Low'], df_1mo['Close'], df_1mo['Volume'])] if not df_1mo.empty else []
+                # For MFs, always use 1d even for 1M/1W/1D because 1h/15m/5m data doesn't exist
+                if is_mf:
+                    charts['1M'] = make_chart(df_1y.tail(22)) # approx 1mo
+                    charts['1W'] = make_chart(df_1y.tail(5))
+                    charts['1D'] = make_chart(df_1y.tail(1))
+                else:
+                    df_1mo = t.history(period="1mo", interval="1h")
+                    charts['1M'] = [{
+                        "time": int(d.timestamp()),
+                        "date": d.strftime("%b %d %H:%M"),
+                        "price": float(p),
+                        "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
+                    } for d, o, h, l, p, v in zip(df_1mo.index, df_1mo['Open'], df_1mo['High'], df_1mo['Low'], df_1mo['Close'], df_1mo['Volume'])] if not df_1mo.empty else []
+                    
+                    df_1wk = t.history(period="5d", interval="15m")
+                    charts['1W'] = [{
+                        "time": int(d.timestamp()),
+                        "date": d.strftime("%b %d %H:%M"),
+                        "price": float(p),
+                        "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
+                    } for d, o, h, l, p, v in zip(df_1wk.index, df_1wk['Open'], df_1wk['High'], df_1wk['Low'], df_1wk['Close'], df_1wk['Volume'])] if not df_1wk.empty else []
+                    
+                    df_1d = t.history(period="1d", interval="5m")
+                    charts['1D'] = [{
+                        "time": int(d.timestamp()),
+                        "date": d.strftime("%H:%M:%S"),
+                        "price": float(p),
+                        "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
+                    } for d, o, h, l, p, v in zip(df_1d.index, df_1d['Open'], df_1d['High'], df_1d['Low'], df_1d['Close'], df_1d['Volume'])] if not df_1d.empty else []
             else:
-                charts.update({'1M':[], '3M':[], '6M':[], '1Y':[], '3Y':[], '5Y':[], 'All':[]})
-                
-            # Fetch 1wk 15m data
-            df_1wk = t.history(period="5d", interval="15m")
-            if not df_1wk.empty:
-                charts['1W'] = [{
-                    "time": int(d.timestamp()),
-                    "date": d.strftime("%b %d %H:%M"),
-                    "price": float(p),
-                    "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
-                } for d, o, h, l, p, v in zip(df_1wk.index, df_1wk['Open'], df_1wk['High'], df_1wk['Low'], df_1wk['Close'], df_1wk['Volume'])]
-            else:
-                charts['1W'] = []
-                
-            # Fetch 1d 5m data
-            df_1d = t.history(period="1d", interval="5m")
-            if not df_1d.empty:
-                charts['1D'] = [{
-                    "time": int(d.timestamp()),
-                    "date": d.strftime("%H:%M:%S"),
-                    "price": float(p),
-                    "open": float(o), "high": float(h), "low": float(l), "volume": float(v)
-                } for d, o, h, l, p, v in zip(df_1d.index, df_1d['Open'], df_1d['High'], df_1d['Low'], df_1d['Close'], df_1d['Volume'])]
-            else:
-                charts['1D'] = []
+                charts.update({'1D':[], '1W':[], '1M':[], '3M':[], '6M':[], '1Y':[], '3Y':[], '5Y':[], 'All':[]})
                 
         except Exception as e:
             print(f"Error fetching charts for {sym_code}: {e}")

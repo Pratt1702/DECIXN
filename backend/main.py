@@ -163,21 +163,28 @@ def analyze_ticker(ticker: str):
     Analyzes a specific ticker and returns deeply nested market intelligence data.
     Automatically resolves ISINs to Yahoo Symbols for Mutual Funds.
     """
-    # If it looks like an ISIN (starts with letters, long length)
-    if len(ticker) >= 12 and ticker[0:2].isalpha() and any(c.isdigit() for c in ticker):
+    # Track if this was an ISIN and what its scheme_code is
+    scheme_code = None
+    is_isin = len(ticker) >= 12 and ticker[0:2].isalpha() and any(c.isdigit() for c in ticker)
+    
+    if is_isin:
         from services.core.supabase_client import supabase
+        from services.mutual_funds import MFAnalyticsService
         try:
-            # 1. Try Yahoo Search directly first
-            search = yf.Search(ticker, max_results=1)
-            if search.quotes:
-                ticker = search.quotes[0]['symbol']
-            else:
-                # 2. Fallback: Lookup name in DB and search by name
-                db_res = supabase.table('mf_schemes').select('scheme_name')\
-                    .or_(f"isin_div_payout.eq.{ticker},isin_reinvest.eq.{ticker}").execute()
-                if db_res.data:
-                    name = db_res.data[0]['scheme_name']
-                    # Search by exact name
+            # 0. Get scheme_code and name from DB for later analytics
+            db_res = supabase.table('mf_schemes').select('scheme_code, scheme_name')\
+                .or_(f"isin_div_payout.eq.{ticker},isin_reinvest.eq.{ticker}").execute()
+            
+            if db_res.data:
+                scheme_code = db_res.data[0]['scheme_code']
+                name = db_res.data[0]['scheme_name']
+
+                # 1. Try Yahoo Search directly first
+                search = yf.Search(ticker, max_results=1)
+                if search.quotes:
+                    ticker = search.quotes[0]['symbol']
+                else:
+                    # 2. Search Yahoo by name
                     name_search = yf.Search(name, max_results=3)
                     if name_search.quotes:
                         ticker = name_search.quotes[0]['symbol']
@@ -188,6 +195,18 @@ def analyze_ticker(ticker: str):
     
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))
+
+    # If we have a scheme_code, enrich with deep MF analytics from our DB
+    if scheme_code:
+        from services.core.supabase_client import supabase
+        from services.mutual_funds import MFAnalyticsService
+        mf_data = MFAnalyticsService.get_fund_analytics(supabase, scheme_code)
+        if mf_data:
+            # Merge MF analytics into the result metadata
+            if "data" not in result: result["data"] = {}
+            result["data"]["mf_intelligence"] = mf_data
+            # For MFs, we prioritize long-term CAGR and Risk over technical signals
+            result["data"]["asset_class"] = "MUTUAL_FUND"
         
     return result
 

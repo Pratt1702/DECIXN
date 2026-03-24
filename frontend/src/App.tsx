@@ -13,6 +13,7 @@ import { PortfolioInfo } from "./pages/PortfolioInfo";
 import { Chat } from "./pages/Chat";
 import { MFHoldings } from "./pages/MFHoldings";
 import { MFDetails } from "./pages/MFDetails";
+import { MFInsights } from "./pages/MFInsights";
 import { AlertsManagement } from "./pages/AlertsManagement";
 import { Notifications } from "./pages/Notifications";
 import "./App.css";
@@ -45,6 +46,7 @@ function App() {
             <Route index element={<Navigate to="holdings" replace />} />
             <Route path="explore" element={<div className="text-center py-20 text-text-muted">MF Explore Coming Soon</div>} />
             <Route path="holdings" element={<MFHoldings />} />
+            <Route path="insights" element={<MFInsights />} />
             <Route path="details/:symbol" element={<MFDetails />} />
             <Route path="watchlist" element={<div className="text-center py-20 text-text-muted">MF Watchlist Coming Soon</div>} />
           </Route>

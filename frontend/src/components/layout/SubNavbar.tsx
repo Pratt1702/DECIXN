@@ -12,6 +12,7 @@ const STOCK_LINKS = [
 const MF_LINKS = [
   { label: "Explore", path: "/mutual-funds/explore" },
   { label: "Investments", path: "/mutual-funds/holdings" },
+  { label: "Insights", path: "/mutual-funds/insights" },
   { label: "Watchlist", path: "/mutual-funds/watchlist" },
 ];
 

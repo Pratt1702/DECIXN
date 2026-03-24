@@ -93,7 +93,18 @@ export function Navbar() {
     e.preventDefault();
     if (search.trim()) {
       const cleanSearch = search.trim().toUpperCase().replace(".NS", "").replace(".BO", "");
-      navigate(`/stocks/details/${cleanSearch}`);
+      if (isMF) {
+        // If searching in MF context, try to find the best match or alert
+        // We'll just navigate to the search results or details if possible
+        const topSuggestion = suggestions[0];
+        if (topSuggestion && topSuggestion.type === 'MUTUALFUND') {
+           handleSelect(topSuggestion);
+        } else {
+           navigate(`/mutual-funds/explore?q=${encodeURIComponent(search)}`);
+        }
+      } else {
+        navigate(`/stocks/details/${cleanSearch}`);
+      }
       setShowDropdown(false);
     }
   };
@@ -173,9 +184,11 @@ export function Navbar() {
                            )}
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer shrink-0">
-                        {(s.isin_div_payout || s.symbol || "").replace(".NS", "")}
-                      </span>
+                       {s.type !== 'MUTUALFUND' && (
+                        <span className="text-[10px] font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded cursor-pointer shrink-0">
+                          {(s.symbol || "").replace(".NS", "")}
+                        </span>
+                      )}
                     </div>
                   ))
                 ) : !isSearching && (

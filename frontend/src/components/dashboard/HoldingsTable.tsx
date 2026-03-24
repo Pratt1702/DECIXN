@@ -17,7 +17,7 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   useEffect(() => {
     if (tableRef.current && holdings.length > 0) {
       const rows = tableRef.current.children;
-      gsap.fromTo(rows, { opacity: 0 }, { opacity: 1, duration: 0.25, stagger: 0.04, ease: "power1.out" });
+      gsap.fromTo(rows, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.05, ease: "power2.out" });
     }
   }, [holdings, sortField, sortOrder]);
 
@@ -38,7 +38,7 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   };
 
   const COLUMNS = [
-    { label: "Company", field: "symbol" },
+    { label: "Asset Name", field: "symbol" },
     { label: "Qty", field: "quantity" },
     { label: "Avg Cost", field: "avg_cost" },
     { label: "Current Val", field: "current_value" },
@@ -46,20 +46,20 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
   ];
 
   return (
-    <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden hover:border-[#333] transition-all duration-200">
+    <div className="bg-bg-surface border border-border-main rounded-[2rem] overflow-hidden shadow-2xl backdrop-blur-xl">
       <table className="w-full text-left text-sm border-collapse">
-        <thead className="bg-white/[0.03] border-b border-white/5">
-          <tr>
+        <thead>
+          <tr className="bg-white/[0.02] border-b border-white/5">
             {COLUMNS.map((col) => (
               <th
                 key={col.label}
-                className="px-6 py-4 text-[10px] text-text-muted font-black uppercase tracking-[0.15em] cursor-pointer hover:text-text-bold transition-colors group whitespace-nowrap"
+                className="px-8 py-5 text-[10px] text-text-muted font-black uppercase tracking-[0.2em] cursor-pointer hover:text-accent transition-colors group whitespace-nowrap"
                 onClick={() => handleSort(col.field)}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {col.label}
                   {sortField === col.field && (
-                    <span className="text-text-muted font-black">
+                    <span className="text-accent animate-pulse-subtle">
                       {sortOrder === "asc" ? "↑" : "↓"}
                     </span>
                   )}
@@ -68,27 +68,71 @@ export function HoldingsTable({ holdings }: { holdings: any[] }) {
             ))}
           </tr>
         </thead>
-        <tbody ref={tableRef} className="divide-y divide-white/5">
+        <tbody ref={tableRef} className="divide-y divide-white/[0.03]">
           {sortedHoldings.map((h, i) => {
             const ctx = h.holding_context;
-            const isPos = ctx.current_pnl >= 0;
+            const isPos = (ctx.current_pnl ?? 0) >= 0;
+            const isMF = h.symbol.length >= 12 && h.symbol.slice(0, 2).match(/[A-Z]/i);
+            const decision = h.data?.portfolio_decision || (isPos ? "HOLD" : "WATCH");
+
             return (
               <tr
                 key={i}
                 onClick={() => {
                   const cleanTicker = h.symbol.replace(".NS", "").replace(".BO", "");
-                  navigate(`/stocks/details/${cleanTicker}`);
+                  if (isMF) {
+                    navigate(`/mutual-funds/details/${cleanTicker}`);
+                  } else {
+                    navigate(`/stocks/details/${cleanTicker}`);
+                  }
                 }}
-                className="hover:bg-white/[0.04] transition-all cursor-pointer group"
+                className="hover:bg-white/[0.04] transition-all cursor-pointer group/row"
               >
-                <td className="px-6 py-4 font-black text-text-bold tracking-tight">{h.symbol}</td>
-                <td className="px-6 py-4 text-text-muted font-bold tabular-nums">{ctx.quantity}</td>
-                <td className="px-6 py-4 text-text-muted font-bold tabular-nums">₹{ctx.avg_cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td className="px-6 py-4 text-text-bold font-black tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td className={`px-6 py-4 font-black tabular-nums ${isPos ? "text-success" : "text-danger"}`}>
-                  <div className="flex items-center gap-1.5">
-                    {isPos ? <ArrowUpRight className="h-4 w-4 stroke-[3]" /> : <ArrowDownRight className="h-4 w-4 stroke-[3]" />}
-                    {isPos ? '+' : ''}{ctx.pnl_pct.toFixed(2)}%
+                <td className="px-8 py-6">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-3">
+                      <span className="font-black text-text-bold text-base tracking-tighter group-hover/row:text-accent transition-colors">
+                        {h.symbol.replace(".NS", "").replace(".BO", "")}
+                      </span>
+                      {isMF ? (
+                        <span className="text-[9px] font-black bg-accent/10 text-accent px-2 py-0.5 rounded border border-accent/20 uppercase tracking-widest">MF</span>
+                      ) : (
+                        <span className="text-[9px] font-black bg-white/5 text-text-muted px-2 py-0.5 rounded border border-white/10 uppercase tracking-widest">Stock</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                        decision.includes('SELL') ? 'bg-danger/10 text-danger' : 
+                        decision.includes('BUY') || decision.includes('RIDE') ? 'bg-success/10 text-success' : 
+                        'bg-amber-500/10 text-amber-500'
+                      }`}>
+                        {decision}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-8 py-6 text-text-muted font-bold tabular-nums text-sm">
+                   {ctx.quantity.toLocaleString()}
+                </td>
+                <td className="px-8 py-6 text-text-muted font-bold tabular-nums text-sm">
+                  ₹{ctx.avg_cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td className="px-8 py-6">
+                   <div className="flex flex-col">
+                      <span className="text-text-bold font-black tabular-nums text-sm">
+                        ₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span className={`text-[10px] font-bold tabular-nums ${isPos ? 'text-success/70' : 'text-danger/70'}`}>
+                        {isPos ? '+' : ''}₹{ctx.current_pnl?.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                      </span>
+                   </div>
+                </td>
+                <td className={`px-8 py-6 font-black tabular-nums text-sm ${isPos ? "text-success" : "text-danger"}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 rounded-lg ${isPos ? 'bg-success/10' : 'bg-danger/10'}`}>
+                      {isPos ? <ArrowUpRight className="h-4 w-4 stroke-[3]" /> : <ArrowDownRight className="h-4 w-4 stroke-[3]" />}
+                    </div>
+                    {isPos ? '+' : ''}{ctx.pnl_pct?.toFixed(2)}%
                   </div>
                 </td>
               </tr>

@@ -134,6 +134,11 @@ export const getMFDetails = async (id: string) => {
   return response.data;
 };
 
+export const analyzeMFInsights = async (holdings: any[], profile: any) => {
+  const response = await apiClient.post("/mf/analyze/insights", { holdings, profile });
+  return response.data;
+};
+
 export const getBatchQuotes = async (symbols: string[]) => {
   const response = await apiClient.post('/quotes/batch', { symbols });
   return response.data;

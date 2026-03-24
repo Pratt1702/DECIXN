@@ -7,6 +7,8 @@ import { Loader2, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 import { MFSubNav } from "../components/layout/MFSubNav";
+import { useMFProfileStore } from "../store/useMFProfileStore";
+import { MFProfileForm } from "../components/forms/MFProfileForm";
 
 const SESSION_KEY = "uploaded_mf_holdings";
 
@@ -19,6 +21,8 @@ export function MFHoldings() {
     data: cachedData,
     clearData,
   } = useMFPortfolioStore();
+  const { profile } = useMFProfileStore();
+  const [showProfileForm, setShowProfileForm] = useState(!profile.isComplete);
   const [loading, setLoading] = useState(true);
   const [isManual, setIsManual] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number }>({
@@ -227,6 +231,12 @@ export function MFHoldings() {
       transition={{ duration: 0.3 }}
       className="max-w-5xl mx-auto pb-20 pt-8 space-y-8"
     >
+      <AnimatePresence>
+        {showProfileForm && (
+            <MFProfileForm onComplete={() => setShowProfileForm(false)} />
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -291,7 +301,7 @@ export function MFHoldings() {
           />
         </div>
 
-        <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
+        <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden shadow-xl shadow-black/10 transition-all hover:border-white/5">
            <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/[0.03] bg-white/[0.02]">

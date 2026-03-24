@@ -14,6 +14,12 @@ from collections import defaultdict
 from services.mutual_funds.mf_search_service import search_mf_fuzzy as mf_search
 from services.mutual_funds.mf_portfolio_service import run_mf_portfolio_analysis
 from services.mutual_funds.mf_data_service import get_mf_latest_details
+from services.mutual_funds import mf_analytics_service
+from pydantic import BaseModel
+
+class MFInsightsRequest(BaseModel):
+    holdings: list[dict]
+    profile: dict | None = None
 
 class RateLimiter:
     def __init__(self, limit: int = 10, window: int = 1800):  # 10 msgs / 30 mins
@@ -297,11 +303,23 @@ def analyze_mf_portfolio(payload: PortfolioInput):
     return run_mf_portfolio_analysis(holdings_data)
 
 @app.get("/mf/details/{scheme_code}")
-def get_mf_details(scheme_code: str):
+async def get_mf_details(scheme_code: str):
     """
     Get everything we know about a fund: Current NAV, historical points, info.
     """
     return get_mf_latest_details(scheme_code)
+
+@app.post("/mf/analyze/insights")
+async def analyze_mf_insights(request: MFInsightsRequest):
+    """
+    Generate deep analytical insights for a mutual fund portfolio.
+    """
+    try:
+        insights = mf_analytics_service.get_portfolio_insights(request.holdings, request.profile)
+        return {"success": True, "insights": insights}
+    except Exception as e:
+        print(f"MF Insights Error: {e}")
+        return {"success": False, "error": str(e)}
 
 @app.get("/chat/status/{user_id}")
 async def get_chat_status(user_id: str):

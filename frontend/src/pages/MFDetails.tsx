@@ -28,15 +28,21 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-[#121212]/90 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2 shadow-2xl text-xs font-medium flex items-center gap-3">
-        <div className="flex flex-col">
-            <span className="text-text-muted text-[9px] uppercase font-black tracking-widest mb-0.5">{data.date}</span>
-            <span className="text-[#f3f4f6] font-black text-sm">
-            ₹{Number(data.nav).toLocaleString("en-IN", {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4,
-            })}
-            </span>
+      <div className="bg-[#121212]/90 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 shadow-2xl text-xs font-medium space-y-3 min-w-[160px]">
+        <div className="flex flex-col border-b border-white/5 pb-2">
+            <span className="text-text-muted text-[9px] uppercase font-black tracking-widest mb-1">{data.date}</span>
+        </div>
+        <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+                <span className="text-[10px] font-bold text-accent uppercase font-black">Fund NAV</span>
+                <span className="text-[#f3f4f6] font-black">₹{Number(data.nav).toFixed(2)}</span>
+            </div>
+            {data.benchmarkNav && (
+                <div className="flex items-center justify-between gap-4 opacity-60">
+                    <span className="text-[10px] font-bold text-text-muted uppercase">Benchmark</span>
+                    <span className="text-text-muted font-bold">₹{Number(data.benchmarkNav).toFixed(2)}</span>
+                </div>
+            )}
         </div>
       </div>
     );
@@ -115,11 +121,29 @@ export function MFDetails() {
   }
 
   const history = data.history || [];
+  const benchmarkHistory = data.benchmark_history || [];
+  
+  // Sync benchmark with fund dates for chart display
+  const chartData = history.map((h: any) => {
+    const bMatch = benchmarkHistory.find((b: any) => b.date === h.date);
+    return {
+      ...h,
+      benchmarkNav: bMatch ? bMatch.nav : null
+    };
+  });
+
   const latestNav = history.length > 0 ? history[history.length - 1].nav : 0;
   const firstNav = history.length > 0 ? history[0].nav : 0;
   const navChange = latestNav - firstNav;
   const navChangePct = (navChange / firstNav) * 100;
   const isPos = navChange >= 0;
+
+  // Dynamic Decixn Score logic
+  const metrics = data.metrics || {};
+  const alpha = metrics.alpha || 0;
+  const sharpe = metrics.sharpe_ratio || 0;
+  const rawScore = 5 + (alpha * 0.5) + (sharpe * 1.5);
+  const decixnScore = Math.min(Math.max(Number(rawScore.toFixed(1)), 1.0), 9.9);
 
   return (
     <div ref={containerRef} className="max-w-4xl mx-auto pb-20 space-y-8">
@@ -206,15 +230,28 @@ export function MFDetails() {
 
         <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={history}>
+                <AreaChart data={chartData}>
                     <defs>
                         <linearGradient id="navGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.3}/>
                             <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
                         </linearGradient>
+                         <linearGradient id="benchGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#666" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#666" stopOpacity={0}/>
+                        </linearGradient>
                     </defs>
-                    <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
+                    <YAxis domain={['dataMin', 'dataMax']} hide />
                     <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                        type="monotone" 
+                        dataKey="benchmarkNav" 
+                        stroke="#444" 
+                        strokeWidth={1}
+                        strokeDasharray="5 5"
+                        fill="url(#benchGradient)"
+                        isAnimationActive={true}
+                    />
                     <Area 
                         type="monotone" 
                         dataKey="nav" 
@@ -238,15 +275,15 @@ export function MFDetails() {
             <div className="space-y-4">
                 <div className="flex justify-between items-center group/item">
                     <span className="text-xs font-bold text-text-muted group-hover/item:text-text-bold transition-colors">Expense Ratio</span>
-                    <span className="text-sm font-black text-text-bold italic">N/A</span>
+                    <span className="text-sm font-black text-text-bold italic">{(data.stats?.expense_ratio * 100).toFixed(2)}%</span>
                 </div>
                 <div className="flex justify-between items-center group/item">
                     <span className="text-xs font-bold text-text-muted group-hover/item:text-text-bold transition-colors">Exit Load</span>
-                    <span className="text-sm font-black text-text-bold italic">1.0%</span>
+                    <span className="text-[10px] font-black text-text-bold italic max-w-[100px] text-right">{data.stats?.exit_load || "1.0%"}</span>
                 </div>
                 <div className="flex justify-between items-center group/item">
                     <span className="text-xs font-bold text-text-muted group-hover/item:text-text-bold transition-colors">AUM</span>
-                    <span className="text-sm font-black text-text-bold italic">₹24,500 Cr</span>
+                    <span className="text-sm font-black text-text-bold italic">₹{(data.stats?.aum / 10000000).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr</span>
                 </div>
             </div>
         </div>
@@ -258,16 +295,18 @@ export function MFDetails() {
             </div>
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-text-muted">Standard Dev.</span>
-                    <span className="text-sm font-black text-text-bold">14.2%</span>
+                    <span className="text-xs font-bold text-text-muted">Volatility (SD)</span>
+                    <span className="text-sm font-black text-text-bold">{data.metrics?.volatility?.toFixed(1)}%</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-text-muted">Sharpe Ratio</span>
-                    <span className="text-sm font-black text-accent">1.25</span>
+                    <span className={`text-sm font-black ${data.metrics?.sharpe_ratio > 1 ? 'text-success' : 'text-accent'}`}>{data.metrics?.sharpe_ratio?.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-text-muted">Alpha</span>
-                    <span className="text-sm font-black text-success">+4.2%</span>
+                    <span className={`text-sm font-black ${data.metrics?.alpha >= 0 ? 'text-success' : 'text-danger'}`}>
+                        {data.metrics?.alpha >= 0 ? '+' : ''}{data.metrics?.alpha?.toFixed(2)}%
+                    </span>
                 </div>
             </div>
         </div>
@@ -279,15 +318,90 @@ export function MFDetails() {
             </div>
             <div className="flex flex-col items-center justify-center py-2">
                 <div className="text-4xl font-black text-text-bold italic tracking-tighter mb-1">
-                    8.4
+                    {decixnScore}
                 </div>
-                <p className="text-[10px] font-black text-success uppercase tracking-widest">Very Bullish</p>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${decixnScore > 7.5 ? 'text-success' : decixnScore > 5 ? 'text-accent' : 'text-danger'}`}>
+                    {decixnScore > 7.5 ? 'Very Bullish' : decixnScore > 5 ? 'Balanced' : 'Underperformer'}
+                </p>
                 <div className="w-full h-1.5 bg-white/5 rounded-full mt-4 overflow-hidden">
-                    <div className="h-full bg-accent" style={{ width: '84%' }} />
+                    <div className="h-full bg-accent transition-all duration-1000" style={{ width: `${decixnScore * 10}%` }} />
                 </div>
             </div>
         </div>
       </div>
+      <section className="animate-mf bg-bg-surface border border-border-main rounded-2xl p-8 space-y-8 relative overflow-hidden group">
+         <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12 group-hover:rotate-0 transition-transform duration-700">
+            <TrendingUp size={120} />
+         </div>
+         
+         <header className="space-y-1 relative z-10">
+            <h3 className="font-black text-[10px] uppercase tracking-[0.3em] text-accent">SIP Calculator</h3>
+            <h2 className="text-2xl font-black text-text-bold tracking-tighter italic leading-tight uppercase">Wealth Projection</h2>
+            <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Based on this fund's {period} performance.</p>
+         </header>
+
+         <SIPCalculator cagr={((latestNav - firstNav) / firstNav) * 100} />
+      </section>
     </div>
   );
+}
+
+function SIPCalculator({ cagr }: { cagr: number }) {
+    const [amount, setAmount] = useState(5000);
+    const [years, setYears] = useState(10);
+    
+    // Annual CAGR to monthly rate
+    const r = (cagr / 100) / 12;
+    const n = years * 12;
+    const maturityValue = amount * ((Math.pow(1 + r, n) - 1) / r) * (1 + r);
+    const invested = amount * n;
+    const wealthGained = maturityValue - invested;
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+            <div className="space-y-8">
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted">
+                        <span>Monthly SIP</span>
+                        <span className="text-text-bold text-sm">₹{amount.toLocaleString()}</span>
+                    </div>
+                    <input 
+                        type="range" min="500" max="100000" step="500" 
+                        value={amount} onChange={(e) => setAmount(Number(e.target.value))}
+                        className="w-full h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer accent-accent"
+                    />
+                </div>
+
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted">
+                        <span>Tenure</span>
+                        <span className="text-text-bold text-sm">{years} Years</span>
+                    </div>
+                    <input 
+                        type="range" min="1" max="30" step="1" 
+                        value={years} onChange={(e) => setYears(Number(e.target.value))}
+                        className="w-full h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer accent-accent"
+                    />
+                </div>
+            </div>
+
+            <div className="flex flex-col justify-center space-y-6">
+                <div className="space-y-1">
+                    <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Estimated Wealth</p>
+                    <p className="text-4xl font-black text-text-bold tracking-tighter italic">₹{Math.round(maturityValue).toLocaleString("en-IN")}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Invested</p>
+                        <p className="text-sm font-bold text-text-bold">₹{invested.toLocaleString("en-IN")}</p>
+                    </div>
+                    <div>
+                        <p className="text-[8px] font-black text-text-muted uppercase tracking-widest mb-1">Return Alpha</p>
+                        <p className="text-sm font-bold text-success/80">₹{Math.round(wealthGained).toLocaleString("en-IN")}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }

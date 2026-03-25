@@ -103,8 +103,8 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
       symbol: h.symbol,
       quantity: h.holding_context.quantity,
       avg_cost: h.holding_context.avg_cost,
-      current_value: 0, // Recalculated by backend
-      pnl: 0,           // Recalculated by backend
+      current_value: h.holding_context.current_value || 0,
+      pnl: h.holding_context.current_pnl || 0,
     })),
   };
   const response = await apiClient.post('/analyze/portfolio', payload);
@@ -114,10 +114,12 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
 export const analyzeMFPortfolio = async (holdings: any[]) => {
   const payload = {
     holdings: holdings.map((h) => ({
-      symbol: h.symbol,
-      quantity: h.holding_context.quantity,
-      avg_cost: h.holding_context.avg_cost,
-      isin: h.isin || h.holding_context.isin,
+      symbol: h.scheme_name || h.symbol || "",
+      isin: h.isin || h.holding_context?.isin || "",
+      quantity: h.quantity || h.holding_context?.quantity || 0,
+      avg_cost: h.avg_cost || h.holding_context?.avg_cost || 0,
+      current_value: h.current_value || h.holding_context?.current_value || 0,
+      pnl: h.current_pnl || h.holding_context?.current_pnl || 0,
     })),
   };
   const response = await apiClient.post('/mf/analyze/portfolio', payload);
@@ -136,6 +138,11 @@ export const getMFDetails = async (id: string) => {
 
 export const analyzeMFInsights = async (holdings: any[], profile: any) => {
   const response = await apiClient.post("/mf/analyze/insights", { holdings, profile });
+  return response.data;
+};
+
+export const getMFComparison = async (ids: string[]) => {
+  const response = await apiClient.get(`/mf/compare?ids=${ids.join(',')}`);
   return response.data;
 };
 

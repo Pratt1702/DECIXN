@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { List, Zap } from "lucide-react";
+import { List, Zap, Scale } from "lucide-react";
 
 export function MFSubNav() {
   const location = useLocation();
@@ -7,6 +7,7 @@ export function MFSubNav() {
   const tabs = [
     { name: "Portfolio", path: "/mutual-funds/holdings", icon: List },
     { name: "Insights", path: "/mutual-funds/insights", icon: Zap },
+    { name: "Compare", path: "/mutual-funds/compare", icon: Scale },
   ];
 
   return (

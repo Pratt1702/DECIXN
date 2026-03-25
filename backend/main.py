@@ -64,16 +64,26 @@ app.add_middleware(
 class TickerRequest(BaseModel):
     ticker: str
 
-class HoldingInput(BaseModel):
+class StockHoldingInput(BaseModel):
     symbol: str
     quantity: float
     avg_cost: float
     current_value: float = 0.0
     pnl: float = 0.0
-    isin: str = None
 
-class PortfolioInput(BaseModel):
-    holdings: list[HoldingInput]
+class MFHoldingInput(BaseModel):
+    symbol: str = None  # Scheme Name or Display Name
+    isin: str
+    quantity: float
+    avg_cost: float
+    current_value: float = 0.0
+    pnl: float = 0.0
+
+class StockPortfolioInput(BaseModel):
+    holdings: list[StockHoldingInput]
+
+class MFPortfolioInput(BaseModel):
+    holdings: list[MFHoldingInput]
 
 class BatchQuotesRequest(BaseModel):
     symbols: list[str]
@@ -104,8 +114,6 @@ class AlertUpdate(BaseModel):
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
-
-    return run_portfolio_analysis(holdings_data)
 
 @app.get("/analyze/portfolio")
 def analyze_portfolio():
@@ -142,7 +150,7 @@ def analyze_portfolio():
     return run_portfolio_analysis(holdings_data)
 
 @app.post("/analyze/portfolio")
-def analyze_portfolio_custom(payload: PortfolioInput):
+def analyze_portfolio_custom(payload: StockPortfolioInput):
     """
     Accepts a JSON array of holdings from the frontend (uploaded CSV session data),
     bypassing the backend CSV file entirely. Same analysis pipeline is applied.
@@ -287,7 +295,7 @@ def search_mf(q: str):
     return mf_search(q)
 
 @app.post("/mf/analyze/portfolio")
-def analyze_mf_portfolio(payload: PortfolioInput):
+def analyze_mf_portfolio(payload: MFPortfolioInput):
     """
     Analyzes a mutual fund portfolio from JSON input.
     """
@@ -296,7 +304,9 @@ def analyze_mf_portfolio(payload: PortfolioInput):
             "symbol": h.symbol,
             "quantity": h.quantity,
             "avg_cost": h.avg_cost,
-            "isin": h.isin
+            "isin": h.isin,
+            "pnl": h.pnl,
+            "current_value": h.current_value
         }
         for h in payload.holdings
     ]
@@ -319,6 +329,19 @@ async def analyze_mf_insights(request: MFInsightsRequest):
         return {"success": True, "insights": insights}
     except Exception as e:
         print(f"MF Insights Error: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.get("/mf/compare")
+async def compare_mf(ids: str):
+    """
+    Compare multiple mutual funds side-by-side.
+    """
+    try:
+        scheme_codes = ids.split(",")
+        result = mf_analytics_service.compare_mutual_funds(scheme_codes)
+        return result
+    except Exception as e:
+        print(f"MF Compare Error: {e}")
         return {"success": False, "error": str(e)}
 
 @app.get("/chat/status/{user_id}")

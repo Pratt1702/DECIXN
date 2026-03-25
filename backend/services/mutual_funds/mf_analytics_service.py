@@ -133,14 +133,16 @@ def compare_mutual_funds(scheme_codes: list[str]):
         
     # Build Comparison Table Data
     comparison = []
-    for f in funds_data:
+    for i, f in enumerate(funds_data):
         metrics = f.get("metrics", {})
         stats = f.get("stats", {})
         
         # Calculate Returns (CAGR for 1Y, 3Y, 5Y from history if available)
         # For now we use alpha as a proxy for outperformance and stats for basics
         comparison.append({
-            "scheme_code": f.get("isin") or f.get("ticker"),
+            "scheme_code": scheme_codes[i], # Use the original code for frontend mapping
+            "isin": f.get("isin"),
+            "ticker": f.get("ticker"),
             "scheme_name": f.get("scheme_name"),
             "category": stats.get("category"),
             "expense_ratio": stats.get("expense_ratio"),

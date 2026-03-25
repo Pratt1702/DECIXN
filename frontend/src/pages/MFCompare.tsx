@@ -166,7 +166,7 @@ export function MFCompare() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4">
         {[0, 1, 2].map((idx) => {
           const id = selectedIds[idx];
-          const fund = comparison.find(f => f.scheme_code === id);
+          const fund = comparison.find(f => String(f.scheme_code) === String(id));
           const isEmpty = !id;
 
           return (

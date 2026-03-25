@@ -134,95 +134,206 @@ async def compare_mutual_funds(scheme_codes: List[str]):
         "regret": regret,
         "confidence_score": 82
     }
-
 def get_portfolio_insights(holdings: List[dict], profile: Optional[dict] = None) -> dict:
     """
     Generates deep analytical insights for a mutual fund portfolio.
-    Expected by MFInsights.tsx.
+    Upgraded to a DECISION ENGINE.
     """
+    from services.mutual_funds.mf_data_service import get_mf_latest_details
+    
     if not holdings:
         return {}
     
-    total_invested = sum(h.get('invested_value', 0) or (h.get('avg_cost', 0) * h.get('quantity', 0)) for h in holdings)
-    total_value = sum(h.get('current_value', 0) for h in holdings)
-    total_pnl = total_value - total_invested
+    from concurrent.futures import ThreadPoolExecutor
     
-    # 1. Health Score Calculation
-    # Factors: Diversification, Expense Leak, Risk Alignment
-    score = 75 # Base
-    health_breakdown = {
-        "Diversification": 80,
-        "Cost_Efficiency": 90,
-        "Risk_Balance": 70
-    }
-    
-    # 2. Overlap Calculation (Simplified for now)
-    overlap_pct = 12.5 # Placeholder or logic to detect similar funds
-    
-    # 3. Expense Leak (Regular vs Direct)
-    has_regular_plans = any("REGULAR" in str(h.get('symbol', h.get('scheme_name', ''))).upper() for h in holdings)
-    annual_leak = round(total_value * 0.01) if has_regular_plans else 0
-    
-    # 4. Allocation Breakdown (Mocking based on typical portfolio or derived from metadata)
-    # In a real app, this would come from a DB mapping ISIN to categories
-    allocation_breakdown = {
-        "insight": "Concentrated in Large Cap with growing Mid-Cap exposure.",
-        "caps": {
-            "large_cap": 55,
-            "mid_cap": 30,
-            "small_cap": 15,
-            "sectors": [
-                {"name": "Financial Services", "value": 28},
-                {"name": "Technology", "value": 18},
-                {"name": "Healthcare", "value": 12}
-            ]
+    # 1. Enrichment Phase - Parallelize fetching details from yfinance/DB
+    def fetch_enriched_data(h):
+        ctx = h.get('holding_context', {})
+        # Robust mapping for varying payload shapes (direct vs nested)
+        isin = h.get('isin') or ctx.get('isin')
+        symbol = h.get('symbol') or h.get('scheme_name') or ctx.get('symbol')
+        
+        details = get_mf_latest_details(isin or symbol)
+        
+        h_val = ctx.get('current_value') or h.get('current_value', 0)
+        # Handle invested value mapping
+        h_inv = h.get('invested_value') or ctx.get('invested_value') or \
+                (ctx.get('avg_cost', 0) * ctx.get('quantity', 0)) or \
+                (h.get('avg_cost', 0) * h.get('quantity', 0))
+                
+        return {
+            "symbol": symbol,
+            "isin": isin,
+            "current_value": float(h_val),
+            "invested_value": float(h_inv),
+            "details": details if details.get('success') else {},
+            "weight": 0
         }
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        enriched_holdings = list(executor.map(fetch_enriched_data, holdings))
+
+    total_value = sum(h["current_value"] for h in enriched_holdings)
+    total_invested = sum(h["invested_value"] for h in enriched_holdings)
+
+    if total_value == 0:
+        return {"error": "Portfolio value is zero. Cannot generate insights."}
+
+    # Calculate Weights and Aggregate Metrics
+    weighted_alpha = 0
+    weighted_cagr = 0
+    weighted_volatility = 0
+    data_points_count = 0
+    
+    for h in enriched_holdings:
+        h["weight"] = (h["current_value"] / total_value) * 100
+        if h["details"]:
+            m = h["details"].get("metrics", {})
+            weighted_alpha += (m.get("alpha", 0) or 0) * (h["weight"] / 100)
+            weighted_cagr += (m.get("cagr", 0) or 0) * (h["weight"] / 100)
+            weighted_volatility += (m.get("volatility", 0) or 0) * (h["weight"] / 100)
+            data_points_count += 1
+
+    # 2. Allocation Heuristics (Real-ish grounding)
+    # Mapping Category -> [Large%, Mid%, Small%, Sectors]
+    CATEGORY_MAP = {
+        "Large Cap": {"large": 85, "mid": 10, "small": 5, "sectors": {"Financial": 30, "IT": 15, "Energy": 10}},
+        "Mid Cap": {"large": 10, "mid": 75, "small": 15, "sectors": {"Capital Goods": 20, "Healthcare": 15, "Chemicals": 10}},
+        "Small Cap": {"large": 5, "mid": 15, "small": 80, "sectors": {"Consumer": 18, "Services": 15, "Industrial": 12}},
+        "Flexi Cap": {"large": 65, "mid": 25, "small": 10, "sectors": {"Financial": 25, "IT": 12, "Auto": 10}},
+        "Tax Saver": {"large": 70, "mid": 20, "small": 10, "sectors": {"Financial": 28, "IT": 14, "Pharma": 8}},
+        "Focused": {"large": 75, "mid": 20, "small": 5, "sectors": {"Financial": 35, "Energy": 15, "IT": 10}},
+        "Value": {"large": 60, "mid": 30, "small": 10, "sectors": {"Energy": 20, "Financial": 18, "Utilities": 12}},
+        "Multi Cap": {"large": 40, "mid": 35, "small": 25, "sectors": {"Financial": 22, "Capital Goods": 18, "Pharma": 10}},
     }
     
-    # 5. Wealth Projection (10 Years @ 12% avg)
-    rate = 0.12
-    years = 10
-    expected = round(total_value * (1 + rate)**years)
-    best_case = round(total_value * (1 + 0.15)**years)
-    worst_case = round(total_value * (1 + 0.08)**years)
+    agg_caps = {"large_cap": 0, "mid_cap": 0, "small_cap": 0}
+    agg_sectors = {}
     
-    # 6. Risk Profile DNA
-    dna = "Growth Oriented" if profile and profile.get('age', 30) < 40 else "Wealth Conservator"
+    for h in enriched_holdings:
+        cat = "Flexi Cap" # Default
+        if h["details"]:
+            cat_str = h["details"].get("stats", {}).get("category", "")
+            for k in CATEGORY_MAP.keys():
+                if k.lower() in cat_str.lower():
+                    cat = k
+                    break
+        
+        m = CATEGORY_MAP.get(cat, CATEGORY_MAP["Flexi Cap"])
+        agg_caps["large_cap"] += m["large"] * (h["weight"] / 100)
+        agg_caps["mid_cap"] += m["mid"] * (h["weight"] / 100)
+        agg_caps["small_cap"] += m["small"] * (h["weight"] / 100)
+        
+        for s_name, s_val in m["sectors"].items():
+            agg_sectors[s_name] = agg_sectors.get(s_name, 0) + (s_val * (h["weight"] / 100))
+
+    sorted_sectors = [{"name": k, "value": round(v, 1)} for k, v in sorted(agg_sectors.items(), key=lambda x: x[1], reverse=True)]
     
+    # 3. Decision Logic
+    age = profile.get('age', 30) if profile else 30
+    risk_appetite = profile.get('riskAppetite', 'Balanced') if profile else 'Balanced'
+    
+    # Target Small Cap based on age
+    target_small = max(5, 50 - age) 
+    if risk_appetite == 'Aggressive': target_small += 10
+    elif risk_appetite == 'Conservative': target_small -= 10
+    
+    current_small = agg_caps["small_cap"]
+    
+    recommended_actions = []
+    if current_small < target_small - 10:
+        recommended_actions.append({
+            "action": "Rebalance",
+            "reason": f"Under-exposed to growth. Target Small Cap is {target_small}%, current is {round(current_small)}%.",
+            "impact": "Low long-term alpha potential."
+        })
+    elif current_small > target_small + 15:
+        recommended_actions.append({
+            "action": "De-risk",
+            "reason": f"High volatility risk for age {age}. Small-cap exposure ({round(current_small)}%) exceeds recommended levels.",
+            "impact": "High drawdown risk during market corrections."
+        })
+    else:
+        recommended_actions.append({
+            "action": "Hold",
+            "reason": "Allocation is well-aligned with your age and risk profile.",
+            "impact": "Optimal compounding path."
+        })
+
+    # Sector Concentration
+    for s in sorted_sectors[:1]:
+        if s["value"] > 30:
+            recommended_actions.append({
+                "action": "Diversify",
+                "reason": f"High concentration in {s['name']} ({s['value']}%).",
+                "impact": "Sector-specific downturn will hit portfolio hard."
+            })
+
+    # 4. Wealth Projection Upgraded
+    years = profile.get('horizon_years', 10) if profile else 10
+    base_rate = weighted_cagr / 100 if weighted_cagr > 5 else 0.12
+    improved_rate = base_rate + 0.02 # Assume 2% improvement via rebalancing
+    
+    expected = round(total_value * (1 + base_rate)**years)
+    optimized = round(total_value * (1 + improved_rate)**years)
+    
+    # 5. Overlap Logic
+    categories = [h["details"].get("stats", {}).get("category", "") if h["details"] else "" for h in enriched_holdings]
+    overlap_count = 0
+    for i in range(len(categories)):
+        for j in range(i + 1, len(categories)):
+            if categories[i] and categories[i] == categories[j]:
+                overlap_count += 1
+    
+    overlap_pct = min(overlap_count * 15, 60) # Heuristic
+
+    # 6. Confidence Score
+    confidence = (data_points_count / len(holdings)) * 100 if holdings else 0
+    
+    # Health Score Logic
+    health_score = 75
+    if overlap_pct > 30: health_score -= 10
+    if weighted_alpha < 0: health_score -= 15
+    if any(a["action"] == "De-risk" for a in recommended_actions): health_score -= 10
+
     return {
+        "portfolio_summary": {
+            "total_value": round(total_value, 2),
+            "total_pnl": round(total_value - total_invested, 2),
+            "weighted_cagr": round(weighted_cagr, 2),
+            "weighted_alpha": round(weighted_alpha, 2),
+            "risk_score": round(weighted_volatility / 0.3, 0), # Normalized proxy
+            "confidence_score": round(confidence, 1)
+        },
         "health_score": {
-            "score": score,
-            "label": "Strong" if score > 70 else "Fair",
-            "insight": "Your portfolio architecture shows high cost efficiency and moderate risk balance.",
-            "breakdown": health_breakdown
+            "score": max(health_score, 10),
+            "label": "Premium" if health_score > 85 else "Strong" if health_score > 70 else "Fair" if health_score > 50 else "Weak",
+            "insight": f"Overall {health_score > 70 and 'robust' or 'fragmented'} architecture with {round(weighted_alpha, 1)}% alpha generation.",
+            "breakdown": {
+                "Alpha_Efficiency": min(max(50 + int(weighted_alpha * 10), 0), 100),
+                "Risk_Control": min(max(100 - int(weighted_volatility * 2), 0), 100),
+                "Diversity": max(100 - overlap_pct, 0)
+            }
         },
-        "overlap": {
-            "percentage": overlap_pct,
-            "suggestion": "Minimal overlap detected. Diversification is healthy."
+        "risk_analysis": {
+            "volatility": "High" if weighted_volatility > 20 else "Medium" if weighted_volatility > 12 else "Low",
+            "drawdown_est": "15-20%" if weighted_volatility > 15 else "8-12%",
+            "consistency": "High" if weighted_alpha > 2 else "Average"
         },
-        "expense_leak": {
-            "annual_leak": annual_leak,
-            "insight": f"Switching to direct plans could save you ₹{annual_leak:,} annually." if has_regular_plans else "Optimized for low-cost direct plans.",
-            "has_regular_plans": has_regular_plans
+        "allocation_breakdown": {
+            "insight": f"Dominant {max(agg_caps, key=agg_caps.get).replace('_', ' ')} footprint.",
+            "caps": {k: round(v, 1) for k, v in agg_caps.items()},
+            "sectors": sorted_sectors
         },
-        "risk_profile": {
-            "dna": dna
-        },
-        "allocation_breakdown": allocation_breakdown,
         "wealth_projection": {
+            "years": years,
             "expected": expected,
-            "best_case": best_case,
-            "worst_case": worst_case
+            "optimized": optimized,
+            "improvement": optimized - expected,
+            "best_case": round(total_value * (1 + base_rate + 0.04)**years),
+            "worst_case": round(total_value * (1 + base_rate - 0.04)**years)
         },
-        "rebalancing": {
-            "suggestions": [
-                "Consider increasing Small Cap exposure by 5% for long-term alpha.",
-                "Review Financial Services weight (current 28%).",
-                "Maintain current SIP discipline for maximum compounding effect."
-            ]
-        },
-        "opportunity_signals": [
-            {"title": "Alpha Signal", "message": "Mid-cap index showing strong relative strength versus Large-cap."},
-            {"title": "Risk Nudge", "message": "Upcoming fed rate updates might favor current debt allocation shifts."}
-        ]
+        "recommended_actions": recommended_actions,
+        "what_to_fix": [a["reason"] for a in recommended_actions if a["action"] != "Hold"],
+        "confidence_score": f"{round(confidence)}%"
     }

@@ -4,6 +4,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 from services.supabase_client import supabase
 
+# Global cache to prevent redundant yfinance calls
+TICKER_CACHE = {}
+DETAILS_CACHE = {}
+
 def get_benchmark_performance(period: str = "5y"):
     """
     Fetch NIFTY 50 performance as a benchmark.
@@ -100,14 +104,19 @@ def get_mf_ticker_from_isin(isin: str):
     """
     Search yfinance to find the ticker symbol for an ISIN.
     """
+    if not isin: return None
+    if isin in TICKER_CACHE: return TICKER_CACHE[isin]
+    
     try:
         search = yf.Search(isin)
         if search.quotes:
             # Sort by exchange priority (NSE/BSE first)
             for q in search.quotes:
                 if q.get("exchange") in ["BSE", "NSI"] or q.get("quoteType") in ["MUTUALFUND", "EQUITY", "ETF"]:
+                    TICKER_CACHE[isin] = q["symbol"]
                     return q["symbol"]
             # Fallback to the first quote if no exchange match
+            TICKER_CACHE[isin] = search.quotes[0]["symbol"]
             return search.quotes[0]["symbol"]
         return None
     except Exception as e:
@@ -209,4 +218,10 @@ def get_mf_latest_details(scheme_code: str):
     """
     Get everything we know about a fund: Current NAV, historical points, info.
     """
-    return get_mf_historical_nav(scheme_code, period="5y")
+    if scheme_code in DETAILS_CACHE:
+        return DETAILS_CACHE[scheme_code]
+        
+    res = get_mf_historical_nav(scheme_code, period="5y")
+    if res.get("success"):
+        DETAILS_CACHE[scheme_code] = res
+    return res

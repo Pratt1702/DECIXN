@@ -12,7 +12,8 @@ import {
   TrendingUp,
   Info,
   Brain,
-  Target
+  Target,
+  Scale
 } from "lucide-react";
 import {
   LineChart,
@@ -221,13 +222,23 @@ export function MFDetails() {
 
   return (
     <div ref={containerRef} className="max-w-3xl mx-auto pb-20 space-y-8">
-      <button
-        onClick={() => navigate("/mutual-funds/holdings")}
-        className="flex items-center gap-2 text-[10px] text-text-muted hover:text-text-bold transition-all w-fit font-black uppercase tracking-widest group"
-      >
-        <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-        Back to Dashboard
-      </button>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate("/mutual-funds/holdings")}
+          className="flex items-center gap-2 text-[10px] text-text-muted hover:text-text-bold transition-all w-fit font-black uppercase tracking-widest group"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+          Back to Dashboard
+        </button>
+
+        <button
+          onClick={() => navigate(`/mutual-funds/compare?ids=${id}`)}
+          className="flex items-center gap-2 bg-white/5 border border-white/10 text-text-bold px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all shadow-xl"
+        >
+          <Scale size={14} />
+          Compare Fund
+        </button>
+      </div>
 
       <header className="animate-mf space-y-4">
         <div className="flex flex-col gap-1">

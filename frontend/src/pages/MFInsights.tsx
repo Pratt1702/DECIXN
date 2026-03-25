@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { 
-  Zap, TrendingUp, AlertCircle, 
+  Zap, TrendingUp, Info, 
   Target, ArrowUpRight,
   Layers, Wallet, RefreshCw, Fingerprint
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MFSubNav } from "../components/layout/MFSubNav";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 import { useMFProfileStore } from "../store/useMFProfileStore";
 import { motion } from "framer-motion";
@@ -67,9 +66,8 @@ export function MFInsights() {
   if (!portfolioData) {
     return (
       <div className="max-w-5xl mx-auto py-12 px-4">
-        <MFSubNav />
         <div className="bg-bg-surface border border-white/[0.03] rounded-2xl p-16 text-center space-y-4">
-          <AlertCircle className="w-12 h-12 text-text-muted mx-auto opacity-20" />
+          <Info className="w-12 h-12 text-text-muted mx-auto opacity-20" />
           <h2 className="text-xl font-black text-text-bold uppercase tracking-tighter italic">Engine Standby</h2>
           <p className="text-text-muted text-sm max-w-md mx-auto">Upload your portoflio data to activate the intelligence core.</p>
         </div>
@@ -80,7 +78,6 @@ export function MFInsights() {
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto py-12 px-4">
-        <MFSubNav />
         <div className="flex flex-col items-center justify-center py-32 gap-6">
           <RefreshCw className="w-12 h-12 text-accent animate-spin opacity-20" />
           <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Analyzing Allocation DNA</p>
@@ -93,7 +90,6 @@ export function MFInsights() {
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-4 space-y-12 pb-32">
-      <MFSubNav />
       
       {/* 🧠 1 & 12: Header + DNA */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">

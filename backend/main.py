@@ -321,6 +321,19 @@ async def analyze_mf_insights(request: MFInsightsRequest):
         print(f"MF Insights Error: {e}")
         return {"success": False, "error": str(e)}
 
+@app.get("/mf/compare")
+async def compare_mf(ids: str):
+    """
+    Compare multiple mutual funds side-by-side.
+    """
+    try:
+        scheme_codes = ids.split(",")
+        result = mf_analytics_service.compare_mutual_funds(scheme_codes)
+        return result
+    except Exception as e:
+        print(f"MF Compare Error: {e}")
+        return {"success": False, "error": str(e)}
+
 @app.get("/chat/status/{user_id}")
 async def get_chat_status(user_id: str):
     """

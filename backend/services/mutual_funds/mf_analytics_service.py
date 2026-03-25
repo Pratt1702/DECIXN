@@ -115,3 +115,70 @@ def get_portfolio_insights(holdings, profile=None):
             "insight": "You hold 8 funds — reducing to 4 could improve returns and clarity." if len(holdings) > 6 else "Concentrated conviction is visible."
         }
     }
+
+def compare_mutual_funds(scheme_codes: list[str]):
+    """
+    Compares 2-3 mutual funds and returns a comparison matrix + AI conclusion.
+    """
+    from services.mutual_funds.mf_data_service import get_mf_latest_details
+    
+    funds_data = []
+    for code in scheme_codes:
+        details = get_mf_latest_details(code)
+        if details.get("success"):
+            funds_data.append(details)
+            
+    if not funds_data:
+        return {"success": False, "error": "Could not fetch data for any selected funds."}
+        
+    # Build Comparison Table Data
+    comparison = []
+    for f in funds_data:
+        metrics = f.get("metrics", {})
+        stats = f.get("stats", {})
+        
+        # Calculate Returns (CAGR for 1Y, 3Y, 5Y from history if available)
+        # For now we use alpha as a proxy for outperformance and stats for basics
+        comparison.append({
+            "scheme_code": f.get("isin") or f.get("ticker"),
+            "scheme_name": f.get("scheme_name"),
+            "category": stats.get("category"),
+            "expense_ratio": stats.get("expense_ratio"),
+            "aum": stats.get("aum"),
+            "alpha": metrics.get("alpha"),
+            "sharpe_ratio": metrics.get("sharpe_ratio"),
+            "volatility": metrics.get("volatility"),
+            "nav": f.get("history")[-1].get("nav") if f.get("history") else 0
+        })
+        
+    # Generate AI Conclusion
+    # Logic: 
+    # 1. Best Alpha (Performance)
+    # 2. Best Sharpe (Risk-Adjusted)
+    # 3. Lowest Expense (Efficiency)
+    
+    best_performer = max(comparison, key=lambda x: x['alpha'] or -100)
+    most_efficient = min(comparison, key=lambda x: x['expense_ratio'] or 1.0)
+    best_risk_adj = max(comparison, key=lambda x: x['sharpe_ratio'] or -100)
+    
+    conclusion = f"The comparison reflects three distinct styles. "
+    if best_performer == best_risk_adj:
+        conclusion += f"{best_performer['scheme_name']} is the clear leader, offering both the highest market outperformance (Alpha: {best_performer['alpha']}%) and superior risk-adjusted returns."
+    else:
+        conclusion += f"For pure growth, {best_performer['scheme_name']} leads with an Alpha of {best_performer['alpha']}%, while {best_risk_adj['scheme_name']} offers better stability."
+        
+    if most_efficient['expense_ratio'] < 0.008: # Below 0.8%
+        conclusion += f" {most_efficient['scheme_name']} is also notably cost-efficient with an expense ratio of {most_efficient['expense_ratio']*100:.2f}%."
+
+    insights = [
+        {"title": "Performance Leader", "text": f"{best_performer['scheme_name']} shows the highest potential for alpha generation.", "type": "success"},
+        {"title": "Cost Analysis", "text": f"{most_efficient['scheme_name']} has the lowest overhead, preserving more of your long-term capital.", "type": "info"},
+        {"title": "Risk Profile", "text": f"{best_risk_adj['scheme_name']} has the most disciplined return delivery relative to its volatility.", "type": "warning"}
+    ]
+    
+    return {
+        "success": True,
+        "comparison": comparison,
+        "insights": insights,
+        "conclusion": conclusion
+    }

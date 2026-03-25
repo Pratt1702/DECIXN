@@ -139,6 +139,11 @@ export const analyzeMFInsights = async (holdings: any[], profile: any) => {
   return response.data;
 };
 
+export const getMFComparison = async (ids: string[]) => {
+  const response = await apiClient.get(`/mf/compare?ids=${ids.join(',')}`);
+  return response.data;
+};
+
 export const getBatchQuotes = async (symbols: string[]) => {
   const response = await apiClient.post('/quotes/batch', { symbols });
   return response.data;

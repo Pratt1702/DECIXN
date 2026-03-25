@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
-import { MFSubNav } from "../components/layout/MFSubNav";
 import { useMFProfileStore } from "../store/useMFProfileStore";
 import { MFProfileForm } from "../components/forms/MFProfileForm";
 
@@ -276,7 +275,6 @@ export function MFHoldings() {
         </div>
       </header>
 
-      <MFSubNav />
 
       {data?.portfolio_summary && (
         <SummaryCards

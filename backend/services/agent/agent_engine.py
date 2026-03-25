@@ -82,36 +82,49 @@ async def generate_verdict_node(state: AgentState):
     news_text = "\n".join([f"- {n['title']}: {n['summary']}" for n in news_context[:3]])
     
     prompt = f"""
-    You are a Senior Investment Strategist and Lead Portfolio Manager at DECIXN. 
-    Analyze {symbol} based on these inputs:
-    
-    [TECHNICAL INDICATORS & TREND]:
-    {json.dumps(signals, indent=2)}
-    
-    [LATEST NEWS & CATALYSTS (Economic Times)]:
-    {news_text if news_text else "No recent news found."}
-    
-    [USER PORTFOLIO CONTEXT]:
-    {json.dumps(portfolio, indent=2) if portfolio else "User does not hold this stock."}
-    
-    [TASK]:
-    1. EXPLAIN "Why Now?": A 2-3 paragraph deep-dive. Combine technical signals (RSI, MAs, Volume ratio) with the provided [Economic Times] catalysts.
-    2. CITE News sources explicitly (e.g., "[Economic Times] reports...").
-    3. Final Verdict (STRONG BUY, BUY, HOLD, REDUCE, SELL) and Confidence score.
-    4. Actionable Entry/Exit/Stop Loss levels.
-    5. Personalize: Tell the user exactly what to do with their position (if they have one). Use their Avg Cost in your math.
-    
-    NOTE: Be sharp, professional, and slightly elite. Don't be generic. If data is missing, report exactly WHAT is missing (Price, MACD, etc.) instead of guessing.
-    
-    Return ONLY JSON:
-    {{
-        "narrative": "Cohesive summary including indicators and citations...",
-        "verdict": "...",
-        "confidence": 0-100,
-        "actionable_levels": {{ "entry": 123, "exit": 123, "stop_loss": 123 }},
-        "portfolio_advice": "Detailed advice based on their profit/loss..."
-    }}
-    """
+You are a sharp, data-driven market analyst.
+
+Analyze {symbol} using the inputs below and produce a concise, actionable output.
+
+[DATA]
+TECHNICALS:
+{json.dumps(signals)}
+
+NEWS:
+{news_text if news_text else "None"}
+
+PORTFOLIO:
+{json.dumps(portfolio) if portfolio else "No position"}
+
+[OUTPUT RULES]
+- NO fluff, NO introductions, NO role-play
+- DO NOT say "as an advisor", "Foxy", or similar
+- Keep it SHORT and SCANNABLE
+- Use bullet points, not paragraphs
+- Every line must add value
+- If data is missing, ignore it — do NOT mention missing data
+
+[THINKING PRIORITY]
+1. What is the strongest signal right now?
+2. Are there conflicting signals?
+3. What should the user DO?
+
+[RETURN JSON ONLY]
+{{
+  "summary": [
+    "1-line key insight",
+    "2-3 bullet reasons max"
+  ],
+  "verdict": "STRONG BUY | BUY | HOLD | REDUCE | SELL",
+  "confidence": 0-100,
+  "levels": {{
+    "entry": number,
+    "exit": number,
+    "stop_loss": number
+  }},
+  "portfolio_action": "Specific action for user's position (1-2 lines max)"
+}}
+"""
     
     response = gemini_client.models.generate_content(
         model="gemini-2.5-flash",

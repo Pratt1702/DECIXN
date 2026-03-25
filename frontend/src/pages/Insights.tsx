@@ -177,12 +177,17 @@ export function Insights() {
 
     async function fetchHoldings() {
       try {
-        const sessionData = sessionStorage.getItem(SESSION_KEY);
-        let currentHash = "";
-        let parsed: any[] = [];
+        const stockData = sessionStorage.getItem('uploaded_holdings');
+        const mfData = sessionStorage.getItem('mf_uploaded_holdings');
         
-        if (sessionData && sessionData !== "undefined") {
-          parsed = JSON.parse(sessionData);
+        let parsed: any[] = [];
+        if (stockData && stockData !== "undefined") parsed = [...parsed, ...JSON.parse(stockData)];
+        if (mfData && mfData !== "undefined") parsed = [...parsed, ...JSON.parse(mfData)];
+
+        const sessionData = JSON.stringify(parsed);
+        let currentHash = "";
+        
+        if (parsed.length > 0) {
           currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
         }
 
@@ -248,7 +253,7 @@ export function Insights() {
 
         // 3. Fallback: No cache or cache expired -> Show full analysis loading + fetch
         setLoading(true);
-        if (sessionData && sessionData !== "undefined") {
+        if (parsed.length > 0) {
           startAnimation(parsed.length, false);
           const dataPromise = analyzeCustomPortfolio(parsed);
           const [res] = await Promise.all([dataPromise, animationPromise]);
@@ -256,7 +261,8 @@ export function Insights() {
             setData(res);
             setStoreData(res, currentHash);
           }
-        } else {
+        }
+ else {
           // Standard fetch (index case or fallback)
           const res = await getPortfolio();
           if (isMounted) {

@@ -29,23 +29,30 @@ const MOCK_PORTFOLIO = {
 };
 
 export const getPortfolio = async () => {
-  // Priority 1: Check session storage for custom uploaded holdings
-  const sessionHoldings = sessionStorage.getItem('uploaded_holdings');
-  if (sessionHoldings && sessionHoldings !== "undefined") {
+  // Priority 1: Check session storage for custom uploaded holdings (Stocks or MFs)
+  const stockHoldings = sessionStorage.getItem('uploaded_holdings');
+  const mfHoldings = sessionStorage.getItem('mf_uploaded_holdings');
+  
+  if ((stockHoldings && stockHoldings !== "undefined") || (mfHoldings && mfHoldings !== "undefined")) {
     try {
+      const stocks = (stockHoldings && stockHoldings !== "undefined") ? JSON.parse(stockHoldings) : [];
+      const mfs = (mfHoldings && mfHoldings !== "undefined") ? JSON.parse(mfHoldings) : [];
+      
+      const combined = [...stocks, ...mfs];
       const sessionSummary = sessionStorage.getItem('portfolio_summary');
       const summaryParsed = (sessionSummary && sessionSummary !== "undefined") 
         ? JSON.parse(sessionSummary) 
         : null;
 
-      return {
-        portfolio_analysis: JSON.parse(sessionHoldings),
-        portfolio_summary: summaryParsed,
-        is_manual: true
-      };
+      if (combined.length > 0) {
+        return {
+          portfolio_analysis: combined,
+          portfolio_summary: summaryParsed,
+          is_manual: true
+        };
+      }
     } catch (e) {
-      console.warn("Session holdings corrupt, clearing:", e);
-      sessionStorage.removeItem('uploaded_holdings');
+      console.warn("Session holdings corrupt:", e);
     }
   }
 
@@ -54,7 +61,7 @@ export const getPortfolio = async () => {
   const cached = localStorage.getItem(cacheKey);
   const cacheTime = localStorage.getItem(cacheTimeKey);
   
-  // Return cache if it's less than 5 minutes old (300,000ms) and has valid data
+  // Return cache if it's less than 5 minutes old
   if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 300000) {
     try {
       const parsed = JSON.parse(cached);
@@ -62,7 +69,7 @@ export const getPortfolio = async () => {
         return parsed;
       }
     } catch (e) {
-      console.warn("API cache corrupt, ignoring");
+      console.warn("API cache corrupt");
     }
   }
   
@@ -73,9 +80,17 @@ export const getPortfolio = async () => {
     return response.data;
   } catch (err) {
     if (cached) return JSON.parse(cached);
-    console.warn("API failed, using highly resilient mock portfolio");
+    console.warn("API failed, using mock portfolio");
     return MOCK_PORTFOLIO;
   }
+};
+
+export const clearPortfolioCache = () => {
+  sessionStorage.removeItem('uploaded_holdings');
+  sessionStorage.removeItem('mf_uploaded_holdings');
+  sessionStorage.removeItem('portfolio_summary');
+  localStorage.removeItem('decixn_portfolio');
+  localStorage.removeItem('decixn_portfolio_time');
 };
 
 export const getTickerAnalysis = async (ticker: string) => {

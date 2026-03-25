@@ -30,9 +30,9 @@ export function MFCompare() {
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
-    if (query.length > 2) {
+    if (query.length > 1) {
       const results = await searchMutualFunds(query);
-      setSearchResults(results); 
+      setSearchResults(results.filter((res: any) => res.symbol !== mf1)); 
     } else {
       setSearchResults([]);
     }
@@ -69,7 +69,7 @@ export function MFCompare() {
              <Scale size={14} className="text-accent" />
              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted">Scheme Comparison Engine</span>
            </div>
-           <h1 className="text-4xl font-black text-text-bold tracking-tighter uppercase italic">Battle of the Alpha</h1>
+           <h1 className="text-4xl font-black text-text-bold tracking-tighter uppercase">Battle of the Alpha</h1>
         </div>
       </header>
 

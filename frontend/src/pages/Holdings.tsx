@@ -192,6 +192,7 @@ export function Holdings() {
   }, [loadData]);
 
   const handleDataParsed = async (newHoldings: any[]) => {
+    localStorage.removeItem("decixn_portfolio"); // Clear old stale cache
     let interval: NodeJS.Timeout | null = null;
     try {
       setLoading(true);

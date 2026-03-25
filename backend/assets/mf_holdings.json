@@ -1,0 +1,162 @@
+[
+    {
+        "symbol": "INF194KB1AL4",
+        "fund_name": "BANDHAN SMALL CAP FUND - DIRECT PLAN",
+        "quantity": 370.164,
+        "avg_cost": 51.326,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Small Cap true}"
+    },
+    {
+        "symbol": "INF843K01AO4",
+        "fund_name": "EDELWEISS MID CAP FUND - DIRECT PLAN",
+        "quantity": 216.288,
+        "avg_cost": 120.2035,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Mid Cap true}"
+    },
+    {
+        "symbol": "INF179K01WA6",
+        "fund_name": "HDFC BALANCED ADVANTAGE FUND - DIRECT PLAN",
+        "quantity": 13.512,
+        "avg_cost": 555.0463,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Hybrid - Dynamic Asset Allocation/Balanced Advantage true}"
+    },
+    {
+        "symbol": "INF179K01UT0",
+        "fund_name": "HDFC FLEXI CAP FUND - DIRECT PLAN",
+        "quantity": 9.914,
+        "avg_cost": 2168.2757,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Flexi Cap true}"
+    },
+    {
+        "symbol": "INF179KA1RQ7",
+        "fund_name": "HDFC LARGE AND MID CAP FUND - DIRECT PLAN",
+        "quantity": 55.281,
+        "avg_cost": 352.7275,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Large & Mid Cap true}"
+    },
+    {
+        "symbol": "INF179KA1RW5",
+        "fund_name": "HDFC SMALL CAP FUND - DIRECT PLAN",
+        "quantity": 84.428,
+        "avg_cost": 153.9685,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Small Cap true}"
+    },
+    {
+        "symbol": "INF109K012M7",
+        "fund_name": "ICICI PRUDENTIAL NIFTY 50 INDEX FUND - DIRECT PLAN",
+        "quantity": 58.716,
+        "avg_cost": 263.9692,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Others - Index Funds/ETFs true}"
+    },
+    {
+        "symbol": "INF192K01MV6",
+        "fund_name": "JM MIDCAP FUND - DIRECT PLAN",
+        "quantity": 603.487,
+        "avg_cost": 19.8835,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Mid Cap true}"
+    },
+    {
+        "symbol": "INF247L01569",
+        "fund_name": "MOTILAL OSWAL ELSS TAX SAVER FUND - DIRECT PLAN",
+        "quantity": 343.985,
+        "avg_cost": 58.1391,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - ELSS true}"
+    },
+    {
+        "symbol": "INF247L01445",
+        "fund_name": "MOTILAL OSWAL MIDCAP FUND - DIRECT PLAN",
+        "quantity": 305.506,
+        "avg_cost": 111.2849,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Mid Cap true}"
+    },
+    {
+        "symbol": "INF204K01YC4",
+        "fund_name": "NIPPON INDIA GOLD SAVINGS FUND - DIRECT PLAN",
+        "quantity": 470.516,
+        "avg_cost": 38.254,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Others - Fund of Funds true}"
+    },
+    {
+        "symbol": "INF204K01XF9",
+        "fund_name": "NIPPON INDIA MULTI CAP FUND - DIRECT PLAN",
+        "quantity": 58.243,
+        "avg_cost": 317.6185,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Multi Cap true}"
+    },
+    {
+        "symbol": "INF204K01K15",
+        "fund_name": "NIPPON INDIA SMALL CAP FUND - DIRECT PLAN",
+        "quantity": 45.832,
+        "avg_cost": 185.4559,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Small Cap true}"
+    },
+    {
+        "symbol": "INF879O01027",
+        "fund_name": "PARAG PARIKH FLEXI CAP FUND - DIRECT PLAN",
+        "quantity": 199.804,
+        "avg_cost": 90.0844,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Flexi Cap true}"
+    },
+    {
+        "symbol": "INF966L01911",
+        "fund_name": "QUANT FLEXI CAP FUND - DIRECT PLAN",
+        "quantity": 114.102,
+        "avg_cost": 105.1633,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Flexi Cap true}"
+    },
+    {
+        "symbol": "INF966L01721",
+        "fund_name": "QUANT INFRASTRUCTURE FUND - DIRECT PLAN",
+        "quantity": 247.947,
+        "avg_cost": 40.3291,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Sectoral/Thematic true}"
+    },
+    {
+        "symbol": "INF966L01689",
+        "fund_name": "QUANT SMALL CAP FUND - DIRECT PLAN",
+        "quantity": 108.992,
+        "avg_cost": 275.2372,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Small Cap true}"
+    },
+    {
+        "symbol": "INF200K01RA0",
+        "fund_name": "SBI CONTRA FUND - DIRECT PLAN",
+        "quantity": 18.827,
+        "avg_cost": 424.8932,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - Contra true}"
+    },
+    {
+        "symbol": "INF200K01UM9",
+        "fund_name": "SBI ELSS TAX SAVER FUND - DIRECT PLAN",
+        "quantity": 35.359,
+        "avg_cost": 452.4713,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Equity - ELSS true}"
+    },
+    {
+        "symbol": "INF200K01SR2",
+        "fund_name": "SBI MEDIUM TO LONG DURATION FUND - DIRECT PLAN",
+        "quantity": 81.611,
+        "avg_cost": 73.5162,
+        "asset_type": "MUTUAL_FUND",
+        "category": "{Debt - Medium to Long Duration true}"
+    }
+]

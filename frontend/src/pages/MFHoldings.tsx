@@ -74,6 +74,7 @@ export function MFHoldings() {
   };
 
   const handleDataParsed = async (holdings: any[]) => {
+    localStorage.removeItem("decixn_portfolio"); // Clear old stale cache
     setLoading(true);
     try {
       const res = await analyzeCustomPortfolio(holdings);

@@ -24,7 +24,7 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
         news_items = []
         for row in res.data:
             item = row.get("news")
-            if item and item.get("created_at") >= cutoff:
+            if item and (item.get("published_at") or item.get("created_at")) >= cutoff:
                 news_items.append(item)
 
         if not news_items:
@@ -35,16 +35,17 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
         scored_news = []
         for item in news_items:
             # Sentiment score
-            sentiment = (item.get("sentiment") or "neutral").lower()
+            sentiment = (item.get("sentiment") or item.get("raw_json", {}).get("sentiment") or "neutral").lower()
             sentiment_score = 1 if sentiment == "positive" else (-1 if sentiment == "negative" else 0)
             
             # Impact strength
-            impact_strength = item.get("impact_strength") or 1
+            impact_strength = item.get("impact_strength") or item.get("raw_json", {}).get("impact_strength") or 1
             
             # Recency bonus
             try:
-                # Handle potential formats: "2026-03-25T22:00:00" or with Z or with Offset
-                date_str = item["created_at"].replace("Z", "+00:00")
+                # Handle potential formats
+                ts = item.get("published_at") or item.get("created_at")
+                date_str = ts.replace("Z", "+00:00")
                 created_at = datetime.fromisoformat(date_str).replace(tzinfo=None)
             except:
                 created_at = now - timedelta(hours=24) # fallback
@@ -67,13 +68,12 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
             scored_news.append(item)
 
         # 3. Context filtering
-        # context can be "bullish" or "bearish" (case-insensitive)
         if context:
             ctx = context.lower()
             if "bullish" in ctx:
-                scored_news = [n for n in scored_news if n["sentiment"] == "positive"]
+                scored_news = [n for n in scored_news if n.get("sentiment") == "positive"]
             elif "bearish" in ctx:
-                scored_news = [n for n in scored_news if n["sentiment"] == "negative"]
+                scored_news = [n for n in scored_news if n.get("sentiment") == "negative"]
 
         # 4. Sort and return top 2-3
         scored_news.sort(key=lambda x: x["catalyst_score"], reverse=True)
@@ -81,4 +81,44 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
 
     except Exception as e:
         print(f"Error in get_relevant_news: {e}")
+        return []
+
+async def get_news_by_category(ticker: str = None, sector: str = None, limit: int = 3):
+    """
+    Agent tool function to fetch news for a ticker OR sector from DB.
+    Sorted by published_at desc, max limit 3.
+    """
+    try:
+        if ticker:
+            ticker = ticker.upper().replace(".NS", "").replace(".BO", "")
+            res = supabase.table("news_stocks") \
+                .select("news:news_id(*)") \
+                .eq("symbol", ticker) \
+                .execute()
+        elif sector:
+            res = supabase.table("news_sectors") \
+                .select("news:news_id(*)") \
+                .ilike("sector", f"%{sector}%") \
+                .execute()
+        else:
+            # Fallback to general news
+            res = supabase.table("news").select("*").order("published_at", desc=True).limit(limit).execute()
+            return res.data
+
+        if not res.data:
+            return []
+
+        news_items = []
+        for row in res.data:
+            item = row.get("news")
+            if item:
+                news_items.append(item)
+        
+        # Sort by published_at desc (most recent first)
+        news_items.sort(key=lambda x: (x.get("published_at") or x.get("created_at") or ""), reverse=True)
+        
+        return news_items[:limit]
+
+    except Exception as e:
+        print(f"Error in get_news_by_category: {e}")
         return []

@@ -52,6 +52,17 @@ TOOLS = [
                     },
                     "required": ["ticker"]
                 }
+            },
+            {
+                "name": "fetch_catalyst_news",
+                "description": "Fetches the latest 3 news catalysts for a specific ticker OR sector from our local database. Use for 'What is the news on TCS?', 'Any banking sector updates?', etc.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "ticker": {"type": "string", "description": "Stock symbol (e.g. RELIANCE)"},
+                        "sector": {"type": "string", "description": "Sector name (e.g. Banking, IT, Pharma)"}
+                    }
+                }
             }
         ]
     }
@@ -145,6 +156,8 @@ class ChatEngine:
                 yield {"status": "Analyzing stock data and trends..."}
             elif "get_market_overview" in fn_names:
                 yield {"status": "Fetching latest market indicators..."}
+            elif "fetch_catalyst_news" in fn_names:
+                yield {"status": "Retrieving news catalysts from database..."}
             else:
                 yield {"status": "Consulting financial tools..."}
 
@@ -199,6 +212,7 @@ class ChatEngine:
     async def _execute_tool(self, name: str, args: dict, portfolio_context: str = None):
         # Local imports to avoid circularity
         from ..market_intelligence import analyze_single_ticker, get_market_overview
+        from ..news.catalyst_engine import get_news_by_category
 
         if name == "analyze_ticker":
             ticker = args["ticker"].strip().upper().replace("$", "").replace("#", "")
@@ -283,6 +297,16 @@ class ChatEngine:
                         "position_details": line.strip("- ").strip()
                     }
             return {"owned": False, "symbol": ticker, "message": "Not in current portfolio holdings."}
+        
+        elif name == "fetch_catalyst_news":
+            ticker = args.get("ticker")
+            sector = args.get("sector")
+            news = await get_news_by_category(ticker=ticker, sector=sector, limit=3)
+            return {
+                "success": True,
+                "news": news,
+                "count": len(news)
+            }
         
         return {"error": "Tool not found"}
 

@@ -21,6 +21,36 @@ import {
   ReferenceLine,
 } from "recharts";
 import ReactApexChart from "react-apexcharts";
+
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title as ChartTitle,
+  Tooltip as ChartTooltip,
+  Legend,
+  TimeScale,
+  Filler,
+} from "chart.js";
+import { Line as ChartJSLine } from "react-chartjs-2";
+import annotationPlugin from "chartjs-plugin-annotation";
+import "chartjs-adapter-date-fns";
+import { Lock, Info as InfoIcon } from "lucide-react";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ChartTitle,
+  ChartTooltip,
+  Legend,
+  TimeScale,
+  Filler,
+  annotationPlugin
+);
 import { AIIntelligencePanel } from "../components/dashboard/AIIntelligencePanel";
 import {
   TechnicalIndicators,
@@ -54,6 +84,365 @@ const CustomTooltip = ({ active, payload }: any) => {
   }
   return null;
 };
+
+
+export function PriceForecastChart({ ticker, historicalData, forecastData, autoRefreshInterval = 60000 }: any) {
+  const [forecast, setForecast] = useState<any>(forecastData);
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    let interval: any;
+    const fetchForecast = async () => {
+      try {
+        const res = await getTickerAnalysis(ticker.replace(".NS", "").replace(".BO", ""));
+        if (res?.data?.price_forecast) {
+          setForecast(res.data.price_forecast);
+        }
+      } catch (e) {
+        console.error("Failed to fetch forecast:", e);
+      }
+    };
+    if (autoRefreshInterval) {
+      interval = setInterval(fetchForecast, autoRefreshInterval);
+    }
+    return () => clearInterval(interval);
+  }, [ticker, autoRefreshInterval]);
+
+  useEffect(() => {
+    if (forecastData) {
+      setForecast(forecastData);
+    }
+  }, [forecastData]);
+
+  if (!forecast || !historicalData || historicalData.length === 0) {
+    return (
+      <div className="w-full bg-bg-surface border border-border-main rounded-xl p-6 flex flex-col shadow-sm items-center justify-center min-h-[300px]">
+        <h3 className="flex items-center gap-2 text-[14px] font-black uppercase text-text-bold mb-6">
+          SHARE PRICE FORECAST <InfoIcon className="w-4 h-4 text-text-muted" />
+        </h3>
+        <div className="text-text-muted text-sm font-bold uppercase tracking-widest">
+          Insufficient data for forecast
+        </div>
+      </div>
+    );
+  }
+
+  const { current_price, forecast_high, forecast_mean, forecast_low, horizon_days, bias } = forecast;
+  const biasColor = bias === 'Bullish' ? '#1d9e75' : bias === 'Bearish' ? '#e24b4a' : '#9ca3af';
+
+  const today = new Date();
+  const history = [...historicalData]
+    .filter((d: any) => d.date)
+    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-90);
+
+  const historyPoints = history.map((d: any) => ({
+    x: new Date(d.date).getTime(),
+    y: d.price || d.close || current_price
+  }));
+
+  const lastHistoryPoint = historyPoints.length > 0 ? historyPoints[historyPoints.length - 1] : { x: today.getTime(), y: current_price };
+  if (lastHistoryPoint.x < today.getTime()) {
+      historyPoints.push({ x: today.getTime(), y: current_price });
+  }
+
+  const targetDays = 7;
+  const targetDate = new Date(today);
+  targetDate.setDate(targetDate.getDate() + targetDays);
+  const targetTime = targetDate.getTime();
+  
+  const scale = targetDays / (horizon_days || 5);
+  const targetHigh = current_price + (forecast_high - current_price) * scale;
+  const targetMean = current_price + (forecast_mean - current_price) * scale;
+  const targetLow = current_price + (forecast_low - current_price) * scale;
+
+  const datasetHigh = {
+    label: 'HIGH',
+    data: [
+      { x: today.getTime(), y: current_price },
+      { x: targetTime, y: targetHigh }
+    ],
+    borderColor: '#1d9e75',
+    borderWidth: 2,
+    borderDash: [5, 5],
+    pointRadius: 0,
+    fill: false,
+    order: 1
+  };
+
+  const datasetMeanFill = {
+    label: 'MEAN_FILL',
+    data: [
+      { x: today.getTime(), y: current_price },
+      { x: targetTime, y: targetMean }
+    ],
+    borderColor: 'transparent',
+    borderWidth: 0,
+    pointRadius: 0,
+    fill: 0,
+    backgroundColor: 'rgba(29,158,117,0.15)',
+    order: 5
+  };
+
+  const datasetMean = {
+    label: 'MEAN',
+    data: [
+      { x: today.getTime(), y: current_price },
+      { x: targetTime, y: targetMean }
+    ],
+    borderColor: biasColor,
+    borderWidth: 2,
+    borderDash: [5, 5],
+    pointRadius: 0,
+    fill: false,
+    order: 2
+  };
+
+  const datasetLowFill = {
+    label: 'LOW_FILL',
+    data: [
+      { x: today.getTime(), y: current_price },
+      { x: targetTime, y: targetLow }
+    ],
+    borderColor: 'transparent',
+    borderWidth: 0,
+    pointRadius: 0,
+    fill: 2,
+    backgroundColor: 'rgba(226,75,74,0.15)',
+    order: 6
+  };
+
+  const datasetLow = {
+    label: 'LOW',
+    data: [
+      { x: today.getTime(), y: current_price },
+      { x: targetTime, y: targetLow }
+    ],
+    borderColor: '#e24b4a',
+    borderWidth: 2,
+    borderDash: [5, 5],
+    pointRadius: 0,
+    fill: false,
+    order: 3
+  };
+
+  const isPositive = historyPoints.length >= 2 ? historyPoints[historyPoints.length - 1].y >= historyPoints[0].y : true;
+  const historyColor = isPositive ? '#10b981' : '#f43f5e';
+
+  const datasetHistory = {
+    label: 'Historical',
+    data: historyPoints,
+    borderColor: historyColor,
+    borderWidth: 2,
+    pointRadius: 0,
+    pointHoverRadius: 0, // Handled by custom plugin
+    tension: 0.1,
+    fill: false,
+    order: 4
+  };
+
+  const capYOffset = current_price * 0.25;
+  const maxView = current_price + capYOffset;
+  const minView = current_price - capYOffset;
+
+  const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw: (chart: any) => {
+      if (chart.tooltip?._active && chart.tooltip._active.length) {
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        const xAxis = chart.scales.x;
+        
+        // Take the first active point to draw the crosshair lines
+        const primaryPoint = chart.tooltip._active[0];
+        const x = primaryPoint.element.x;
+        const y = primaryPoint.element.y;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(x, yAxis.top);
+        ctx.lineTo(x, yAxis.bottom);
+        ctx.moveTo(xAxis.left, y);
+        ctx.lineTo(xAxis.right, y);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.stroke();
+
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textBaseline = 'middle';
+
+        const drawnY = new Set();
+
+        // Plot point dots and individual tooltips for all active datasets
+        chart.tooltip._active.forEach((activePoint: any) => {
+          const dsIndex = activePoint.datasetIndex;
+          if (dsIndex === 1 || dsIndex === 3) return; // Skip fill datasets
+
+          const px = activePoint.element.x;
+          const py = activePoint.element.y;
+          
+          let color = historyColor;
+          if (dsIndex === 0) color = '#1d9e75';
+          else if (dsIndex === 2) color = biasColor;
+          else if (dsIndex === 4) color = '#e24b4a';
+
+          // Draw the dot
+          ctx.beginPath();
+          ctx.arc(px, py, 5, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
+          ctx.fill();
+
+          // Ensure we don't draw duplicate labels at intersection points
+          const val = activePoint.element?.$context?.parsed?.y || chart.data.datasets[dsIndex].data[activePoint.index].y;
+          if (val === undefined || drawnY.has(val)) return;
+          drawnY.add(val);
+
+          const text = `₹${val.toFixed(2)}`;
+          const metrics = ctx.measureText(text);
+          const tw = metrics.width;
+          const th = 22;
+          const padX = 8;
+          
+          let rectX = px + 12;
+          // If label goes off chart to the right, flip it to the left side
+          if (rectX + tw + padX * 2 > chart.width) {
+            rectX = px - 12 - (tw + padX * 2);
+          }
+
+          // Draw Tooltip Box
+          ctx.fillStyle = '#121212';
+          ctx.beginPath();
+          if (ctx.roundRect) {
+            ctx.roundRect(rectX, py - th/2, tw + padX*2, th, 4);
+          } else {
+            ctx.rect(rectX, py - th/2, tw + padX*2, th);
+          }
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.setLineDash([]);
+          ctx.stroke();
+
+          // Draw Text
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(text, rectX + padX, py + 1);
+        });
+        
+        ctx.restore();
+      }
+    }
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 600,
+      easing: 'easeOutQuart' as const
+    },
+    layout: {
+      padding: { right: 20, top: 40, bottom: 0, left: 10 }
+    },
+    interaction: {
+      mode: 'nearest' as const,
+      axis: 'x' as const,
+      intersect: false,
+    },
+    scales: {
+      x: {
+        type: 'time' as const,
+        time: { unit: 'month' as const },
+        grid: { display: false },
+        border: { display: false },
+        ticks: { display: false }
+      },
+      y: {
+        position: 'right' as const,
+        display: false,
+        min: minView,
+        max: maxView
+      }
+    },    
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: false },
+      annotation: {
+        annotations: {
+          vLine: {
+            type: 'line' as const,
+            xMin: today.getTime(),
+            xMax: today.getTime(),
+            borderColor: '#374151',
+            borderWidth: 1,
+            borderDash: [5, 5],
+          },
+          labelHigh: {
+            type: 'label' as const,
+            xValue: targetTime,
+            yValue: targetHigh,
+            content: `₹${targetHigh.toFixed(2)}`,
+            color: '#1d9e75',
+            position: 'start' as const,
+            xAdjust: 5,
+            yAdjust: -10,
+            font: { size: 9, weight: 'bold' }
+          },
+          labelMean: {
+            type: 'label' as const,
+            xValue: targetTime,
+            yValue: targetMean,
+            content: `₹${targetMean.toFixed(2)}`,
+            color: biasColor,
+            position: 'start' as const,
+            xAdjust: 5,
+            yAdjust: 0,
+            font: { size: 9, weight: 'bold' }
+          },
+          labelLow: {
+            type: 'label' as const,
+            xValue: targetTime,
+            yValue: targetLow,
+            content: `₹${targetLow.toFixed(2)}`,
+            color: '#e24b4a',
+            position: 'start' as const,
+            xAdjust: 5,
+            yAdjust: 10,
+            font: { size: 9, weight: 'bold' }
+          }
+        }
+      }
+    }
+  };
+
+  return (
+    <div className="w-full bg-bg-surface border border-border-main rounded-xl p-6 flex flex-col shadow-sm -mt-2 mb-2">
+      <div className="flex flex-col items-center mb-6">
+        <h3 className="flex items-center gap-2 text-[14px] font-black uppercase text-text-bold">
+          SHARE PRICE FORECAST <InfoIcon className="w-4 h-4 text-text-muted cursor-pointer" title="Based on ATR + HV projection" />
+        </h3>
+        <div className="text-[#f3f4f6] text-sm font-bold mt-2">
+          Expected 1W Range:
+          <span className="text-danger ml-2">₹{targetLow.toFixed(2)}</span>
+          <span className="mx-2 text-text-muted">-</span>
+          <span className="text-success">₹{targetHigh.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <div className="h-64 w-full relative">
+        <ChartJSLine 
+          ref={chartRef}
+          data={{ datasets: [datasetHigh, datasetMeanFill, datasetMean, datasetLowFill, datasetLow, datasetHistory] }}
+          options={options as any}
+          plugins={[crosshairPlugin]}
+        />
+      </div>
+      <div className="text-center mt-3 text-[10px] text-text-muted font-bold uppercase tracking-widest">
+        Last updated: {new Date().toLocaleTimeString()}
+      </div>
+    </div>
+  );
+}
 
 export function StockDetails() {
   const { ticker } = useParams<{ ticker: string }>();
@@ -141,6 +530,7 @@ export function StockDetails() {
           moving_averages: res.data.moving_averages,
           indicators: res.data.indicators,
           benchmark_comparison: res.data.benchmark_comparison,
+          price_forecast: res.data.price_forecast,
         });
       } catch (err) {
         console.error("Failed to fetch ticker:", err);
@@ -730,6 +1120,7 @@ export function StockDetails() {
       )}
 
       <div className="pt-2 flex flex-col gap-6">
+        <PriceForecastChart ticker={ticker} historicalData={data?.charts?.["1Y"] || []} forecastData={data?.price_forecast} autoRefreshInterval={60000} />
         <YearlyRangeBar data={data} />
         <AIIntelligencePanel data={data} />
         <TechnicalIndicators data={data} />

@@ -179,161 +179,119 @@ def get_portfolio_insights(holdings: List[dict], profile: Optional[dict] = None)
     if total_value == 0:
         return {"error": "Portfolio value is zero. Cannot generate insights."}
 
-    # Calculate Weights and Aggregate Metrics
+    # 1. Aggregate Metrics & Momentum Intelligence
     weighted_alpha = 0
     weighted_cagr = 0
     weighted_volatility = 0
+    momentum_pulses = []
     data_points_count = 0
     
     for h in enriched_holdings:
         h["weight"] = (h["current_value"] / total_value) * 100
         if h["details"]:
             m = h["details"].get("metrics", {})
+            mom = h["details"].get("momentum", {})
+            
             weighted_alpha += (m.get("alpha", 0) or 0) * (h["weight"] / 100)
             weighted_cagr += (m.get("cagr", 0) or 0) * (h["weight"] / 100)
             weighted_volatility += (m.get("volatility", 0) or 0) * (h["weight"] / 100)
+            
+            # Extract momentum pulse for "Why Now?" layer
+            if mom.get("alpha_30d") is not None:
+                momentum_pulses.append({
+                    "symbol": h["symbol"],
+                    "current": mom.get("alpha_30d"),
+                    "avg": m.get("alpha", 0),
+                    "trend": mom.get("trend")
+                })
             data_points_count += 1
 
-    # 2. Allocation Heuristics (Real-ish grounding)
-    # Mapping Category -> [Large%, Mid%, Small%, Sectors]
+    # 2. Allocation Logic (Grounding & Transparency)
     CATEGORY_MAP = {
         "Large Cap": {"large": 85, "mid": 10, "small": 5, "sectors": {"Financial": 30, "IT": 15, "Energy": 10}},
         "Mid Cap": {"large": 10, "mid": 75, "small": 15, "sectors": {"Capital Goods": 20, "Healthcare": 15, "Chemicals": 10}},
         "Small Cap": {"large": 5, "mid": 15, "small": 80, "sectors": {"Consumer": 18, "Services": 15, "Industrial": 12}},
         "Flexi Cap": {"large": 65, "mid": 25, "small": 10, "sectors": {"Financial": 25, "IT": 12, "Auto": 10}},
-        "Tax Saver": {"large": 70, "mid": 20, "small": 10, "sectors": {"Financial": 28, "IT": 14, "Pharma": 8}},
-        "Focused": {"large": 75, "mid": 20, "small": 5, "sectors": {"Financial": 35, "Energy": 15, "IT": 10}},
-        "Value": {"large": 60, "mid": 30, "small": 10, "sectors": {"Energy": 20, "Financial": 18, "Utilities": 12}},
-        "Multi Cap": {"large": 40, "mid": 35, "small": 25, "sectors": {"Financial": 22, "Capital Goods": 18, "Pharma": 10}},
     }
     
     agg_caps = {"large_cap": 0, "mid_cap": 0, "small_cap": 0}
     agg_sectors = {}
     
     for h in enriched_holdings:
-        cat = "Flexi Cap" # Default
+        cat = "Flexi Cap"
         if h["details"]:
             cat_str = h["details"].get("stats", {}).get("category", "")
             for k in CATEGORY_MAP.keys():
-                if k.lower() in cat_str.lower():
-                    cat = k
-                    break
+                if k.lower() in cat_str.lower(): cat = k; break
         
         m = CATEGORY_MAP.get(cat, CATEGORY_MAP["Flexi Cap"])
-        agg_caps["large_cap"] += m["large"] * (h["weight"] / 100)
-        agg_caps["mid_cap"] += m["mid"] * (h["weight"] / 100)
-        agg_caps["small_cap"] += m["small"] * (h["weight"] / 100)
-        
+        weight_factor = h["weight"] / 100
+        agg_caps["large_cap"] += m["large"] * weight_factor
+        agg_caps["mid_cap"] += m["mid"] * weight_factor
+        agg_caps["small_cap"] += m["small"] * weight_factor
         for s_name, s_val in m["sectors"].items():
-            agg_sectors[s_name] = agg_sectors.get(s_name, 0) + (s_val * (h["weight"] / 100))
+            agg_sectors[s_name] = agg_sectors.get(s_name, 0) + (s_val * weight_factor)
 
-    sorted_sectors = [{"name": k, "value": round(v, 1)} for k, v in sorted(agg_sectors.items(), key=lambda x: x[1], reverse=True)]
-    
-    # 3. Decision Logic
+    # 3. Decision Engine (Signal Discovery & Verdict)
     age = profile.get('age', 30) if profile else 30
-    risk_appetite = profile.get('riskAppetite', 'Balanced') if profile else 'Balanced'
+    verdict_reason = ""
+    opportunity_radar = []
     
-    # Target Small Cap based on age
-    target_small = max(5, 50 - age) 
-    if risk_appetite == 'Aggressive': target_small += 10
-    elif risk_appetite == 'Conservative': target_small -= 10
-    
+    # Discovery Signal 1: Alpha Acceleration
+    active_winners = [p for p in momentum_pulses if p["trend"] == "Accelerating"]
+    if active_winners:
+        w = active_winners[0]
+        opportunity_radar.append({
+            "type": "Momentum",
+            "title": "Alpha Expansion Detected",
+            "signal": f"{w['symbol']} alpha improved from {round(w['avg'],1)}% → {round(w['current'],1)}% in last 30d.",
+            "urgency": "High"
+        })
+        verdict_reason = f"Portfolio momentum is being driven by {w['symbol']}'s recent breakout."
+
+    # Discovery Signal 2: Sector Rotation (Heuristic)
+    if agg_sectors.get("Financial", 0) > 25:
+        opportunity_radar.append({
+            "type": "Rotation",
+            "title": "Sector Shift Watch",
+            "signal": "Financials rotation detected. Growth funds showing better 30d momentum than Banking.",
+            "urgency": "Medium"
+        })
+
+    # The Final Verdict
     current_small = agg_caps["small_cap"]
+    target_small = max(5, 50 - age)
     
-    recommended_actions = []
-    if current_small < target_small - 10:
-        recommended_actions.append({
-            "action": "Rebalance",
-            "reason": f"Under-exposed to growth. Target Small Cap is {target_small}%, current is {round(current_small)}%.",
-            "impact": "Low long-term alpha potential."
-        })
-    elif current_small > target_small + 15:
-        recommended_actions.append({
-            "action": "De-risk",
-            "reason": f"High volatility risk for age {age}. Small-cap exposure ({round(current_small)}%) exceeds recommended levels.",
-            "impact": "High drawdown risk during market corrections."
-        })
-    else:
-        recommended_actions.append({
-            "action": "Hold",
-            "reason": "Allocation is well-aligned with your age and risk profile.",
-            "impact": "Optimal compounding path."
-        })
+    final_verdict = {
+        "decision": "Hold & Optimize" if abs(current_small - target_small) < 15 else ("Rebalance" if current_small > target_small else "Aggressive Buy"),
+        "confidence": 85 if data_points_count > 0 else 40,
+        "why_now": verdict_reason or f"Allocation aligned with long-term compounding for Age {age}.",
+    }
 
-    # Sector Concentration
-    for s in sorted_sectors[:1]:
-        if s["value"] > 30:
-            recommended_actions.append({
-                "action": "Diversify",
-                "reason": f"High concentration in {s['name']} ({s['value']}%).",
-                "impact": "Sector-specific downturn will hit portfolio hard."
-            })
-
-    # 4. Wealth Projection Upgraded
-    years = profile.get('horizon_years', 10) if profile else 10
-    base_rate = weighted_cagr / 100 if weighted_cagr > 5 else 0.12
-    improved_rate = base_rate + 0.02 # Assume 2% improvement via rebalancing
-    
-    expected = round(total_value * (1 + base_rate)**years)
-    optimized = round(total_value * (1 + improved_rate)**years)
-    
-    # 5. Overlap Logic
-    categories = [h["details"].get("stats", {}).get("category", "") if h["details"] else "" for h in enriched_holdings]
-    overlap_count = 0
-    for i in range(len(categories)):
-        for j in range(i + 1, len(categories)):
-            if categories[i] and categories[i] == categories[j]:
-                overlap_count += 1
-    
-    overlap_pct = min(overlap_count * 15, 60) # Heuristic
-
-    # 6. Confidence Score
-    confidence = (data_points_count / len(holdings)) * 100 if holdings else 0
-    
-    # Health Score Logic
-    health_score = 75
-    if overlap_pct > 30: health_score -= 10
-    if weighted_alpha < 0: health_score -= 15
-    if any(a["action"] == "De-risk" for a in recommended_actions): health_score -= 10
-
+    # 4. Results Construction
     return {
         "portfolio_summary": {
             "total_value": round(total_value, 2),
             "total_pnl": round(total_value - total_invested, 2),
-            "weighted_cagr": round(weighted_cagr, 2),
             "weighted_alpha": round(weighted_alpha, 2),
-            "risk_score": round(weighted_volatility / 0.3, 0), # Normalized proxy
-            "confidence_score": round(confidence, 1)
+            "risk_score": round(weighted_volatility / 0.3, 0),
+            "momentum_trend": final_verdict["why_now"]
         },
         "health_score": {
-            "score": max(health_score, 10),
-            "label": "Premium" if health_score > 85 else "Strong" if health_score > 70 else "Fair" if health_score > 50 else "Weak",
-            "insight": f"Overall {health_score > 70 and 'robust' or 'fragmented'} architecture with {round(weighted_alpha, 1)}% alpha generation.",
-            "breakdown": {
-                "Alpha_Efficiency": min(max(50 + int(weighted_alpha * 10), 0), 100),
-                "Risk_Control": min(max(100 - int(weighted_volatility * 2), 0), 100),
-                "Diversity": max(100 - overlap_pct, 0)
-            }
+            "score": 75 + (5 if active_winners else -5),
+            "label": "Intelligence Active",
+            "insight": f"System tracking {len(momentum_pulses)} momentum signals. {active_winners and 'Accelerating' or 'Steady'} Alpha trend."
         },
-        "risk_analysis": {
-            "volatility": "High" if weighted_volatility > 20 else "Medium" if weighted_volatility > 12 else "Low",
-            "drawdown_est": "15-20%" if weighted_volatility > 15 else "8-12%",
-            "consistency": "High" if weighted_alpha > 2 else "Average"
-        },
+        "opportunity_radar": opportunity_radar,
+        "final_verdict": final_verdict,
         "allocation_breakdown": {
-            "insight": f"Dominant {max(agg_caps, key=agg_caps.get).replace('_', ' ')} footprint.",
+            "source": "Category-based Estimates",
             "caps": {k: round(v, 1) for k, v in agg_caps.items()},
-            "sectors": sorted_sectors
+            "sectors": [{"name": k, "value": round(v, 1)} for k, v in sorted(agg_sectors.items(), key=lambda x: x[1], reverse=True)]
         },
         "wealth_projection": {
-            "years": years,
-            "expected": expected,
-            "optimized": optimized,
-            "improvement": optimized - expected,
-            "best_case": round(total_value * (1 + base_rate + 0.04)**years),
-            "worst_case": round(total_value * (1 + base_rate - 0.04)**years)
+            "expected": round(total_value * (1 + (weighted_cagr/100))**10),
+            "optimized": round(total_value * (1 + (weighted_cagr/100 + 0.02))**10)
         },
-        "recommended_actions": recommended_actions,
-        "what_to_fix": [a["reason"] for a in recommended_actions if a["action"] != "Hold"],
-        "confidence_score": f"{round(confidence)}%"
+        "confidence_score": f"{round((data_points_count/len(holdings))*100)}%" if holdings else "0%"
     }

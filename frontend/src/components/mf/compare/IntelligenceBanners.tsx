@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Copy, History, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Copy, History, AlertTriangle } from "lucide-react";
 
 interface IntelligenceBannersProps {
   clones: any[];

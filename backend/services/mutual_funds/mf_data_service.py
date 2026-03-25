@@ -4,6 +4,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 from services.supabase_client import supabase
 
+# Global cache to prevent redundant yfinance calls
+TICKER_CACHE = {}
+DETAILS_CACHE = {}
+
 def get_benchmark_performance(period: str = "5y"):
     """
     Fetch NIFTY 50 performance as a benchmark.
@@ -96,18 +100,70 @@ def calculate_mf_risk_metrics(fund_history, benchmark_history):
         print(f"Risk calculation error: {e}")
         return {}
 
+def calculate_momentum_metrics(fund_history, benchmark_history):
+    """
+    Calculates returns and alpha for different time windows (30d, 90d, 180d)
+    to detect acceleration/deceleration trends.
+    """
+    try:
+        if not fund_history or not benchmark_history:
+            return {}
+            
+        fund_df = pd.DataFrame(fund_history).set_index("date")
+        bench_df = pd.DataFrame(benchmark_history).set_index("date")
+        
+        # Sync dates
+        combined = pd.merge(fund_df, bench_df, left_index=True, right_index=True, suffixes=('_fund', '_bench'))
+        if len(combined) < 30: # Need at least a month of data
+            return {}
+
+        results = {}
+        windows = [30, 90, 180]
+        
+        for w in windows:
+            if len(combined) >= w:
+                subset = combined.tail(w)
+                start_f = subset['nav_fund'].iloc[0]
+                end_f = subset['nav_fund'].iloc[-1]
+                start_b = subset['nav_bench'].iloc[0]
+                end_b = subset['nav_bench'].iloc[-1]
+                
+                f_ret = (end_f / start_f - 1) * 100
+                b_ret = (end_b / start_b - 1) * 100
+                alpha = f_ret - b_ret
+                
+                results[f"return_{w}d"] = round(float(f_ret), 2)
+                results[f"alpha_{w}d"] = round(float(alpha), 2)
+        
+        # Trend detection: Is 30d alpha better than 180d/active mean?
+        current_alpha = results.get("alpha_30d", 0)
+        long_term_alpha = results.get("alpha_180d", results.get("alpha_90d", 0))
+        
+        results["momentum_score"] = round(current_alpha - long_term_alpha, 2)
+        results["trend"] = "Accelerating" if results["momentum_score"] > 0.5 else ("Decelerating" if results["momentum_score"] < -0.5 else "Steady")
+        
+        return results
+    except Exception as e:
+        print(f"Momentum calculation error: {e}")
+        return {}
+
 def get_mf_ticker_from_isin(isin: str):
     """
     Search yfinance to find the ticker symbol for an ISIN.
     """
+    if not isin: return None
+    if isin in TICKER_CACHE: return TICKER_CACHE[isin]
+    
     try:
         search = yf.Search(isin)
         if search.quotes:
             # Sort by exchange priority (NSE/BSE first)
             for q in search.quotes:
                 if q.get("exchange") in ["BSE", "NSI"] or q.get("quoteType") in ["MUTUALFUND", "EQUITY", "ETF"]:
+                    TICKER_CACHE[isin] = q["symbol"]
                     return q["symbol"]
             # Fallback to the first quote if no exchange match
+            TICKER_CACHE[isin] = search.quotes[0]["symbol"]
             return search.quotes[0]["symbol"]
         return None
     except Exception as e:
@@ -181,6 +237,7 @@ def get_mf_historical_nav(scheme_code: str, period: str = "1y"):
         
         # 5. Calculate Metrics
         risk_metrics = calculate_mf_risk_metrics(history_data, benchmark_history)
+        momentum_metrics = calculate_momentum_metrics(history_data, benchmark_history)
         
         # 6. Extract Info
         info = ticker.info if hasattr(ticker, 'info') else {}
@@ -193,6 +250,7 @@ def get_mf_historical_nav(scheme_code: str, period: str = "1y"):
             "history": history_data,
             "benchmark_history": benchmark_history,
             "metrics": risk_metrics,
+            "momentum": momentum_metrics,
             "stats": {
                 "expense_ratio": info.get("expenseRatio", 0.012), # Fallback to 1.2% if missing
                 "aum": info.get("totalAssets", 24500000000), # Fallback to dummy
@@ -209,4 +267,10 @@ def get_mf_latest_details(scheme_code: str):
     """
     Get everything we know about a fund: Current NAV, historical points, info.
     """
-    return get_mf_historical_nav(scheme_code, period="5y")
+    if scheme_code in DETAILS_CACHE:
+        return DETAILS_CACHE[scheme_code]
+        
+    res = get_mf_historical_nav(scheme_code, period="5y")
+    if res.get("success"):
+        DETAILS_CACHE[scheme_code] = res
+    return res

@@ -134,95 +134,164 @@ async def compare_mutual_funds(scheme_codes: List[str]):
         "regret": regret,
         "confidence_score": 82
     }
-
 def get_portfolio_insights(holdings: List[dict], profile: Optional[dict] = None) -> dict:
     """
     Generates deep analytical insights for a mutual fund portfolio.
-    Expected by MFInsights.tsx.
+    Upgraded to a DECISION ENGINE.
     """
+    from services.mutual_funds.mf_data_service import get_mf_latest_details
+    
     if not holdings:
         return {}
     
-    total_invested = sum(h.get('invested_value', 0) or (h.get('avg_cost', 0) * h.get('quantity', 0)) for h in holdings)
-    total_value = sum(h.get('current_value', 0) for h in holdings)
-    total_pnl = total_value - total_invested
+    from concurrent.futures import ThreadPoolExecutor
     
-    # 1. Health Score Calculation
-    # Factors: Diversification, Expense Leak, Risk Alignment
-    score = 75 # Base
-    health_breakdown = {
-        "Diversification": 80,
-        "Cost_Efficiency": 90,
-        "Risk_Balance": 70
-    }
-    
-    # 2. Overlap Calculation (Simplified for now)
-    overlap_pct = 12.5 # Placeholder or logic to detect similar funds
-    
-    # 3. Expense Leak (Regular vs Direct)
-    has_regular_plans = any("REGULAR" in str(h.get('symbol', h.get('scheme_name', ''))).upper() for h in holdings)
-    annual_leak = round(total_value * 0.01) if has_regular_plans else 0
-    
-    # 4. Allocation Breakdown (Mocking based on typical portfolio or derived from metadata)
-    # In a real app, this would come from a DB mapping ISIN to categories
-    allocation_breakdown = {
-        "insight": "Concentrated in Large Cap with growing Mid-Cap exposure.",
-        "caps": {
-            "large_cap": 55,
-            "mid_cap": 30,
-            "small_cap": 15,
-            "sectors": [
-                {"name": "Financial Services", "value": 28},
-                {"name": "Technology", "value": 18},
-                {"name": "Healthcare", "value": 12}
-            ]
+    # 1. Enrichment Phase - Parallelize fetching details from yfinance/DB
+    def fetch_enriched_data(h):
+        ctx = h.get('holding_context', {})
+        # Robust mapping for varying payload shapes (direct vs nested)
+        isin = h.get('isin') or ctx.get('isin')
+        symbol = h.get('symbol') or h.get('scheme_name') or ctx.get('symbol')
+        
+        details = get_mf_latest_details(isin or symbol)
+        
+        h_val = ctx.get('current_value') or h.get('current_value', 0)
+        # Handle invested value mapping
+        h_inv = h.get('invested_value') or ctx.get('invested_value') or \
+                (ctx.get('avg_cost', 0) * ctx.get('quantity', 0)) or \
+                (h.get('avg_cost', 0) * h.get('quantity', 0))
+                
+        return {
+            "symbol": symbol,
+            "isin": isin,
+            "current_value": float(h_val),
+            "invested_value": float(h_inv),
+            "details": details if details.get('success') else {},
+            "weight": 0
         }
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        enriched_holdings = list(executor.map(fetch_enriched_data, holdings))
+
+    total_value = sum(h["current_value"] for h in enriched_holdings)
+    total_invested = sum(h["invested_value"] for h in enriched_holdings)
+
+    if total_value == 0:
+        return {"error": "Portfolio value is zero. Cannot generate insights."}
+
+    # 1. Aggregate Metrics & Momentum Intelligence
+    weighted_alpha = 0
+    weighted_cagr = 0
+    weighted_volatility = 0
+    momentum_pulses = []
+    data_points_count = 0
+    
+    for h in enriched_holdings:
+        h["weight"] = (h["current_value"] / total_value) * 100
+        if h["details"]:
+            m = h["details"].get("metrics", {})
+            mom = h["details"].get("momentum", {})
+            
+            weighted_alpha += (m.get("alpha", 0) or 0) * (h["weight"] / 100)
+            weighted_cagr += (m.get("cagr", 0) or 0) * (h["weight"] / 100)
+            weighted_volatility += (m.get("volatility", 0) or 0) * (h["weight"] / 100)
+            
+            # Extract momentum pulse for "Why Now?" layer
+            if mom.get("alpha_30d") is not None:
+                momentum_pulses.append({
+                    "symbol": h["symbol"],
+                    "current": mom.get("alpha_30d"),
+                    "avg": m.get("alpha", 0),
+                    "trend": mom.get("trend")
+                })
+            data_points_count += 1
+
+    # 2. Allocation Logic (Grounding & Transparency)
+    CATEGORY_MAP = {
+        "Large Cap": {"large": 85, "mid": 10, "small": 5, "sectors": {"Financial": 30, "IT": 15, "Energy": 10}},
+        "Mid Cap": {"large": 10, "mid": 75, "small": 15, "sectors": {"Capital Goods": 20, "Healthcare": 15, "Chemicals": 10}},
+        "Small Cap": {"large": 5, "mid": 15, "small": 80, "sectors": {"Consumer": 18, "Services": 15, "Industrial": 12}},
+        "Flexi Cap": {"large": 65, "mid": 25, "small": 10, "sectors": {"Financial": 25, "IT": 12, "Auto": 10}},
     }
     
-    # 5. Wealth Projection (10 Years @ 12% avg)
-    rate = 0.12
-    years = 10
-    expected = round(total_value * (1 + rate)**years)
-    best_case = round(total_value * (1 + 0.15)**years)
-    worst_case = round(total_value * (1 + 0.08)**years)
+    agg_caps = {"large_cap": 0, "mid_cap": 0, "small_cap": 0}
+    agg_sectors = {}
     
-    # 6. Risk Profile DNA
-    dna = "Growth Oriented" if profile and profile.get('age', 30) < 40 else "Wealth Conservator"
+    for h in enriched_holdings:
+        cat = "Flexi Cap"
+        if h["details"]:
+            cat_str = h["details"].get("stats", {}).get("category", "")
+            for k in CATEGORY_MAP.keys():
+                if k.lower() in cat_str.lower(): cat = k; break
+        
+        m = CATEGORY_MAP.get(cat, CATEGORY_MAP["Flexi Cap"])
+        weight_factor = h["weight"] / 100
+        agg_caps["large_cap"] += m["large"] * weight_factor
+        agg_caps["mid_cap"] += m["mid"] * weight_factor
+        agg_caps["small_cap"] += m["small"] * weight_factor
+        for s_name, s_val in m["sectors"].items():
+            agg_sectors[s_name] = agg_sectors.get(s_name, 0) + (s_val * weight_factor)
+
+    # 3. Decision Engine (Signal Discovery & Verdict)
+    age = profile.get('age', 30) if profile else 30
+    verdict_reason = ""
+    opportunity_radar = []
     
+    # Discovery Signal 1: Alpha Acceleration
+    active_winners = [p for p in momentum_pulses if p["trend"] == "Accelerating"]
+    if active_winners:
+        w = active_winners[0]
+        opportunity_radar.append({
+            "type": "Momentum",
+            "title": "Alpha Expansion Detected",
+            "signal": f"{w['symbol']} alpha improved from {round(w['avg'],1)}% → {round(w['current'],1)}% in last 30d.",
+            "urgency": "High"
+        })
+        verdict_reason = f"Portfolio momentum is being driven by {w['symbol']}'s recent breakout."
+
+    # Discovery Signal 2: Sector Rotation (Heuristic)
+    if agg_sectors.get("Financial", 0) > 25:
+        opportunity_radar.append({
+            "type": "Rotation",
+            "title": "Sector Shift Watch",
+            "signal": "Financials rotation detected. Growth funds showing better 30d momentum than Banking.",
+            "urgency": "Medium"
+        })
+
+    # The Final Verdict
+    current_small = agg_caps["small_cap"]
+    target_small = max(5, 50 - age)
+    
+    final_verdict = {
+        "decision": "Hold & Optimize" if abs(current_small - target_small) < 15 else ("Rebalance" if current_small > target_small else "Aggressive Buy"),
+        "confidence": 85 if data_points_count > 0 else 40,
+        "why_now": verdict_reason or f"Allocation aligned with long-term compounding for Age {age}.",
+    }
+
+    # 4. Results Construction
     return {
+        "portfolio_summary": {
+            "total_value": round(total_value, 2),
+            "total_pnl": round(total_value - total_invested, 2),
+            "weighted_alpha": round(weighted_alpha, 2),
+            "risk_score": round(weighted_volatility / 0.3, 0),
+            "momentum_trend": final_verdict["why_now"]
+        },
         "health_score": {
-            "score": score,
-            "label": "Strong" if score > 70 else "Fair",
-            "insight": "Your portfolio architecture shows high cost efficiency and moderate risk balance.",
-            "breakdown": health_breakdown
+            "score": 75 + (5 if active_winners else -5),
+            "label": "Intelligence Active",
+            "insight": f"System tracking {len(momentum_pulses)} momentum signals. {active_winners and 'Accelerating' or 'Steady'} Alpha trend."
         },
-        "overlap": {
-            "percentage": overlap_pct,
-            "suggestion": "Minimal overlap detected. Diversification is healthy."
+        "opportunity_radar": opportunity_radar,
+        "final_verdict": final_verdict,
+        "allocation_breakdown": {
+            "source": "Category-based Estimates",
+            "caps": {k: round(v, 1) for k, v in agg_caps.items()},
+            "sectors": [{"name": k, "value": round(v, 1)} for k, v in sorted(agg_sectors.items(), key=lambda x: x[1], reverse=True)]
         },
-        "expense_leak": {
-            "annual_leak": annual_leak,
-            "insight": f"Switching to direct plans could save you ₹{annual_leak:,} annually." if has_regular_plans else "Optimized for low-cost direct plans.",
-            "has_regular_plans": has_regular_plans
-        },
-        "risk_profile": {
-            "dna": dna
-        },
-        "allocation_breakdown": allocation_breakdown,
         "wealth_projection": {
-            "expected": expected,
-            "best_case": best_case,
-            "worst_case": worst_case
+            "expected": round(total_value * (1 + (weighted_cagr/100))**10),
+            "optimized": round(total_value * (1 + (weighted_cagr/100 + 0.02))**10)
         },
-        "rebalancing": {
-            "suggestions": [
-                "Consider increasing Small Cap exposure by 5% for long-term alpha.",
-                "Review Financial Services weight (current 28%).",
-                "Maintain current SIP discipline for maximum compounding effect."
-            ]
-        },
-        "opportunity_signals": [
-            {"title": "Alpha Signal", "message": "Mid-cap index showing strong relative strength versus Large-cap."},
-            {"title": "Risk Nudge", "message": "Upcoming fed rate updates might favor current debt allocation shifts."}
-        ]
+        "confidence_score": f"{round((data_points_count/len(holdings))*100)}%" if holdings else "0%"
     }

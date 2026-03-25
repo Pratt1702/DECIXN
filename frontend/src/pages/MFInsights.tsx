@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { 
   Zap, TrendingUp, Info, 
   Target, ArrowUpRight,
-  Layers, Wallet, RefreshCw, Fingerprint
+  Layers, RefreshCw, Fingerprint, AlertTriangle
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
@@ -54,14 +54,6 @@ export function MFInsights() {
     fetchInsights();
   }, [portfolioData]);
 
-  // Derived Personalization
-  const getRiskStatus = () => {
-    if (!insights || !profile) return "Balanced";
-    const smallCap = insights.allocation_breakdown?.caps?.small_cap || 0;
-    if (profile.age > 50 && smallCap > 25) return "Too Aggressive";
-    if (profile.age < 30 && smallCap < 10) return "Too Conservative";
-    return "Balanced";
-  };
 
   if (!portfolioData) {
     return (
@@ -86,7 +78,29 @@ export function MFInsights() {
     );
   }
 
-  const riskStatus = getRiskStatus();
+
+  if (insights?.error) {
+    return (
+      <div className="max-w-5xl mx-auto py-32 px-4">
+        <div className="bg-bg-surface border border-danger/20 rounded-[2rem] p-16 text-center space-y-6 max-w-2xl mx-auto relative overflow-hidden">
+          <div className="relative z-10 space-y-4">
+            <div className="p-4 bg-danger/10 rounded-2xl w-fit mx-auto text-danger">
+                <AlertTriangle className="w-8 h-8 mx-auto" strokeWidth={3} />
+            </div>
+            <h2 className="text-2xl font-black text-text-bold uppercase tracking-tighter italic">Analysis Failed</h2>
+            <p className="text-text-muted text-sm font-medium leading-relaxed max-w-sm mx-auto">{insights.error}</p>
+            <button 
+                onClick={() => window.location.reload()}
+                className="mt-8 px-8 py-3 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all shadow-xl shadow-black/20"
+            >
+                Retry Diagnostic Core
+            </button>
+          </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-danger/5 blur-[100px] -mr-32 -mt-32" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-4 space-y-12 pb-32">
@@ -95,47 +109,55 @@ export function MFInsights() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         <div className="lg:col-span-7 space-y-8">
             <header className="space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/[0.03] border border-white/[0.05] rounded-full">
-                    <Fingerprint size={12} className="text-accent" />
-                    <span className="text-[9px] font-black text-text-bold uppercase tracking-[0.2em]">Personalized Insights for Age {profile.age}</span>
+                <div className="p-6 bg-white/[0.02] border border-accent/20 rounded-2xl space-y-4 relative overflow-hidden group">
+                    <div className="flex items-center justify-between relative z-10">
+                        <div className="space-y-1">
+                            <span className="text-[10px] font-black uppercase text-accent tracking-widest">Final Verdict</span>
+                            <h2 className="text-2xl font-black italic text-text-bold uppercase tracking-tighter leading-none">
+                                {insights?.final_verdict?.decision || "Hold & Monitor"}
+                            </h2>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] font-black text-text-muted uppercase">Confidence</span>
+                            <span className="text-lg font-black italic text-accent">{insights?.final_verdict?.confidence}%</span>
+                        </div>
+                    </div>
+                    <p className="text-text-muted text-sm font-medium leading-relaxed max-w-lg relative z-10">
+                        {insights?.final_verdict?.why_now || "Allocation remains aligned with your long-term compounding path."}
+                    </p>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-[60px] -mr-16 -mt-16 group-hover:bg-accent/10 transition-all" />
                 </div>
-                <h1 className="text-6xl font-black text-text-bold tracking-tighter uppercase italic leading-[0.85] select-none">
-                    Portfolio <br/> <span className="text-accent">IQ</span> Engine
-                </h1>
-                <p className="text-text-muted text-base font-medium leading-relaxed max-w-lg border-l-2 border-accent/20 pl-6 py-1">
-                    {insights?.health_score?.insight || "Diagnostic analysis complete. Your portfolio architecture shows moderate efficiency."}
-                </p>
             </header>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <MetricCard 
-                    title="Portfolio Overlap" 
-                    value={insights?.overlap?.percentage || 0} 
-                    prefix="%"
-                    insight={insights?.overlap?.suggestion} 
-                    Icon={Layers} 
+                    title="Portfolio Alpha" 
+                    value={insights?.portfolio_summary?.weighted_alpha || 0} 
+                    prefix=""
+                    insight={`Excess returns over benchmark.`} 
+                    Icon={Zap} 
                     colorClass="text-accent"
                 />
                 <MetricCard 
-                    title="Cost Leak" 
-                    value={insights?.expense_leak?.annual_leak || 0} 
-                    prefix="₹"
-                    insight={insights?.expense_leak?.insight} 
-                    Icon={Wallet} 
-                    colorClass={insights?.expense_leak?.has_regular_plans ? "text-danger" : "text-success"}
+                    title="Risk Score" 
+                    value={insights?.portfolio_summary?.risk_score || 0} 
+                    prefix=""
+                    insight="Weighted volatility index (0-100)." 
+                    Icon={Target} 
+                    colorClass={insights?.portfolio_summary?.risk_score > 60 ? "text-danger" : "text-success"}
                 />
                 <MetricCard 
-                    title="Risk Profile" 
-                    value={riskStatus} 
-                    insight={`Based on your Age (${profile.age}) and Allocation.`} 
-                    Icon={Target} 
-                    colorClass={riskStatus === "Balanced" ? "text-success" : "text-danger"}
+                    title="Confidence" 
+                    value={insights?.confidence_score || "0%"} 
+                    insight="Based on data completeness." 
+                    Icon={Fingerprint} 
+                    colorClass="text-accent"
                 />
                 <MetricCard 
                     title="Portfolio DNA" 
-                    value={insights?.risk_profile?.dna || "Steady Builder"} 
+                    value={insights?.risk_analysis?.volatility + " Risk" || "Steady Builder"} 
                     insight="Overall character of your assets." 
-                    Icon={Fingerprint} 
+                    Icon={Layers} 
                     colorClass="text-accent"
                 />
             </div>
@@ -188,6 +210,7 @@ export function MFInsights() {
                 <p className="text-[11px] font-medium text-text-muted uppercase tracking-widest">{insights?.allocation_breakdown?.insight}</p>
             </div>
             <div className="flex items-center gap-6">
+                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest border border-white/10 px-2 py-0.5 rounded">Source: {insights?.allocation_breakdown?.source || "Estimated"}</span>
                 <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-accent"></div><span className="text-[10px] font-black text-text-muted uppercase">Large</span></div>
                 <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-accent/40"></div><span className="text-[10px] font-black text-text-muted uppercase">Mid</span></div>
                 <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-accent/20"></div><span className="text-[10px] font-black text-text-muted uppercase">Small</span></div>
@@ -230,15 +253,15 @@ export function MFInsights() {
         
         <div className="space-y-6 relative z-10">
             <h3 className="font-black text-[10px] uppercase tracking-[0.3em] text-accent">Wealth Projection</h3>
-            <h2 className="text-4xl font-black text-text-bold tracking-tighter italic leading-tight uppercase">Current path yields <br/> ₹{insights?.wealth_projection?.expected?.toLocaleString() || "0"} <br/> <span className="text-text-muted">by Year 10.</span></h2>
-            <p className="text-sm font-medium text-text-muted leading-relaxed max-w-sm">Based on {profile.horizon} horizon with consistent compounding. This assumes target allocation parity.</p>
+            <h2 className="text-4xl font-black text-text-bold tracking-tighter italic leading-tight uppercase">Current path yields <br/> ₹{insights?.wealth_projection?.expected?.toLocaleString() || "0"} <br/> <span className="text-text-muted">by Year {insights?.wealth_projection?.years}.</span></h2>
+            <p className="text-sm font-medium text-text-muted leading-relaxed max-w-sm">Rebalancing to an optimized strategy could gain you an additional <span className="text-success">₹{(insights?.wealth_projection?.improvement || 0).toLocaleString()}</span>.</p>
         </div>
 
         <div className="space-y-8 relative z-10">
              {[
-                 { label: "Optimistic Bull", val: insights?.wealth_projection?.best_case, color: "bg-success", text: "text-success" },
-                 { label: "Balanced Path", val: insights?.wealth_projection?.expected, color: "bg-accent", text: "text-accent" },
-                 { label: "Market Stress", val: insights?.wealth_projection?.worst_case, color: "bg-danger", text: "text-danger" }
+                 { label: "Optimized Path", val: insights?.wealth_projection?.optimized, color: "bg-success", text: "text-success font-black" },
+                 { label: "Current Path", val: insights?.wealth_projection?.expected, color: "bg-accent", text: "text-accent" },
+                 { label: "Market Stress (Est)", val: insights?.wealth_projection?.worst_case, color: "bg-danger", text: "text-danger" }
              ].map((proj) => (
                  <div key={proj.label} className="space-y-2">
                      <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
@@ -253,35 +276,60 @@ export function MFInsights() {
         </div>
       </section>
 
-      {/* 🎯 AI Roadmap */}
+      {/* 🎯 DECISION LAYER */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-bg-surface border border-white/[0.03] rounded-2xl p-8 space-y-6">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-accent/10 rounded-lg"><Target className="text-accent" size={18} /></div>
-                <h3 className="text-lg font-black text-text-bold tracking-tight uppercase italic">Strategic Rebalance</h3>
+                <h3 className="text-lg font-black text-text-bold tracking-tight uppercase italic">Decision Engine</h3>
             </div>
-            <div className="space-y-2">
-                {insights?.rebalancing?.suggestions?.map((item: string, idx: number) => (
-                    <div key={idx} className="flex items-center gap-4 p-4 bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.03] rounded-xl transition-all">
-                        <ArrowUpRight size={14} className="text-accent shrink-0" />
-                        <p className="text-[11px] font-bold text-text-bold uppercase tracking-tight">{item}</p>
+            <div className="space-y-4">
+                {insights?.recommended_actions?.map((item: any, idx: number) => (
+                    <div key={idx} className="p-5 bg-white/[0.01] hover:bg-white/[0.02] border border-white/[0.03] rounded-xl transition-all space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                item.action === 'Hold' ? 'bg-success/10 text-success' : 
+                                item.action === 'Rebalance' ? 'bg-accent/10 text-accent' : 
+                                'bg-danger/10 text-danger'
+                            }`}>
+                                {item.action}
+                            </span>
+                            <ArrowUpRight size={14} className="text-text-muted" />
+                        </div>
+                        <p className="text-sm font-bold text-text-bold uppercase tracking-tight leading-tight">{item.reason}</p>
+                        <p className="text-[10px] font-medium text-text-muted italic">Impact: {item.impact}</p>
                     </div>
                 ))}
             </div>
         </div>
 
-        <div className="bg-bg-surface border border-white/[0.03] rounded-2xl p-8 space-y-6 italic">
+        <div className="bg-bg-surface border border-white/[0.03] rounded-2xl p-8 space-y-6">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-accent/10 rounded-lg"><Zap className="text-accent" size={18} /></div>
-                <h3 className="text-lg font-black text-text-bold tracking-tight uppercase italic">Alpha Layer</h3>
+                <h3 className="text-lg font-black text-text-bold tracking-tight uppercase italic">Opportunity Radar</h3>
             </div>
             <div className="space-y-4">
-                {insights?.opportunity_signals?.map((item: any, idx: number) => (
-                    <div key={idx} className="space-y-1 px-4 border-l-2 border-accent/20">
-                        <span className="text-[9px] font-black uppercase text-accent tracking-[0.2em]">{item.title}</span>
-                        <p className="text-sm font-bold text-text-bold leading-tight select-none">{item.message}</p>
+                {insights?.opportunity_radar?.length > 0 ? (
+                    insights.opportunity_radar.map((radar: any, idx: number) => (
+                        <div key={idx} className="p-4 bg-white/[0.01] border-l-2 border-accent rounded-r-xl space-y-2 group hover:bg-white/[0.02] transition-all">
+                            <div className="flex items-center justify-between">
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                    radar.urgency === 'High' ? 'bg-danger/10 text-danger' : 'bg-accent/10 text-accent'
+                                }`}>
+                                    {radar.type} Signal
+                                </span>
+                                <span className="text-[9px] font-medium text-text-muted uppercase">{radar.urgency} Priority</span>
+                            </div>
+                            <h4 className="text-[11px] font-black text-text-bold uppercase tracking-tight">{radar.title}</h4>
+                            <p className="text-[11px] font-medium text-text-muted leading-tight">{radar.signal}</p>
+                        </div>
+                    ))
+                ) : (
+                    <div className="py-8 text-center text-text-muted/20">
+                        <RefreshCw size={24} className="mx-auto mb-2 animate-pulse" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">Scanning for market signals...</p>
                     </div>
-                ))}
+                )}
             </div>
         </div>
       </div>

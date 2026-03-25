@@ -1,4 +1,4 @@
-import { Search, Bell, Loader2, LogOut, User } from "lucide-react";
+import { Search, Bell, Loader2, LogOut, User, Sparkles } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { searchStocks, searchMF } from "../../services/api";
@@ -181,6 +181,17 @@ export function Navbar() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-5">
+          <Link 
+            to="/chat"
+            className="p-2 rounded-xl border border-white/10 bg-white/5 text-white/40 hover:text-accent hover:bg-accent/10 hover:border-accent/20 transition-all cursor-pointer active:scale-95 group relative"
+          >
+            <Sparkles size={20} className="group-hover:animate-pulse" />
+            <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#121212] text-text-muted text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 shadow-2xl shadow-black/40 border border-white/10 whitespace-nowrap pointer-events-none z-[60]">
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#121212] rotate-45 border-l border-t border-white/10" />
+              Ask Foxy
+            </div>
+          </Link>
+
           <div className="relative" ref={notifRef}>
             <button 
               onClick={() => setIsNotifOpen(!isNotifOpen)}

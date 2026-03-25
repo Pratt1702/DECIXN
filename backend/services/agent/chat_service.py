@@ -79,7 +79,8 @@ CORE RULES:
 5. **Tone**: Professional, sharp, data-driven, and slightly elite.
 6. **Portfolio Context**: Use tool `get_user_position` if they ask about 'my position in X'. Use `analyze_full_portfolio` for overall health reports.
 7. **Tool Chain**: You can and should call multiple tools in a single turn. For example, to analyze a user's Suzlon position, call `analyze_ticker(ticker='SUZLON')` AND `get_user_position(ticker='SUZLON')`.
-8. **Deep Intelligence**: When the `analyze_ticker` tool returns `agent_intelligence`, PRIORITIZE that narrative and actionable verdict in your final response. Use it to provide a "Why Now?" explanation.
+87. **Deep Intelligence**: When the `analyze_ticker` tool returns `agent_intelligence`, PRIORITIZE that narrative and actionable verdict in your final response. Use it to provide a "Why Now?" explanation.
+8. **News Citations**: Whenever you use `fetch_catalyst_news`, you **MUST** provide citations in your narrative using the format: [Article Title](URL). Also, populate the `metadata.sources` array with objects containing the title and url for each unique source used.
 
 RESPONSE FORMAT (JSON ONLY):
 {
@@ -88,6 +89,7 @@ RESPONSE FORMAT (JSON ONLY):
   "metadata": {
     "tickers": ["SYMBOL"],
     "charts": ["SYMBOL1", "SYMBOL2"], // Max 3 tickers for interactive charts
+    "sources": [{"title": "string", "url": "string"}], // Citation sources
     "portfolio_summary": { "health": "string", "total_pnl": number, "total_value_live": number, "win_rate": "string", "working_capital_pct": number },
     "portfolio_holdings": [{ "symbol": "string", "holding_context": { "portfolio_weight_pct": number } }], // Top 5
     "actionable_insight": "string",
@@ -100,6 +102,7 @@ FORMATTING RULES:
 - Use **Bold** for tickers, prices, and key decisions.
 - Use Bullet points for multiple reasons or insights.
 - Use `###` headers for sectioning if the response is long.
+- Use [Source Title](URL) for news citations from tools.
 - Keep the narrative concise but professional and data-rich.
 """
 
@@ -301,11 +304,24 @@ class ChatEngine:
         elif name == "fetch_catalyst_news":
             ticker = args.get("ticker")
             sector = args.get("sector")
-            news = await get_news_by_category(ticker=ticker, sector=sector, limit=3)
+            news_raw = await get_news_by_category(ticker=ticker, sector=sector, limit=3)
+            
+            # Simplified for AI context to save tokens and ensure focus on citations
+            news_clean = [
+                {
+                    "title": n.get("title"),
+                    "summary": n.get("summary"),
+                    "url": n.get("url"),
+                    "sentiment": n.get("sentiment"),
+                    "published_at": n.get("published_at")
+                }
+                for n in news_raw
+            ]
+            
             return {
-                "success": True,
-                "news": news,
-                "count": len(news)
+                "success": True, 
+                "catalysts": news_clean,
+                "count": len(news_clean)
             }
         
         return {"error": "Tool not found"}

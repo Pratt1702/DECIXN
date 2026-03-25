@@ -20,8 +20,11 @@ async def ingest_once(limit: int = 15, company: str | None = None):
             print(f"🛑 Reached limit of {max_success} successes. Stopping.")
             break
 
-        if await news_exists(item["url"]):
-            print("⏭️ Already ingested, skipping")
+        # Clean URL (remove tracking params)
+        item["url"] = item["url"].split('?')[0].split('#')[0]
+
+        if await news_exists(item["url"], item["title"]):
+            print(f"Skip ({item['title'][:20]}...) - Dupe")
             continue
             
         if not is_recent(item.get("published_at")):

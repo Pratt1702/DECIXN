@@ -250,7 +250,14 @@ class ChatEngine:
                     "fundamentals": d.get("fundamentals"),
                     "sparkline": [float(p["price"]) for p in d.get("chart_data", [])[-20:]] if d.get("chart_data") else [],
                     "agent_intelligence": agent_res.get("verdict", {}),
-                    "latest_news": [n["title"] for n in agent_res.get("context", [])][:3]
+                    "latest_news": [
+                        {
+                            "title": n.get("title"),
+                            "url": n.get("url"),
+                            "summary": n.get("summary")
+                        }
+                        for n in agent_res.get("context", [])
+                    ][:3]
                 }
                 return combined_result
             return res
@@ -317,6 +324,13 @@ class ChatEngine:
                 }
                 for n in news_raw
             ]
+            
+            if not news_clean:
+                return {
+                    "success": False,
+                    "message": f"I couldn't find any recent news catalysts for '{ticker or sector}' in my database. Ask me to scan for fresh news if needed.",
+                    "catalysts": []
+                }
             
             return {
                 "success": True, 

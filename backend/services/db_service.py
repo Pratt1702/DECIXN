@@ -128,18 +128,34 @@ async def main():
 
     print("Inserted successfully. News ID:", news_id)
 
-async def news_exists(url: str) -> bool:
+async def news_exists(url: str, title: str) -> bool:
+    """Check if an article already exists by URL or Title."""
+    try:
+        # Check by URL first
+        res_url = (
+            supabase
+            .table("news")
+            .select("id")
+            .eq("url", url)
+            .limit(1)
+            .execute()
+        )
+        if res_url.data:
+            return True
 
-    res = (
-        supabase
-        .table("news")
-        .select("id")
-        .eq("url", url)
-        .limit(1)
-        .execute()
-    )
-
-    return bool(res.data)
+        # Then check by Title (to catch duplicates with different URLs)
+        res_title = (
+            supabase
+            .table("news")
+            .select("id")
+            .eq("title", title)
+            .limit(1)
+            .execute()
+        )
+        return bool(res_title.data)
+    except Exception as e:
+        print(f"Error checking news existence: {e}")
+        return False
 
 if __name__ == "__main__":
     asyncio.run(main())

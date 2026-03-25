@@ -1,10 +1,10 @@
-from .pulse_news import fetch_et_articles
+from .pulse_news import fetch_et_articles, is_recent
 from .article_parser import extract_article_text
 from ..gemini_service import analyze_news
 from ..db_service import insert_news, insert_stocks, insert_sectors, news_exists
 
 
-async def ingest_once(limit: int = 5, company: str | None = None):
+async def ingest_once(limit: int = 15, company: str | None = None):
 
     articles = await fetch_et_articles(limit=limit)
 
@@ -12,9 +12,20 @@ async def ingest_once(limit: int = 5, company: str | None = None):
         print("No articles fetched.")
         return
 
+    success_count = 0
+    max_success = 5
+
     for item in articles:
+        if success_count >= max_success:
+            print(f"🛑 Reached limit of {max_success} successes. Stopping.")
+            break
+
         if await news_exists(item["url"]):
             print("⏭️ Already ingested, skipping")
+            continue
+            
+        if not is_recent(item.get("published_at")):
+            print("⏭️ Too old, skipping")
             continue
             
         # 🔎 Company filter
@@ -53,7 +64,11 @@ async def ingest_once(limit: int = 5, company: str | None = None):
         # 3) Save main record
         # ------------------------
 
-        news_id = await insert_news(item, analysis)
+        try:
+            news_id = await insert_news(item, analysis)
+        except Exception as e:
+            print("❌ DB Insert failed:", e)
+            continue
 
         # ------------------------
         # 4) Related tables
@@ -63,6 +78,7 @@ async def ingest_once(limit: int = 5, company: str | None = None):
         await insert_sectors(news_id, analysis["sectors"])
 
         print("✅ Saved:", news_id)
+        success_count += 1
 
 import asyncio
 # from ingestion_service import ingest_once
@@ -70,8 +86,8 @@ import asyncio
 if __name__ == "__main__":
     asyncio.run(
         ingest_once(
-            limit=25,          # scan enough items
-            company="HDFC"  # 🔎 change this
+            limit=15,
+            company=None
         )
     )
 # python -m services.ingestion_service

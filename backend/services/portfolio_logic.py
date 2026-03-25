@@ -1,30 +1,30 @@
 import os
 from .market_intelligence import analyze_single_holding
 
-def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
+async def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     """
     Shared core logic for both GET (CSV) and POST (JSON) portfolio analysis.
     Accepts a list of dicts with keys: symbol, quantity, avg_cost, pnl
     """
     results = []
     
-    from concurrent.futures import ThreadPoolExecutor
+    import asyncio
 
-    def process_holding(h):
+    async def process_holding(h):
         try:
             symbol = h["symbol"]
             qty = float(h["quantity"])
             avg_cost = float(h["avg_cost"])
             pnl = float(h.get("pnl", 0.0))
             if not symbol or qty <= 0: return None
-            return analyze_single_holding(symbol, avg_cost, qty, pnl)
+            return await analyze_single_holding(symbol, avg_cost, qty, pnl)
         except Exception as e:
             print(f"DEBUG: Critical failure on holding {h}: {e}")
             return None
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        batch_results = list(executor.map(process_holding, holdings_data))
-        results = [r for r in batch_results if r and r.get("success")]
+    tasks = [process_holding(h) for h in holdings_data]
+    batch_results = await asyncio.gather(*tasks)
+    results = [r for r in batch_results if r and r.get("success")]
 
     if not results:
         return {

@@ -1,10 +1,43 @@
 from supabase import create_client
 from .config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import asyncio
+from datetime import datetime, timedelta
+import re
 
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+def parse_et_time(time_str: str):
+    if not time_str:
+        return datetime.utcnow().isoformat()
+    
+    now = datetime.utcnow()
+    t = time_str.lower()
+    
+    try:
+        # Check relative formats first
+        if "min" in t:
+            m = re.search(r"(\d+)", t)
+            if m: return (now - timedelta(minutes=int(m.group(1)))).isoformat()
+        elif "hour" in t:
+            m = re.search(r"(\d+)", t)
+            if m: return (now - timedelta(hours=int(m.group(1)))).isoformat()
+        elif "yesterday" in t:
+            yesterday = now - timedelta(days=1)
+            return yesterday.isoformat()
+        elif "day" in t:
+            m = re.search(r"(\d+)", t)
+            if m: return (now - timedelta(days=int(m.group(1)))).isoformat()
+            
+        # Check for absolute format: "Mar 25, 2026, 08:00 PM IST"
+        clean = time_str.replace("Last Updated:", "").replace("Updated:", "").replace("IST", "").strip()
+        clean_norm = clean.replace(",", "") # "Mar 25 2026 08:00 PM"
+        
+        # Format might be "%b %d %Y %I:%M %p"
+        dt = datetime.strptime(clean_norm, "%b %d %Y %I:%M %p")
+        return dt.isoformat()
+    except:
+        return now.isoformat()
 
 # -------------------------------
 # Insert main news row
@@ -16,10 +49,13 @@ async def insert_news(item, analysis):
         "title": item["title"],
         "source": item["source"],
         "url": item["url"],
-        "published_at": None,
+        "published_at": parse_et_time(item.get("published_at")),
         "summary": analysis["summary"],
         "sentiment": analysis["sentiment"],
-        "impact_summary": " | ".join(analysis["impact_summary"])
+        "impact_summary": " | ".join(analysis["impact_summary"]),
+        "event_type": analysis.get("event_type", "other"),
+        "impact_strength": analysis.get("impact_strength", 1),
+        "raw_json": analysis
     }).execute()
 
     return res.data[0]["id"]

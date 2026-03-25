@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, END, START
 from ..signal_generator import generate_signals
 from ..technical_indicators import calculate_indicators
 from ..data_fetcher import fetch_data
-from ..news.pulse_news import get_company_news
+from ..news.catalyst_engine import get_relevant_news
 from ..gemini_service import client as gemini_client
 import json
 import numpy as np
@@ -63,13 +63,17 @@ async def detect_signals_node(state: AgentState):
 # 3. Node 2: Enrich Context (News + Portfolio)
 async def enrich_context_node(state: AgentState):
     symbol = state["symbol"]
-    # Fetch News
-    news = await get_company_news(symbol)
+    signals = state.get("signals", {})
+    trend = signals.get("Trend")
     
-    # Portfolio context (passed in or fetched)
+    # Portfolio context
     portfolio = state.get("portfolio_context", {})
+    portfolio_symbols = [portfolio.get("symbol")] if portfolio.get("symbol") else []
     
-    return {"context": news, "portfolio_context": portfolio}
+    # Fetch News from Catalyst Engine (Deterministic)
+    news = await get_relevant_news(symbol, context=trend, portfolio_symbols=portfolio_symbols)
+    
+    return {"context": news}
 
 # 4. Node 3: Generate Verdict (The "Why Now?" Agent)
 async def generate_verdict_node(state: AgentState):
@@ -156,12 +160,9 @@ workflow.add_node("detect", detect_signals_node)
 workflow.add_node("enrich", enrich_context_node)
 workflow.add_node("verdict", generate_verdict_node)
 
-# Parallel Execution
+# Sequential Execution for context-aware news retrieval
 workflow.add_edge(START, "detect")
-workflow.add_edge(START, "enrich")
-
-# Join results at the verdict node
-workflow.add_edge("detect", "verdict")
+workflow.add_edge("detect", "enrich")
 workflow.add_edge("enrich", "verdict")
 workflow.add_edge("verdict", END)
 

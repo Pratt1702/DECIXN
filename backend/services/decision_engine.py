@@ -1,11 +1,13 @@
-def make_decision(signals):
+def make_decision(signals, news=None):
     """
     4. Advanced intelligence engine with normalized scoring and data-backed heuristics.
+    Now integrated with News Catalyst Engine.
     """
     reasons = []
     confluence_score = 0
     priority = "LOW"
     risk_level = "LOW"
+    news_insight = []
     
     # AI Pattern Success Rates (Deterministic mapping)
     success_rates = {
@@ -90,6 +92,34 @@ def make_decision(signals):
         confluence_score -= 10 # Softened
         reasons.append("Momentum Shift: Sellers are starting to gain the upper hand as momentum slows (MACD: Bearish Crossover).")
 
+    # 🔗 CATALYST ENGINE INTEGRATION
+    if news:
+        has_positive = any(n.get('sentiment') == 'positive' for n in news)
+        has_negative = any(n.get('sentiment') == 'negative' for n in news)
+        
+        for n in news:
+            e_type = n.get('event_type', 'event').capitalize()
+            sentiment_label = "bullish catalyst" if n.get('sentiment') == 'positive' else ("bearish catalyst" if n.get('sentiment') == 'negative' else "neutral news")
+            news_insight.append(f"{e_type}: {n.get('title')} → {sentiment_label}")
+
+        # Conviction Adjustments
+        if signals.get('Breakout') and has_positive:
+            confluence_score += 10
+            reasons.append("News Support: Breakout confirmed by positive fundamental catalysts.")
+        
+        if signals.get('Trend') == 'Bearish' and has_negative:
+            confluence_score -= 10
+            reasons.append("News Reinforcement: Bearish trend supported by negative news flow.")
+            
+        # Conflict Detection
+        if signals.get('Trend') == 'Bullish' and has_negative:
+            confluence_score -= 10
+            reasons.append("Conflict Warning: Bullish technicals contradicted by negative news flow.")
+            
+        if signals.get('Trend') == 'Bearish' and has_positive:
+            confluence_score += 10
+            reasons.append("Conflict Warning: Bearish structure challenged by positive news catalysts.")
+
     # Final Decision Mapping
     base_confidence = 45
     score = max(0, min(100, base_confidence + confluence_score))
@@ -144,7 +174,7 @@ def make_decision(signals):
         # SELL Urgency Override (High priority regardless of score)
         priority = "HIGH"
     
-    return decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc
+    return decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight
 
 
 def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty_two_week_high=None, benchmark_comparison=None):

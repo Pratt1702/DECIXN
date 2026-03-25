@@ -99,23 +99,35 @@ def matches_query(article: dict, query: str):
 def is_recent(time_raw: str | None):
     """
     Heuristic: keep articles from roughly last 24 hours.
+    Case-insensitive and regex-backed to catch:
+    - 5 mins, 2 hours, YESTERDAY, 1 hour ago
+    - Today's date (e.g., Mar 25, 2026)
     """
     if not time_raw:
         return False
 
-    t = time_raw.lower()
-
-    # Minutes or hours → recent
-    if "min" in t or "hour" in t:
+    # 1. Matches fuzzy intervals: mins, hours, yesterday (case-insensitive)
+    if re.search(r"\b(min|hour|yesterday)\b", time_raw, re.IGNORECASE):
         return True
 
-    # Yesterday → recent
-    if "yesterday" in t:
+    # 2. Strict check for "1 day" to avoid "11 days"
+    if re.search(r"\b1\s+day\b", time_raw, re.IGNORECASE):
         return True
 
-    # Handle "1 day ago"
-    if "1 day" in t:
-        return True
+    # 3. Check for today's date in standard ET format (e.g., Mar 25, 2026)
+    from datetime import datetime
+    today = datetime.utcnow()
+    # "Mar 25, 2026" or "Mar 25 2026"
+    date_patterns = [
+        today.strftime("%b %d, %Y"),
+        today.strftime("%b %d %Y"),
+        today.strftime("%d %b, %Y"),
+        today.strftime("%d %b %Y")
+    ]
+    
+    for p in date_patterns:
+        if p.lower() in time_raw.lower():
+            return True
 
     return False
 

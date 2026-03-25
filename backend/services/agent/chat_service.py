@@ -203,7 +203,7 @@ class ChatEngine:
         if name == "analyze_ticker":
             ticker = args["ticker"].strip().upper().replace("$", "").replace("#", "")
             # 1. Get raw market data for charts/indicators
-            res = analyze_single_ticker(ticker)
+            res = await analyze_single_ticker(ticker)
             
             # 2. Run the new Agentic Engine for "Why Now?" and Context
             # Extract portfolio context for this specific ticker if available
@@ -262,7 +262,7 @@ class ChatEngine:
             
             from ..portfolio_logic import run_portfolio_analysis
             # User explicitly requested full analysis regardless of wait time
-            summary_data = run_portfolio_analysis(holdings)
+            summary_data = await run_portfolio_analysis(holdings)
             
             return {
                 "success": True,

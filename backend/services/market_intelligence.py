@@ -10,6 +10,7 @@ from services.data_fetcher import fetch_data
 from services.technical_indicators import calculate_indicators, get_benchmark_comparison
 from services.signal_generator import generate_signals
 from services.decision_engine import make_decision, make_holding_decision
+from services.news.catalyst_engine import get_relevant_news
 
 warnings.filterwarnings('ignore')
 
@@ -48,7 +49,7 @@ def format_output(symbol, signals, decision, reasons, score, action):
     
     return "\n".join(output_lines)
 
-def analyze_single_ticker(symbol: str) -> dict:
+async def analyze_single_ticker(symbol: str) -> dict:
     """
     Analyzes a single ticker and returns a deep, nested dictionary of all intelligence data.
     Suitable for API responses.
@@ -130,7 +131,7 @@ def analyze_single_ticker(symbol: str) -> dict:
             print(f"Error fetching charts for {sym_code}: {e}")
         return charts
 
-    symbol = symbol.upper().replace(' ', '')
+    symbol = symbol.strip().upper().replace(' ', '').replace('$', '')
     original_symbol = symbol.replace('.NS', '').replace('.BO', '')
     
     # Try .NS first, then .BO as fallback
@@ -167,7 +168,11 @@ def analyze_single_ticker(symbol: str) -> dict:
     try:
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
-        decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc = make_decision(signals)
+        
+        # --- CATALYST ENGINE INTEGRATION ---
+        news = await get_relevant_news(original_symbol, context=signals['Trend'])
+        
+        decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight = make_decision(signals, news=news)
         
         # Benchmark Comparison
         benchmark_comparison = get_benchmark_comparison(df)
@@ -261,6 +266,7 @@ def analyze_single_ticker(symbol: str) -> dict:
                 "trade_type": trade_type,
                 "action": action,
                 "reasons": reasons,
+                "news_insight": news_insight,
                 "chart_data": chart_data,
                 "charts": get_multi_period_charts(symbol),
                 "fundamentals": fundamentals,
@@ -299,7 +305,7 @@ def analyze_single_ticker(symbol: str) -> dict:
         })
 
 
-def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
+async def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
     """
     Analyzes a holding with P&L-adjusted decisions.
     """
@@ -315,8 +321,6 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         "SBIN": "SBIN", "SBI": "SBIN",
         "KOTAK": "KOTAKBANK", "KOTAKBANK": "KOTAKBANK",
     }
-    symbol = mappings.get(symbol, symbol)
-    
     if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
         symbol += '.NS'
     symbol = symbol.upper()
@@ -387,11 +391,13 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
 
         benchmark_comparison = get_benchmark_comparison(df)
         if not is_fallback:
-            mkt_decision, mkt_reasons_raw, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc = make_decision(signals)
+            # --- CATALYST ENGINE INTEGRATION ---
+            news = await get_relevant_news(original_symbol, context=signals['Trend'])
+            mkt_decision, mkt_reasons_raw, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc, news_insight = make_decision(signals, news=news)
             mkt_reasons.extend(mkt_reasons_raw)
         else:
             # Safe defaults for fallback
-            mkt_decision, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc = ("HOLD", 50, "WAIT", "LOW", "LOW", "Unknown", "DEBT", "LOW", "Maintain status quo")
+            mkt_decision, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc, news_insight = ("HOLD", 50, "WAIT", "LOW", "LOW", "Unknown", "DEBT", "LOW", "Maintain status quo", [])
         decision, reasons, action, priority, risk_level, _, portfolio_tag = make_holding_decision(
             signals, avg_cost, live_pnl,
             fifty_two_week_low=fifty_two_week_low,
@@ -434,6 +440,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
                 "urgency_score": urgency_score,
                 "risk_tag": risk_tag,
                 "reasons": mkt_reasons + reasons,
+                "news_insight": news_insight,
                 "benchmark_comparison": benchmark_comparison,
                 "signals": {
                     "breakout": signals['Breakout'],

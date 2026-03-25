@@ -2,13 +2,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
+from services.market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
 import csv
 import os
 import requests
 import yfinance as yf
-from services.chat_service import chat_engine
-from portfolio_logic import run_portfolio_analysis
+from services.agent.chat_service import chat_engine
+from services.portfolio_logic import run_portfolio_analysis
 import time
 from collections import defaultdict
 from services.mutual_funds.mf_search_service import search_mf_fuzzy as mf_search
@@ -47,11 +47,29 @@ class RateLimiter:
         return False
 
 rate_limiter = RateLimiter()
+
+from services.news.ingestion_service import ingest_once
+import asyncio
+
 app = FastAPI(
     title="Market Intelligence Engine API",
     description="An AI-driven technical analysis API for Indian stocks.",
     version="1.0.0"
 )
+
+async def news_ingestion_loop():
+    while True:
+        try:
+            print("🚀 Starting scheduled news ingestion...")
+            await ingest_once(limit=15)
+            print("✅ Ingestion cycle complete.")
+        except Exception as e:
+            print(f"❌ Ingestion loop error: {e}")
+        await asyncio.sleep(900) # 15 minutes
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(news_ingestion_loop())
 
 app.add_middleware(
     CORSMiddleware,
@@ -116,7 +134,7 @@ def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
 
 @app.get("/analyze/portfolio")
-def analyze_portfolio():
+async def analyze_portfolio():
     """
     Reads the Kite holdings CSV (holdings_kite.csv) as a fallback data source,
     then delegates to the shared analysis pipeline.
@@ -147,10 +165,10 @@ def analyze_portfolio():
             except Exception as e:
                 print(f"Failed to parse CSV row {row}: {e}")
 
-    return run_portfolio_analysis(holdings_data)
+    return await run_portfolio_analysis(holdings_data)
 
 @app.post("/analyze/portfolio")
-def analyze_portfolio_custom(payload: StockPortfolioInput):
+async def analyze_portfolio_custom(payload: StockPortfolioInput):
     """
     Accepts a JSON array of holdings from the frontend (uploaded CSV session data),
     bypassing the backend CSV file entirely. Same analysis pipeline is applied.
@@ -165,7 +183,7 @@ def analyze_portfolio_custom(payload: StockPortfolioInput):
         }
         for h in payload.holdings
     ]
-    return run_portfolio_analysis(holdings_data)
+    return await run_portfolio_analysis(holdings_data)
 
 @app.get("/market/overview")
 def get_market_overview_endpoint():
@@ -175,11 +193,11 @@ def get_market_overview_endpoint():
     return get_market_overview()
 
 @app.get("/analyze/{ticker}")
-def analyze_ticker(ticker: str):
+async def analyze_ticker(ticker: str):
     """
     Analyzes a specific ticker and returns deeply nested market intelligence data.
     """
-    result = analyze_single_ticker(ticker)
+    result = await analyze_single_ticker(ticker)
     
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))

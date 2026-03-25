@@ -12,6 +12,7 @@ import {
   PenLine,
   Copy,
   Check,
+  ExternalLink,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -763,6 +764,27 @@ export function Chat() {
                                     ))}
                                   </div>
                                 )}
+                              
+                              {/* News Sources Citations */}
+                              {msg.metadata.sources && msg.metadata.sources.length > 0 && (
+                                <div className="flex flex-col gap-2 pt-2">
+                                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-1">Sources</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {msg.metadata.sources.map((source: any, idx: number) => (
+                                      <a
+                                        key={idx}
+                                        href={source.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/20 text-white/70 hover:text-white font-bold text-[11px] transition-all cursor-pointer group/source"
+                                      >
+                                        <span className="truncate max-w-[150px]">{source.title}</span>
+                                        <ExternalLink className="w-3 h-3 opacity-40 group-hover/source:opacity-100 transition-opacity" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

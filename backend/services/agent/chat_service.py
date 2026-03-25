@@ -1,12 +1,13 @@
 from google import genai
-from .config import GEMINI_API_KEY
-from .data_fetcher import fetch_data
-from .technical_indicators import calculate_indicators
-from .signal_generator import generate_signals
-from .decision_engine import make_decision, make_holding_decision
+from ..config import GEMINI_API_KEY
+from ..data_fetcher import fetch_data
+from ..technical_indicators import calculate_indicators
+from ..signal_generator import generate_signals
+from ..decision_engine import make_decision, make_holding_decision
 import json
 import yfinance as yf
 from datetime import datetime
+from .agent_engine import run_agent_intelligence
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -51,6 +52,17 @@ TOOLS = [
                     },
                     "required": ["ticker"]
                 }
+            },
+            {
+                "name": "fetch_catalyst_news",
+                "description": "Fetches the latest 3 news catalysts for a specific ticker OR sector from our local database. Use for 'What is the news on TCS?', 'Any banking sector updates?', etc.",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "ticker": {"type": "string", "description": "Stock symbol (e.g. RELIANCE)"},
+                        "sector": {"type": "string", "description": "Sector name (e.g. Banking, IT, Pharma)"}
+                    }
+                }
             }
         ]
     }
@@ -67,6 +79,8 @@ CORE RULES:
 5. **Tone**: Professional, sharp, data-driven, and slightly elite.
 6. **Portfolio Context**: Use tool `get_user_position` if they ask about 'my position in X'. Use `analyze_full_portfolio` for overall health reports.
 7. **Tool Chain**: You can and should call multiple tools in a single turn. For example, to analyze a user's Suzlon position, call `analyze_ticker(ticker='SUZLON')` AND `get_user_position(ticker='SUZLON')`.
+87. **Deep Intelligence**: When the `analyze_ticker` tool returns `agent_intelligence`, PRIORITIZE that narrative and actionable verdict in your final response. Use it to provide a "Why Now?" explanation.
+8. **News Citations**: Whenever you use `fetch_catalyst_news`, you **MUST** provide citations in your narrative using the format: [Article Title](URL). Also, populate the `metadata.sources` array with objects containing the title and url for each unique source used.
 
 RESPONSE FORMAT (JSON ONLY):
 {
@@ -75,6 +89,7 @@ RESPONSE FORMAT (JSON ONLY):
   "metadata": {
     "tickers": ["SYMBOL"],
     "charts": ["SYMBOL1", "SYMBOL2"], // Max 3 tickers for interactive charts
+    "sources": [{"title": "string", "url": "string"}], // Citation sources
     "portfolio_summary": { "health": "string", "total_pnl": number, "total_value_live": number, "win_rate": "string", "working_capital_pct": number },
     "portfolio_holdings": [{ "symbol": "string", "holding_context": { "portfolio_weight_pct": number } }], // Top 5
     "actionable_insight": "string",
@@ -87,6 +102,7 @@ FORMATTING RULES:
 - Use **Bold** for tickers, prices, and key decisions.
 - Use Bullet points for multiple reasons or insights.
 - Use `###` headers for sectioning if the response is long.
+- Use [Source Title](URL) for news citations from tools.
 - Keep the narrative concise but professional and data-rich.
 """
 
@@ -100,7 +116,7 @@ class ChatEngine:
 
         if is_logged_in:
             try:
-                from .supabase_client import supabase
+                from ..supabase_client import supabase
                 insert_data = {
                     "user_id": user_id,
                     "role": "user",
@@ -143,6 +159,8 @@ class ChatEngine:
                 yield {"status": "Analyzing stock data and trends..."}
             elif "get_market_overview" in fn_names:
                 yield {"status": "Fetching latest market indicators..."}
+            elif "fetch_catalyst_news" in fn_names:
+                yield {"status": "Retrieving news catalysts from database..."}
             else:
                 yield {"status": "Consulting financial tools..."}
 
@@ -196,24 +214,52 @@ class ChatEngine:
 
     async def _execute_tool(self, name: str, args: dict, portfolio_context: str = None):
         # Local imports to avoid circularity
-        from market_intelligence import analyze_single_ticker, get_market_overview
+        from ..market_intelligence import analyze_single_ticker, get_market_overview
+        from ..news.catalyst_engine import get_news_by_category
 
         if name == "analyze_ticker":
-            res = analyze_single_ticker(args["ticker"])
+            ticker = args["ticker"].strip().upper().replace("$", "").replace("#", "")
+            # 1. Get raw market data for charts/indicators
+            res = await analyze_single_ticker(ticker)
+            
+            # 2. Run the new Agentic Engine for "Why Now?" and Context
+            # Extract portfolio context for this specific ticker if available
+            ticker_clean = ticker.upper().replace(".NS", "").replace(".BO", "")
+            holding_ctx = {}
+            if portfolio_context:
+                import re
+                holding_match = re.search(fr"- {ticker_clean}: ([\d\.]+) shares @ avg ₹([\d\.]+)", portfolio_context)
+                if holding_match:
+                    holding_ctx = {
+                        "quantity": float(holding_match.group(1)),
+                        "avg_cost": float(holding_match.group(2))
+                    }
+            
+            agent_res = await run_agent_intelligence(ticker, holding_ctx)
+            
             if res.get("success"):
                 d = res.get("data", {})
-                return {
+                combined_result = {
                     "symbol": res.get("symbol"),
                     "companyName": d.get("companyName"),
                     "price": d.get("price"),
                     "trend": d.get("trend"),
-                    "decision": d.get("decision"),
-                    "reasons": d.get("reasons"),
+                    "technical_decision": d.get("decision"),
                     "risk_level": d.get("risk_level"),
                     "indicators": d.get("indicators"),
                     "fundamentals": d.get("fundamentals"),
-                    "sparkline": [float(p["price"]) for p in d.get("chart_data", [])[-20:]] if d.get("chart_data") else []
+                    "sparkline": [float(p["price"]) for p in d.get("chart_data", [])[-20:]] if d.get("chart_data") else [],
+                    "agent_intelligence": agent_res.get("verdict", {}),
+                    "latest_news": [
+                        {
+                            "title": n.get("title"),
+                            "url": n.get("url"),
+                            "summary": n.get("summary")
+                        }
+                        for n in agent_res.get("context", [])
+                    ][:3]
                 }
+                return combined_result
             return res
         
         elif name == "get_market_overview":
@@ -238,9 +284,9 @@ class ChatEngine:
             if not holdings:
                 return {"success": False, "error": "Could not extract holdings from context."}
             
-            from portfolio_logic import run_portfolio_analysis
+            from ..portfolio_logic import run_portfolio_analysis
             # User explicitly requested full analysis regardless of wait time
-            summary_data = run_portfolio_analysis(holdings)
+            summary_data = await run_portfolio_analysis(holdings)
             
             return {
                 "success": True,
@@ -262,12 +308,42 @@ class ChatEngine:
                     }
             return {"owned": False, "symbol": ticker, "message": "Not in current portfolio holdings."}
         
+        elif name == "fetch_catalyst_news":
+            ticker = args.get("ticker")
+            sector = args.get("sector")
+            news_raw = await get_news_by_category(ticker=ticker, sector=sector, limit=3)
+            
+            # Simplified for AI context to save tokens and ensure focus on citations
+            news_clean = [
+                {
+                    "title": n.get("title"),
+                    "summary": n.get("summary"),
+                    "url": n.get("url"),
+                    "sentiment": n.get("sentiment"),
+                    "published_at": n.get("published_at")
+                }
+                for n in news_raw
+            ]
+            
+            if not news_clean:
+                return {
+                    "success": False,
+                    "message": f"I couldn't find any recent news catalysts for '{ticker or sector}' in my database. Ask me to scan for fresh news if needed.",
+                    "catalysts": []
+                }
+            
+            return {
+                "success": True, 
+                "catalysts": news_clean,
+                "count": len(news_clean)
+            }
+        
         return {"error": "Tool not found"}
 
     def _save_assistant_message(self, user_id, res_text, session_id=None):
         if not user_id or len(user_id) <= 20: return
         try:
-            from .supabase_client import supabase
+            from ..supabase_client import supabase
             parsed = self._parse_json_response(res_text)
             insert_data = {
                 "user_id": user_id,

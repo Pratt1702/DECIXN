@@ -10,6 +10,9 @@ def fetch_data(symbol, period="100d"):
     """
     1. Fetch historical OHLCV data using yfinance, with fallback to mock data.
     """
+    # Sanitize symbol: remove '$', '#', and handle common typos
+    symbol = symbol.strip().upper().replace('$', '').replace('#', '')
+    
     try:
         ticker = yf.Ticker(symbol)
         df = ticker.history(period=period)

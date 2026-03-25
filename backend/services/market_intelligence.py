@@ -130,7 +130,7 @@ def analyze_single_ticker(symbol: str) -> dict:
             print(f"Error fetching charts for {sym_code}: {e}")
         return charts
 
-    symbol = symbol.upper().replace(' ', '')
+    symbol = symbol.strip().upper().replace(' ', '').replace('$', '')
     original_symbol = symbol.replace('.NS', '').replace('.BO', '')
     
     # Try .NS first, then .BO as fallback
@@ -315,6 +315,7 @@ def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float)
         "SBIN": "SBIN", "SBI": "SBIN",
         "KOTAK": "KOTAKBANK", "KOTAKBANK": "KOTAKBANK",
     }
+    symbol = symbol.strip().upper().replace(' ', '').replace('$', '')
     symbol = mappings.get(symbol, symbol)
     
     if not symbol.endswith('.NS') and not symbol.endswith('.BO'):

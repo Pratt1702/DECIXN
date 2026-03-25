@@ -1,5 +1,5 @@
 import os
-from market_intelligence import analyze_single_holding
+from .market_intelligence import analyze_single_holding
 
 def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
     """

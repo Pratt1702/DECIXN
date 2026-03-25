@@ -2,13 +2,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
+from services.market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
 import csv
 import os
 import requests
 import yfinance as yf
-from services.chat_service import chat_engine
-from portfolio_logic import run_portfolio_analysis
+from services.agent.chat_service import chat_engine
+from services.portfolio_logic import run_portfolio_analysis
 import time
 from collections import defaultdict
 from services.mutual_funds.mf_search_service import search_mf_fuzzy as mf_search

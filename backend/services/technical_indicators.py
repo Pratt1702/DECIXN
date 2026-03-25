@@ -112,4 +112,7 @@ def calculate_indicators(df):
     df['Dist_MA20'] = (df['Close'] - df['MA20']) / df['MA20'] * 100
     df['Dist_MA50'] = (df['Close'] - df['MA50']) / df['MA50'] * 100
 
+    # HV20
+    df['HV20'] = df['Close'].pct_change().rolling(window=20).std() * (252 ** 0.5)
+
     return df

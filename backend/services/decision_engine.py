@@ -1,4 +1,4 @@
-def make_decision(signals):
+def make_decision(signals, df=None):
     """
     4. Advanced intelligence engine with normalized scoring and data-backed heuristics.
     """
@@ -144,7 +144,15 @@ def make_decision(signals):
         # SELL Urgency Override (High priority regardless of score)
         priority = "HIGH"
     
-    return decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc
+    forecast = None
+    if df is not None:
+        try:
+            from .signal_generator import generate_price_forecast
+            forecast = generate_price_forecast(df, score, horizon_days=5)
+        except Exception:
+            pass
+            
+    return decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, forecast
 
 
 def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty_two_week_high=None, benchmark_comparison=None):

@@ -27,7 +27,7 @@ def get_benchmark_performance(period: str = "5y"):
 
 def calculate_mf_risk_metrics(fund_history, benchmark_history):
     """
-    Calculates Standard Deviation, Sharpe Ratio, Beta, and Alpha.
+    Calculates Standard Deviation, Sharpe Ratio, Beta, Alpha, CAGR, and Max Drawdown.
     """
     try:
         if not fund_history or not benchmark_history:
@@ -66,11 +66,31 @@ def calculate_mf_risk_metrics(fund_history, benchmark_history):
         bench_ann_return = combined['returns_bench'].mean() * 252
         alpha = fund_ann_return - (rfr_daily * 252 + beta * (bench_ann_return - rfr_daily * 252))
 
+        # 5. CAGR (Total Period)
+        start_nav = float(combined['nav_fund'].iloc[0])
+        end_nav = float(combined['nav_fund'].iloc[-1])
+        days = (pd.to_datetime(combined.index[-1]) - pd.to_datetime(combined.index[0])).days
+        years = days / 365.25
+        cagr = (end_nav / start_nav) ** (1 / years) - 1 if years > 0 else 0
+
+        # 6. Max Drawdown
+        rolling_max = combined['nav_fund'].cummax()
+        drawdown = (combined['nav_fund'] - rolling_max) / rolling_max
+        max_drawdown = drawdown.min()
+
+        # 7. Sortino Ratio
+        downside_returns = combined[combined['returns_fund'] < 0]['returns_fund']
+        downside_std_dev = downside_returns.std() * np.sqrt(252)
+        sortino = (excess_return * 252) / downside_std_dev if downside_std_dev > 0 else sharpe
+
         return {
             "volatility": round(float(std_dev * 100), 2),
             "sharpe_ratio": round(float(sharpe), 2),
+            "sortino_ratio": round(float(sortino), 2),
             "beta": round(float(beta), 2),
-            "alpha": round(float(alpha * 100), 2)
+            "alpha": round(float(alpha * 100), 2),
+            "cagr": round(float(cagr * 100), 2),
+            "max_drawdown": round(float(max_drawdown * 100), 2)
         }
     except Exception as e:
         print(f"Risk calculation error: {e}")

@@ -16,8 +16,12 @@ def fetch_data(symbol, period="100d"):
         if df.empty or len(df) < 2:
             raise ValueError("Insufficient data fetched")
         
-        # Keep only required columns
-        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        # Keep only required columns and drop rows with NaN Close prices
+        df = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna(subset=['Close'])
+        
+        if df.empty or len(df) < 2:
+            raise ValueError("Insufficient data after dropping NaNs")
+            
         return df
     except Exception as e:
         print(f"Failed to fetch data for {symbol} ({e}).")

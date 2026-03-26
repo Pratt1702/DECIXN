@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTickerAnalysis, getPortfolio } from "../services/api";
+import { getTickerAnalysis, getPortfolio, getForecast } from "../services/api";
 import { motion } from "framer-motion";
 import { useExploreStore } from "../store/useExploreStore";
 import {
@@ -62,6 +62,7 @@ export function StockDetails() {
   const { ticker } = useParams<{ ticker: string }>();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
+  const [forecast, setForecast] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(
     localStorage.getItem("preferred_period") || "1D",
@@ -151,6 +152,14 @@ export function StockDetails() {
           yahoo_news: res.data.yahoo_news,
           dividend_calendar: res.data.dividend_calendar,
         });
+        try {
+          const fRes = await getForecast(cleanTicker);
+          if (fRes.success) {
+            setForecast(fRes.forecast);
+          }
+        } catch (e) {
+          console.warn("Forecast fetch failed", e);
+        }
       } catch (err) {
         console.error("Failed to fetch ticker:", err);
         setData({ error: true });
@@ -818,6 +827,43 @@ export function StockDetails() {
       )}
 
       <div className="pt-2 flex flex-col gap-6">
+        {forecast && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#121212] border border-white/10 rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-2 mb-5">
+              <Zap className="w-5 h-5 text-accent" />
+              <h3 className="text-lg font-black text-text-bold">AI Price Forecast ({forecast.horizon_days} Days)</h3>
+              <span className={`ml-auto px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${forecast.bias === "Bullish" ? "bg-success/10 text-success" : forecast.bias === "Bearish" ? "bg-danger/10 text-danger" : "bg-white/10 text-white/70"}`}>
+                {forecast.bias} Bias
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
+                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target High</p>
+                <p className="text-xl md:text-2xl font-black text-success">₹{forecast.forecast_high.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
+                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target Mean</p>
+                <p className="text-xl md:text-2xl font-black text-white/90">₹{forecast.forecast_mean.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
+                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target Low</p>
+                <p className="text-xl md:text-2xl font-black text-danger">₹{forecast.forecast_low.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
+                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Confidence</p>
+                <div className="flex items-baseline gap-1">
+                  <p className="text-2xl md:text-3xl font-black text-accent">{forecast.confidence_pct}</p>
+                  <span className="text-text-muted font-bold text-sm">%</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
         <YearlyRangeBar data={data} />
         <AIIntelligencePanel data={data} />
         <TechnicalIndicators data={data} />

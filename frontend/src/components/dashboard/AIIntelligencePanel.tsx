@@ -241,17 +241,17 @@ export function AIIntelligencePanel({ data }: { data: any }) {
             )}
 
             {/* Enhanced Ticker News */}
-            {(data?.news || data?.yahoo_news) && (
+            {(data?.news?.length > 0 || data?.yahoo_news?.length > 0 || data?.sector_news?.length > 0) && (
               <div>
                 <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
                   <div className="w-1.5 h-4 bg-blue-500/40 rounded-full" />
                   Broad Market Context
                 </h3>
                 <div className="space-y-3">
-                  {(data.news || data.yahoo_news || []).slice(0, 5).map((n: any, i: number) => (
+                  {[...(data.news || []), ...(data.sector_news || []), ...(data.yahoo_news || [])].slice(0, 5).map((n: any, i: number) => (
                     <a 
                       key={i}
-                      href={n.link}
+                      href={n.link || n.url}
                       target="_blank"
                       rel="noopener noreferrer" 
                       className="group/news flex flex-col gap-1 p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:bg-white/[0.05] hover:border-white/10 transition-all block"

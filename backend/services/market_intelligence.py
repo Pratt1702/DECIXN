@@ -10,7 +10,7 @@ from services.data_fetcher import fetch_data, fetch_ticker_metadata
 from services.technical_indicators import calculate_indicators, get_benchmark_comparison
 from services.signal_generator import generate_signals
 from services.decision_engine import make_decision, make_holding_decision
-from services.news.catalyst_engine import get_relevant_news
+from services.news.catalyst_engine import get_relevant_news, get_news_by_category
 from services.fundamental_service import get_dividend_data, get_ticker_news
 
 warnings.filterwarnings('ignore')
@@ -227,12 +227,19 @@ async def analyze_single_ticker(symbol: str) -> dict:
             ticker_obj = yf.Ticker(symbol)
             dividend_info = get_dividend_data(ticker_obj)
             enhanced_news = get_ticker_news(ticker_obj)
+            
+            # Fetch sector-specific news from DB
+            sector = info.get("sector")
+            sector_news = []
+            if sector:
+                sector_news = await get_news_by_category(sector=sector, limit=3)
         except:
             yahoo_news = []
             dividend_cal = {}
             info = {}
             dividend_info = {}
             enhanced_news = []
+            sector_news = []
             
         company_name = info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', '')))
             
@@ -306,6 +313,7 @@ async def analyze_single_ticker(symbol: str) -> dict:
                 "benchmark_comparison": benchmark_comparison,
                 "dividends": dividend_info,
                 "news": enhanced_news,
+                "sector_news": sector_news,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),

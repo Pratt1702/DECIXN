@@ -16,12 +16,14 @@ import {
   ExternalLink,
 } from "lucide-react";
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Area,
   ResponsiveContainer,
   YAxis,
   Tooltip,
   ReferenceLine,
+  XAxis,
 } from "recharts";
 import ReactApexChart from "react-apexcharts";
 import { AIIntelligencePanel } from "../components/dashboard/AIIntelligencePanel";
@@ -41,17 +43,64 @@ const CANDLE_COUNT = 100; // Tweak this to change chart density
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const isForecast = data.forecast_mean !== undefined;
+
     return (
-      <div className="bg-[#121212]/80 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2 shadow-2xl text-xs font-medium flex items-center gap-2">
-        <span className="text-[#f3f4f6] font-bold">
-          ₹
-          {Number(data.price).toLocaleString("en-IN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </span>
-        <span className="text-white/20">|</span>
-        <span className="text-[#9ca3af]">{data.date || "Today"}</span>
+      <div className="bg-[#121212]/90 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 shadow-2xl text-xs font-medium flex flex-col gap-2 min-w-[140px]">
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-[#9ca3af]">{data.date || "Today"}</span>
+          {isForecast && (
+            <span
+              className={`${data.price !== undefined ? "bg-white/10 text-white/40" : "bg-accent/20 text-accent"} text-[9px] px-1.5 py-0.5 rounded-full font-bold tracking-tighter uppercase`}
+            >
+              {data.price !== undefined ? "Back-Test" : "Forecast"}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          {isForecast ? (
+            <>
+              {data.price !== undefined && (
+                <div className="flex justify-between items-center border-b border-white/5 pb-1.5 mb-1.5">
+                  <span className="text-white/60">Actual Close</span>
+                  <span className="text-[#94a3b8] font-bold underline decoration-white/20 underline-offset-4">
+                    ₹{Number(data.price).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-white/40">Range High</span>
+                <span className="text-success font-bold text-[10px]">
+                  ₹{Number(data.forecast_high).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/40 font-bold">Mean Est.</span>
+                <span className="text-white font-bold">
+                  ₹{Number(data.forecast_mean).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/40">Range Low</span>
+                <span className="text-danger font-bold text-[10px]">
+                  ₹{Number(data.forecast_low).toFixed(2)}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-white/40">Price</span>
+              <span className="text-[#f3f4f6] font-bold text-sm">
+                ₹
+                {Number(data.price).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -240,7 +289,43 @@ export function StockDetails() {
   }
 
   const currentChart = data?.charts?.[period] || [];
+  const oneMonthData = data?.charts?.["1M"] || [];
   const currentPrice = data?.price || 0;
+
+  // Dedicated forecast chart data (30d History + 14d forecast)
+  // CRITICAL: We use DAILY data from "1Y" to match the DAILY forecast perfectly.
+  // Using hourly data (1M chart) causes jumps and misalignments.
+  const oneYearDaily = data?.charts?.["1Y"] || [];
+  const forecastBaseline = oneYearDaily.slice(-30);
+
+  const forecastChartData = forecastBaseline.map((d: any) => ({ ...d }));
+
+  if (forecast?.series) {
+    forecast.series.forEach((fPoint: any) => {
+      const existingIdx = forecastChartData.findIndex(
+        (d: any) => d.date === fPoint.date,
+      );
+
+      if (existingIdx !== -1) {
+        forecastChartData[existingIdx] = {
+          ...forecastChartData[existingIdx],
+          ...fPoint,
+          forecast_range_upper: [fPoint.forecast_mean, fPoint.forecast_high],
+          forecast_range_lower: [fPoint.forecast_low, fPoint.forecast_mean],
+          forecast_future_only: fPoint.is_future
+            ? fPoint.forecast_mean
+            : undefined,
+        };
+      } else if (fPoint.is_future) {
+        forecastChartData.push({
+          ...fPoint,
+          forecast_range_upper: [fPoint.forecast_mean, fPoint.forecast_high],
+          forecast_range_lower: [fPoint.forecast_low, fPoint.forecast_mean],
+          forecast_future_only: fPoint.forecast_mean,
+        });
+      }
+    });
+  }
 
   let priceChange = 0;
   let priceChangePct = 0;
@@ -462,8 +547,16 @@ export function StockDetails() {
               </div>
               <h3 className="text-lg font-black text-text-bold leading-snug mb-2">
                 A news - {data.news_insight.title} might have a{" "}
-                <span className={data.news_insight.sentiment === "positive" ? "text-success" : "text-danger"}>
-                  {data.news_insight.sentiment === "positive" ? "positive" : "negative"}
+                <span
+                  className={
+                    data.news_insight.sentiment === "positive"
+                      ? "text-success"
+                      : "text-danger"
+                  }
+                >
+                  {data.news_insight.sentiment === "positive"
+                    ? "positive"
+                    : "negative"}
                 </span>{" "}
                 impact on this stock
               </h3>
@@ -474,7 +567,7 @@ export function StockDetails() {
                 {data.news_insight.url && (
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-white/10" />
-                    <a 
+                    <a
                       href={data.news_insight.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -525,9 +618,9 @@ export function StockDetails() {
           ) : (
             <div className="animate-value h-full w-full min-h-[288px]">
               {chartType === "line" ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={currentChart}>
-                    <YAxis domain={["dataMin", "dataMax"]} hide />
+                <ResponsiveContainer width="100%" height="100%" minHeight={288}>
+                  <ComposedChart data={currentChart}>
+                    <YAxis domain={["dataMin - 1", "dataMax + 1"]} hide />
                     <Tooltip
                       content={<CustomTooltip />}
                       cursor={{
@@ -537,13 +630,8 @@ export function StockDetails() {
                       }}
                       isAnimationActive={false}
                     />
-                    {currentChart.length > 0 && (
-                      <ReferenceLine
-                        y={currentChart[0].price}
-                        stroke="#4b5563"
-                        strokeDasharray="3 3"
-                      />
-                    )}
+
+                    {/* Historical Price line */}
                     <Line
                       type="monotone"
                       dataKey="price"
@@ -559,7 +647,7 @@ export function StockDetails() {
                       isAnimationActive={true}
                       animationDuration={1000}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               ) : (
                 (() => {
@@ -835,31 +923,161 @@ export function StockDetails() {
           >
             <div className="flex items-center gap-2 mb-5">
               <Zap className="w-5 h-5 text-accent" />
-              <h3 className="text-lg font-black text-text-bold">AI Price Forecast ({forecast.horizon_days} Days)</h3>
-              <span className={`ml-auto px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${forecast.bias === "Bullish" ? "bg-success/10 text-success" : forecast.bias === "Bearish" ? "bg-danger/10 text-danger" : "bg-white/10 text-white/70"}`}>
+              <h3 className="text-lg font-black text-text-bold">
+                Price Forecast ({forecast.horizon_days - 2} Days)
+              </h3>
+              <span
+                className={`ml-auto px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${forecast.bias === "Bullish" ? "bg-success/10 text-success" : forecast.bias === "Bearish" ? "bg-danger/10 text-danger" : "bg-white/10 text-white/70"}`}
+              >
                 {forecast.bias} Bias
               </span>
             </div>
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-4 px-1">
+              <div className="flex items-center gap-2 pr-8 border-r border-white/5">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                  Target High
+                </span>
+                <span className="text-lg font-black text-success">
+                  ₹
+                  {(forecast?.forecast_high || 0).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 pr-8 border-r border-white/5">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                  Mean Est.
+                </span>
+                <span className="text-lg font-black text-white/90">
+                  ₹
+                  {(forecast?.forecast_mean || 0).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 pr-8 border-r border-white/5 last:border-0 last:pr-0">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                  Target Low
+                </span>
+                <span className="text-lg font-black text-danger">
+                  ₹
+                  {(forecast?.forecast_low || 0).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 pr-8 border-r border-white/5">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
+                  Confidence
+                </span>
+                <span className="text-lg font-black text-accent">
+                  {forecast.confidence_pct}%
+                </span>
+              </div>
+            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
-                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target High</p>
-                <p className="text-xl md:text-2xl font-black text-success">₹{forecast.forecast_high.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+            {/* Dedicated Forecast Visualization below the stats */}
+            <div className="mt-8 pt-8 border-t border-white/5">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em]">
+                  Volatility Projection Chart
+                </h4>
               </div>
-              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
-                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target Mean</p>
-                <p className="text-xl md:text-2xl font-black text-white/90">₹{forecast.forecast_mean.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
-              </div>
-              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
-                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Target Low</p>
-                <p className="text-xl md:text-2xl font-black text-danger">₹{forecast.forecast_low.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
-              </div>
-              <div className="bg-white/5 flex flex-col justify-center border border-white/5 rounded-xl p-4">
-                <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mb-1">Confidence</p>
-                <div className="flex items-baseline gap-1">
-                  <p className="text-2xl md:text-3xl font-black text-accent">{forecast.confidence_pct}</p>
-                  <span className="text-text-muted font-bold text-sm">%</span>
-                </div>
+              <div className="h-48 w-full relative">
+                <ResponsiveContainer width="100%" height="100%" minHeight={180}>
+                  <ComposedChart data={forecastChartData}>
+                    <XAxis dataKey="date" hide />
+                    <YAxis domain={["dataMin - 1", "dataMax + 1"]} hide />
+                    <Tooltip
+                      content={<CustomTooltip />}
+                      cursor={{ stroke: "#ffffff10", strokeWidth: 1 }}
+                    />
+
+                    {/* Forecast Bands */}
+                    <Area
+                      type="monotone"
+                      dataKey="forecast_range_upper"
+                      stroke="none"
+                      fill="#10b981"
+                      fillOpacity={0.12}
+                      isAnimationActive={true}
+                      connectNulls={true}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="forecast_range_lower"
+                      stroke="none"
+                      fill="#f43f5e"
+                      fillOpacity={0.12}
+                      isAnimationActive={true}
+                      connectNulls={true}
+                    />
+
+                    {/* Anchor line (2 days ago) */}
+                    {forecast?.anchor_date && (
+                      <ReferenceLine
+                        x={forecast.anchor_date}
+                        stroke="#36342eff"
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        label={{
+                          position: "insideTopLeft",
+                          fill: "#b08a27ff",
+                          fontSize: 9,
+                          fontWeight: "bold",
+                        }}
+                      />
+                    )}
+
+                    {/* Today Marker - Definitive Transition */}
+                    {forecastBaseline.length > 0 && (
+                      <ReferenceLine
+                        x={forecastBaseline[forecastBaseline.length - 1].date}
+                        stroke="#d0d0d0ff"
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        label={{
+                          position: "insideTopRight",
+                          fill: "#d0d0d0ff",
+                          fontSize: 10,
+                          fontWeight: "bold",
+                        }}
+                      />
+                    )}
+
+                    {/* Historical Segment Label */}
+                    <ReferenceLine
+                      x={oneMonthData[0]?.date}
+                      stroke="none"
+                      label={{
+                        value: "1M History",
+                        position: "insideTopLeft",
+                        fill: "#ffffff20",
+                        fontSize: 10,
+                        fontWeight: "bold",
+                      }}
+                    />
+
+                    {/* Price Line */}
+                    <Line
+                      type="monotone"
+                      dataKey="price"
+                      stroke="#94a3b8"
+                      strokeWidth={1.5}
+                      dot={false}
+                    />
+
+                    {/* Mean Projection - Future Only */}
+                    <Line
+                      type="monotone"
+                      dataKey="forecast_future_only"
+                      stroke="#fbbf24"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </motion.div>

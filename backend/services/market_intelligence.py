@@ -173,7 +173,7 @@ async def analyze_single_ticker(symbol: str) -> dict:
         # --- CATALYST ENGINE INTEGRATION ---
         news = await get_relevant_news(original_symbol, context=signals['Trend'])
         
-        decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight_list = make_decision(signals, news=news)
+        decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight_list, next_day_range = make_decision(signals, news=news, df=df_indicators)
         
         # Refine news_insight for frontend display
         primary_catalyst = None
@@ -314,6 +314,7 @@ async def analyze_single_ticker(symbol: str) -> dict:
                 "dividends": dividend_info,
                 "news": enhanced_news,
                 "sector_news": sector_news,
+                "next_day_range": next_day_range,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),
@@ -434,11 +435,11 @@ async def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: 
         if not is_fallback:
             # --- CATALYST ENGINE INTEGRATION ---
             news = await get_relevant_news(original_symbol, context=signals['Trend'])
-            mkt_decision, mkt_reasons_raw, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc, news_insight = make_decision(signals, news=news)
+            mkt_decision, mkt_reasons_raw, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc, news_insight, mkt_next_day_range = make_decision(signals, news=news, df=df_indicators)
             mkt_reasons.extend(mkt_reasons_raw)
         else:
             # Safe defaults for fallback
-            mkt_decision, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc, news_insight = ("HOLD", 50, "WAIT", "LOW", "LOW", "Unknown", "DEBT", "LOW", "Maintain status quo", [])
+            mkt_decision, mkt_score, mkt_action, mkt_priority, mkt_risk, mkt_pattern, trade_type, mkt_severity, watch_desc, news_insight, mkt_next_day_range = ("HOLD", 50, "WAIT", "LOW", "LOW", "Unknown", "DEBT", "LOW", "Maintain status quo", [], None)
         decision, reasons, action, priority, risk_level, _, portfolio_tag = make_holding_decision(
             signals, avg_cost, live_pnl,
             fifty_two_week_low=fifty_two_week_low,
@@ -649,7 +650,7 @@ def run_market_intelligence(stocks):
         df = fetch_data(symbol, period="100d")
         df_indicators = calculate_indicators(df)
         signals = generate_signals(df_indicators)
-        decision, reasons, score, action, priority, risk, pattern, trade_type, sev, wd = make_decision(signals)
+        decision, reasons, score, action, priority, risk, pattern, trade_type, sev, wd, ni, ndr = make_decision(signals, df=df_indicators)
         
         results[symbol] = {
             'signals': signals,

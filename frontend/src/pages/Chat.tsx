@@ -7,7 +7,6 @@ import {
   ArrowUp,
   Plus,
   Zap,
-  Activity,
   PanelLeft,
   PenLine,
   Copy,
@@ -26,6 +25,9 @@ import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 // import { MiniChart } from "../components/ui/MiniChart";
 import { StockChart } from "../components/ui/StockChart";
 import { PortfolioSummary } from "../components/ui/PortfolioSummary";
+import { MentionSuggestions } from "../components/ui/MentionSuggestions";
+import { useWatchlistStore } from "../store/useWatchlistStore";
+import { Briefcase, List, Activity } from "lucide-react";
 
 interface Message {
   id: string;
@@ -86,6 +88,8 @@ export function Chat() {
   );
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const introInputRef = useRef<HTMLTextAreaElement>(null);
+  const mainInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [completedMessages, setCompletedMessages] = useState<Set<string>>(
     new Set(),
@@ -97,6 +101,114 @@ export function Chat() {
   const [menuOpenSessionId, setMenuOpenSessionId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<string | null>(null);
+
+  // --- MENTION STATE ---
+  const { watchlists, fetchWatchlists } = useWatchlistStore();
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState(0);
+
+  useEffect(() => {
+    if (user?.id) fetchWatchlists(user.id);
+  }, [user]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const pos = e.target.selectionStart;
+    setInput(val);
+    setCursorPosition(pos);
+
+    // Look for @ symbol before cursor
+    const textBeforeCursor = val.substring(0, pos);
+    const lastAt = textBeforeCursor.lastIndexOf("@");
+
+    if (lastAt !== -1) {
+      const query = textBeforeCursor.substring(lastAt + 1);
+      
+      // Don't show if there's space after @
+      if (query.includes(" ")) {
+        setShowSuggestions(false);
+        return;
+      }
+
+      // setMentionQuery(query); // Removed for lint
+      setShowSuggestions(true);
+
+      const updateSuggestions = async () => {
+        if (query.startsWith("watchlist:")) {
+          const subQuery = query.replace("watchlist:", "").toLowerCase();
+          // setMentionType("watchlist"); // Removed for lint
+          const filtered = watchlists
+            .filter(w => w.name.toLowerCase().includes(subQuery))
+            .map(w => ({ id: w.id, name: w.name, type: 'watchlist', subtitle: 'Watchlist' }));
+          setSuggestions(filtered);
+        } else if (query.startsWith("stock:")) {
+          const subQuery = query.replace("stock:", "").toLowerCase();
+          // setMentionType("stock"); // Removed for lint
+          if (subQuery.length >= 2) {
+            try {
+              const res = await fetch(`http://localhost:8000/search/${subQuery}`);
+              const data = await res.json();
+              if (data.success) {
+                setSuggestions(data.results.map((r: any) => ({
+                  id: r.symbol,
+                  name: r.symbol,
+                  subtitle: r.name,
+                  type: 'stock'
+                })));
+              }
+            } catch (e) {
+              console.error("Search error", e);
+            }
+          } else {
+            setSuggestions([]);
+          }
+        } else {
+          // setMentionType("general"); // Removed for lint
+          const general = [
+            { id: 'portfolio', name: 'portfolio', type: 'portfolio', subtitle: 'My Portfolio', icon: <Briefcase className="w-4 h-4" /> },
+            { id: 'watchlist:', name: 'watchlist:', type: 'command', subtitle: 'Mention a watchlist', icon: <List className="w-4 h-4" /> },
+            { id: 'stock:', name: 'stock:', type: 'command', subtitle: 'Mention a stock', icon: <Activity className="w-4 h-4" /> }
+          ].filter(s => s.name.startsWith(query.toLowerCase()));
+          setSuggestions(general);
+        }
+        setActiveSuggestionIndex(0);
+      };
+      updateSuggestions();
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const insertMention = (suggestion: any) => {
+    const textBeforeCursor = input.substring(0, cursorPosition);
+    const textAfterCursor = input.substring(cursorPosition);
+    const lastAt = textBeforeCursor.lastIndexOf("@");
+    
+    let insertion = suggestion.id;
+    if (suggestion.type === 'stock') insertion = `stock:${suggestion.id}`;
+    if (suggestion.type === 'watchlist') insertion = `watchlist:${suggestion.name}`;
+    
+    // Check if we need a space after the insertion
+    // If textAfterCursor starts with a space, don't add another one
+    // Commands like stock: and watchlist: should NOT have a trailing space
+    const needsSpace = !textAfterCursor.startsWith(" ") && suggestion.type !== 'command';
+    const newValue = input.substring(0, lastAt + 1) + insertion + (needsSpace ? " " : "") + textAfterCursor;
+    
+    setInput(newValue);
+    setShowSuggestions(false);
+
+    // Refocus and set cursor
+    const newPos = lastAt + 1 + insertion.length + (needsSpace ? 1 : 0);
+    setTimeout(() => {
+      const activeRef = introInputRef.current || mainInputRef.current;
+      if (activeRef) {
+        activeRef.focus();
+        activeRef.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -214,9 +326,18 @@ export function Chat() {
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (tempName.trim()) {
-      localStorage.setItem("user_chat_name", tempName.trim());
       setUserName(tempName.trim());
       setShowIntro(false);
+      
+      // Add initial greeting from Foxy
+      const greeting: Message = {
+        id: "greeting-" + Date.now(),
+        role: "assistant",
+        content: `Nice to meet you, **${tempName.trim()}**! I'm **Foxy v1**, your high-fidelity financial co-pilot.\n\nTo help you better, I support **@mentions** for deep context:\n- **@portfolio**: Analyze your entire uploaded portfolio.\n- **@watchlist:Name**: Contextualize a specific watchlist (e.g., @watchlist:Tech).\n- **@stock:Ticker**: Deep dive into a specific stock (e.g., @stock:RELIANCE).\n\nHow can I scale your capital today?`,
+        timestamp: Date.now(),
+      };
+      setMessages([greeting]);
+      setCompletedMessages(new Set([greeting.id]));
     }
   };
 
@@ -659,16 +780,47 @@ export function Chat() {
                 </div>
 
                 <div className="max-w-2xl mx-auto w-full relative pt-4">
-                  <div className="flex items-center bg-[#121212] border border-white/10 rounded-[30px] p-2.5 pr-3 shadow-2xl focus-within:border-white/20 transition-all">
+                  <div className="flex items-center bg-[#121212] border border-white/10 rounded-[30px] p-2.5 pr-3 shadow-2xl focus-within:border-white/20 transition-all relative">
+                    {showSuggestions && (
+                      <MentionSuggestions 
+                        suggestions={suggestions} 
+                        activeIndex={activeSuggestionIndex} 
+                        onSelect={insertMention} 
+                      />
+                    )}
                     <textarea
+                      ref={introInputRef}
                       rows={1}
                       value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" &&
-                        !e.shiftKey &&
-                        (e.preventDefault(), handleSend())
-                      }
+                      onChange={handleInputChange}
+                      onKeyDown={(e) => {
+                        if (showSuggestions && suggestions.length > 0) {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setActiveSuggestionIndex(prev => (prev + 1) % suggestions.length);
+                            return;
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setActiveSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+                            return;
+                          }
+                          if (e.key === "Enter" || e.key === "Tab") {
+                            e.preventDefault();
+                            insertMention(suggestions[activeSuggestionIndex]);
+                            return;
+                          }
+                          if (e.key === "Escape") {
+                            setShowSuggestions(false);
+                            return;
+                          }
+                        }
+                        
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
                       placeholder="Message Foxy..."
                       className="flex-1 bg-transparent border-none focus:ring-0 text-white text-[14px] font-medium pl-6 py-4 resize-none outline-none placeholder:text-text-muted/30"
                     />
@@ -938,23 +1090,56 @@ export function Chat() {
                     <button className="p-3 text-white/20 hover:text-white/40 transition-colors cursor-pointer">
                       <Plus className="w-4 h-4" />
                     </button>
-                    <textarea
-                      rows={1}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" &&
-                        !e.shiftKey &&
-                        (e.preventDefault(), handleSend())
-                      }
-                      placeholder={
-                        remainingMessages === 0
-                          ? "You've reached your limit. Come back later!"
-                          : "Message Foxy..."
-                      }
-                      disabled={remainingMessages === 0}
-                      className="flex-1 bg-transparent border-none focus:ring-0 text-white text-[14px] font-medium px-2 py-3 resize-none outline-none placeholder:text-text-muted/30 disabled:opacity-50"
-                    />
+                    <div className="flex-1 relative flex items-center">
+                      {showSuggestions && (
+                        <MentionSuggestions 
+                          suggestions={suggestions} 
+                          activeIndex={activeSuggestionIndex} 
+                          onSelect={insertMention} 
+                        />
+                      )}
+                      <textarea
+                        ref={mainInputRef}
+                        rows={1}
+                        value={input}
+                        onChange={handleInputChange}
+                        onKeyDown={(e) => {
+                          if (showSuggestions && suggestions.length > 0) {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              setActiveSuggestionIndex(prev => (prev + 1) % suggestions.length);
+                              return;
+                            }
+                            if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setActiveSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+                              return;
+                            }
+                            if (e.key === "Enter" || e.key === "Tab") {
+                              e.preventDefault();
+                              insertMention(suggestions[activeSuggestionIndex]);
+                              return;
+                            }
+                            if (e.key === "Escape") {
+                              setShowSuggestions(false);
+                              return;
+                            }
+                          }
+                          
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                        placeholder={
+                          remainingMessages === 0
+                            ? "You've reached your limit. Come back later!"
+                            : "Message Foxy..."
+                        }
+                        disabled={remainingMessages === 0}
+                        className="flex-1 bg-transparent border-none focus:ring-0 text-white text-[14px] font-medium px-2 py-3 resize-none outline-none placeholder:text-text-muted/30 disabled:opacity-50"
+                      />
+                    </div>
                     <button
                       onClick={handleSend}
                       disabled={!input.trim()}

@@ -83,6 +83,11 @@ export const getTickerAnalysis = async (ticker: string) => {
   return response.data;
 };
 
+export const getForecast = async (ticker: string) => {
+  const response = await apiClient.get(`/analyze/forecast/${ticker}`);
+  return response.data;
+};
+
 export const searchStocks = async (query: string) => {
   const response = await apiClient.get(`/search/${query}`);
   return response.data;

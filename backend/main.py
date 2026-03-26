@@ -8,6 +8,7 @@ import os
 import requests
 import yfinance as yf
 from services.agent.chat_service import chat_engine
+from prediction_model.forecast import run_prediction
 from services.portfolio_logic import run_portfolio_analysis
 import time
 from collections import defaultdict
@@ -202,6 +203,17 @@ async def analyze_ticker(ticker: str):
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Unknown error analyzing ticker"))
         
+    return result
+
+@app.get("/analyze/forecast/{ticker}")
+async def forecast_ticker(ticker: str, confidence: int = 50, horizon: int = 5):
+    """
+    Generates an ATR-based price forecast for a specific ticker.
+    """
+    result = run_prediction(ticker, confidence_score=confidence, horizon_days=horizon)
+    if not result.get("success"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=result.get("error", "Unknown error generating forecast"))
     return result
 
 @app.get("/news")

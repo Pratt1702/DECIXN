@@ -61,21 +61,21 @@ app = FastAPI(
 async def news_ingestion_loop():
     while True:
         try:
-            print("🚀 Starting scheduled news ingestion...")
+            print("[START] Starting scheduled news ingestion...")
             await ingest_once(limit=15)
-            print("✅ Ingestion cycle complete.")
+            print("[DONE] Ingestion cycle complete.")
         except Exception as e:
-            print(f"❌ Ingestion loop error: {e}")
+            print(f"[ERROR] Ingestion loop error: {e}")
         await asyncio.sleep(900) # 15 minutes
 
 async def alerts_check_loop():
     while True:
         try:
-            print("🔔 Starting scheduled alert check...")
+            print("[ALERT] Starting scheduled alert check...")
             await AlertService.process_all_alerts()
-            print("✅ Alert check complete.")
+            print("[DONE] Alert check complete.")
         except Exception as e:
-            print(f"❌ Alert loop error: {e}")
+            print(f"[ERROR] Alert loop error: {e}")
         await asyncio.sleep(120) # 2 minutes
 
 @app.on_event("startup")

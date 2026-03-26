@@ -1,0 +1,1569 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foxy v1 — Agentic Chat Workflow</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0a0c0f;
+        --surface: #111318;
+        --surface2: #181c23;
+        --border: rgba(255, 255, 255, 0.07);
+        --border2: rgba(255, 255, 255, 0.13);
+        --text: #e8eaf0;
+        --muted: #8e96a8;
+        --accent: #4f8ef7; /* blue  — client / user */
+        --accent2: #a78bfa; /* purple — API/engine */
+        --accent3: #34d399; /* green  — agent */
+        --accent4: #f59e0b; /* amber  — tools */
+        --accent5: #f472b6; /* pink   — AI/Gemini */
+        --accent6: #38bdf8; /* sky    — data/DB */
+        --mono: "IBM Plex Mono", monospace;
+        --sans: "IBM Plex Sans", sans-serif;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        min-height: 100vh;
+        padding: 48px 40px 64px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* ── BG GRID ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--border) 1px, transparent 1px),
+          linear-gradient(90deg, var(--border) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: -1;
+        opacity: 0.45;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.03) 0px,
+          rgba(0, 0, 0, 0.03) 1px,
+          transparent 1px,
+          transparent 2px
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ── HEADER ── */
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 52px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        z-index: 1;
+      }
+      .badge {
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent5);
+        background: rgba(244, 114, 182, 0.1);
+        border: 1px solid rgba(244, 114, 182, 0.28);
+        padding: 4px 10px;
+        border-radius: 4px;
+        width: fit-content;
+        margin-bottom: 8px;
+      }
+      .title {
+        font-family: var(--mono);
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 300;
+        margin-top: 6px;
+      }
+      .header-meta {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--muted);
+        text-align: right;
+        line-height: 2.2;
+      }
+      .header-meta span {
+        color: var(--accent);
+      }
+
+      /* ── LEGEND ── */
+      .legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 40px;
+        position: relative;
+        z-index: 1;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* ── CANVAS ── */
+      .canvas {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        position: relative;
+        z-index: 1;
+        width: 800px;
+      }
+
+      /* ── FLOW ROW ── */
+      .flow-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0;
+        width: 800px;
+        position: relative;
+      }
+
+      /* ── NODE ── */
+      .node {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 14px 18px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+        flex-shrink: 0;
+      }
+      .node::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        border-radius: 12px 12px 0 0;
+      }
+      .node:hover {
+        border-color: var(--border2);
+      }
+
+      .node-title {
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .node-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .node-desc {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--muted);
+        line-height: 1.6;
+        font-weight: 400;
+      }
+      .node-tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 8.5px;
+        padding: 2px 7px;
+        border-radius: 100px;
+        margin-top: 7px;
+        margin-right: 4px;
+        border: 1px solid;
+        opacity: 0.9;
+        letter-spacing: 0.06em;
+      }
+
+      /* COLOR VARIANTS */
+      .n-user {
+        border-color: rgba(79, 142, 247, 0.3);
+      }
+      .n-user::before {
+        background: var(--accent);
+      }
+      .n-user .node-dot {
+        background: var(--accent);
+        box-shadow: 0 0 6px var(--accent);
+      }
+      .n-user:hover {
+        box-shadow:
+          0 0 0 1px rgba(79, 142, 247, 0.15),
+          0 4px 24px rgba(79, 142, 247, 0.07);
+      }
+
+      .n-engine {
+        border-color: rgba(244, 114, 182, 0.3);
+      }
+      .n-engine::before {
+        background: var(--accent5);
+      }
+      .n-engine .node-dot {
+        background: var(--accent5);
+        box-shadow: 0 0 6px var(--accent5);
+      }
+      .n-engine:hover {
+        box-shadow:
+          0 0 0 1px rgba(244, 114, 182, 0.15),
+          0 4px 24px rgba(244, 114, 182, 0.07);
+      }
+
+      .n-tool {
+        border-color: rgba(245, 158, 11, 0.3);
+      }
+      .n-tool::before {
+        background: var(--accent4);
+      }
+      .n-tool .node-dot {
+        background: var(--accent4);
+        box-shadow: 0 0 6px var(--accent4);
+      }
+      .n-tool:hover {
+        box-shadow:
+          0 0 0 1px rgba(245, 158, 11, 0.15),
+          0 4px 24px rgba(245, 158, 11, 0.07);
+      }
+
+      .n-agent {
+        border-color: rgba(52, 211, 153, 0.3);
+      }
+      .n-agent::before {
+        background: var(--accent3);
+      }
+      .n-agent .node-dot {
+        background: var(--accent3);
+        box-shadow: 0 0 6px var(--accent3);
+      }
+      .n-agent:hover {
+        box-shadow:
+          0 0 0 1px rgba(52, 211, 153, 0.15),
+          0 4px 24px rgba(52, 211, 153, 0.07);
+      }
+
+      .n-api {
+        border-color: rgba(167, 139, 250, 0.3);
+      }
+      .n-api::before {
+        background: var(--accent2);
+      }
+      .n-api .node-dot {
+        background: var(--accent2);
+        box-shadow: 0 0 6px var(--accent2);
+      }
+      .n-api:hover {
+        box-shadow:
+          0 0 0 1px rgba(167, 139, 250, 0.15),
+          0 4px 24px rgba(167, 139, 250, 0.07);
+      }
+
+      .n-data {
+        border-color: rgba(56, 189, 248, 0.3);
+      }
+      .n-data::before {
+        background: var(--accent6);
+      }
+      .n-data .node-dot {
+        background: var(--accent6);
+        box-shadow: 0 0 6px var(--accent6);
+      }
+      .n-data:hover {
+        box-shadow:
+          0 0 0 1px rgba(56, 189, 248, 0.15),
+          0 4px 24px rgba(56, 189, 248, 0.07);
+      }
+
+      /* ── ARROWS (SVG connectors) ── */
+      .connector-svg {
+        overflow: visible;
+        flex-shrink: 0;
+      }
+
+      /* ── VERTICAL CONNECTOR ── */
+      .v-conn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2px 0;
+        gap: 0;
+        flex-shrink: 0;
+      }
+      .v-line {
+        width: 1px;
+        background: linear-gradient(180deg, var(--border2), var(--border2));
+        position: relative;
+      }
+      .v-arrow-head {
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 6px solid var(--border2);
+      }
+      .v-label {
+        font-family: var(--mono);
+        font-size: 8.5px;
+        color: var(--muted);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 2px 9px;
+        border-radius: 100px;
+        white-space: nowrap;
+        letter-spacing: 0.08em;
+        opacity: 0.85;
+        margin: 2px 0;
+      }
+
+      /* ── HORIZONTAL CONNECTOR ── */
+      .h-conn {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        flex-shrink: 0;
+        align-self: center;
+      }
+      .h-line {
+        height: 1px;
+        background: var(--border2);
+      }
+      .h-arrow-head {
+        width: 0;
+        height: 0;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 6px solid var(--border2);
+      }
+      .h-label {
+        font-family: var(--mono);
+        font-size: 8px;
+        color: var(--muted);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 2px 8px;
+        border-radius: 100px;
+        white-space: nowrap;
+        letter-spacing: 0.07em;
+        position: absolute;
+        transform: translateY(-14px);
+      }
+      .h-conn-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      /* ── BRANCH CONTAINER ── */
+      .branch {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+
+      /* ── DECISION NODE ── */
+      .decision-node {
+        width: 160px;
+        height: 58px;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .decision-node svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+      .decision-label {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        color: var(--accent5);
+        text-align: center;
+        line-height: 1.3;
+        pointer-events: none;
+      }
+
+      /* ── TOOL GRID ── */
+      .tool-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+      }
+
+      /* ── MENTION PILLS ── */
+      .mention-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(var(--m-rgb), 0.08);
+        border: 1px solid rgba(var(--m-rgb), 0.25);
+        border-radius: 4px;
+        color: var(--m-color);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+      .tool-chip {
+        background: var(--surface2);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-radius: 9px;
+        padding: 10px 13px;
+        position: relative;
+        overflow: hidden;
+      }
+      .tool-chip::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent4);
+        border-radius: 9px 9px 0 0;
+        opacity: 0.7;
+      }
+      .tool-chip-name {
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--accent4);
+        margin-bottom: 3px;
+      }
+      .tool-chip-desc {
+        font-size: 9.5px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      /* ── AGENT PIPELINE ── */
+      .agent-pipeline {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        background: rgba(52, 211, 153, 0.04);
+        border: 1px solid rgba(52, 211, 153, 0.2);
+        border-radius: 12px;
+        padding: 14px 16px;
+        width: 100%;
+      }
+      .ap-node {
+        flex: 1;
+        text-align: center;
+        background: rgba(52, 211, 153, 0.07);
+        border: 1px solid rgba(52, 211, 153, 0.18);
+        border-radius: 8px;
+        padding: 9px 10px;
+      }
+      .ap-node-name {
+        font-family: var(--mono);
+        font-size: 9.5px;
+        font-weight: 600;
+        color: var(--accent3);
+      }
+      .ap-node-sub {
+        font-size: 8.5px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .ap-arrow {
+        width: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .ap-arrow svg {
+        color: var(--accent3);
+        opacity: 0.5;
+      }
+
+      /* ── RESPONSE TYPES ── */
+      .resp-grid {
+        display: flex;
+        gap: 8px;
+      }
+      .resp-pill {
+        font-family: var(--mono);
+        font-size: 8.5px;
+        padding: 4px 10px;
+        border-radius: 100px;
+        border: 1px solid;
+        white-space: nowrap;
+        letter-spacing: 0.06em;
+      }
+
+      /* ── WIDE / NARROW NODES ── */
+      .w-full {
+        width: 660px;
+      }
+      .w-half {
+        width: 320px;
+      }
+      .w-main {
+        width: 440px;
+      }
+      .w-side {
+        width: 200px;
+      }
+      .w-agent {
+        width: 660px;
+      }
+      .w-sm {
+        width: 200px;
+      }
+
+      /* ── SECTION LABELS ── */
+      .phase-label {
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        opacity: 0.6;
+        margin-bottom: 10px;
+        align-self: flex-start;
+        padding-left: 4px;
+      }
+
+      /* ── FORK / MERGE ── */
+      .fork-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0;
+        width: 660px;
+        position: relative;
+      }
+      .fork-branch {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* ── RETURN ARROW WRAPPER (curved back) ── */
+      .return-note {
+        font-family: var(--mono);
+        font-size: 8.5px;
+        color: var(--accent2);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        background: rgba(167, 139, 250, 0.06);
+        border-radius: 100px;
+        padding: 3px 12px;
+        margin-top: 6px;
+        letter-spacing: 0.07em;
+      }
+
+      /* ── FOOTER ── */
+      .footer {
+        margin-top: 56px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        position: relative;
+        z-index: 1;
+      }
+      .footer-stack {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .stack-pill {
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 100px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      /* ── INLINE SVG arrows for horizontal ── */
+      .arr-right {
+        display: inline-flex;
+        align-items: center;
+      }
+
+      /* ── STATUS BADGES ── */
+      .status-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .status-badge {
+        font-family: var(--mono);
+        font-size: 8px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid;
+        letter-spacing: 0.07em;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <div>
+        <div class="badge">Agentic Chat Workflow</div>
+        <div class="title">Foxy v1 — Chat Request Lifecycle</div>
+        <div class="subtitle">
+          ChatEngine · Tool Router · LangGraph Agent · Gemini 2.5 Flash ·
+          Supabase
+        </div>
+      </div>
+      <div class="header-meta">
+        <div>
+          FILE <span>chat_service.py</span> + <span>agent_engine.py</span>
+        </div>
+        <div>MODEL <span>gemini-2.5-flash</span></div>
+        <div>FRAMEWORK <span>LangGraph + FastAPI</span></div>
+      </div>
+    </div>
+
+    <!-- LEGEND -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent)"></div>
+        User / Client
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent5)"></div>
+        Gemini LLM
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent4)"></div>
+        Tool Execution
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent3)"></div>
+        LangGraph Agent
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent2)"></div>
+        API / Orchestration
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: var(--accent6)"></div>
+        Data / Persistence
+      </div>
+    </div>
+
+    <div class="canvas">
+      <!-- ══════════════════════════════════
+         PHASE 1 — INPUT & ENRICHMENT
+    ══════════════════════════════════ -->
+      <div class="phase-label">① Input & Context Enrichment</div>
+
+      <div
+        class="node n-user"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 40px;
+          padding: 24px;
+        "
+      >
+        <!-- Incoming Query Column -->
+        <div style="flex: 1.1; text-align: left">
+          <div class="node-title">
+            <div class="node-dot"></div>
+            1. User Message Input
+          </div>
+          <div class="node-desc" style="margin-bottom: 16px">
+            Raw query containing @mentions:
+            <div
+              style="
+                background: rgba(255, 255, 255, 0.03);
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                margin-top: 8px;
+                color: var(--muted);
+                line-height: 1.5;
+              "
+            >
+              "Is my <span style="color: var(--accent)">@portfolio</span> safe
+              if <span style="color: var(--accent4)">@stock:NHPC</span> drops
+              5%?"
+            </div>
+            <div
+              style="
+                background: rgba(255, 255, 255, 0.03);
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                margin-top: 8px;
+                color: var(--muted);
+                line-height: 1.5;
+              "
+            >
+              "Can you tell me if there are good buys in
+              <span style="color: var(--accent2)">@watchlist:IT_AND_BANKS</span
+              >?"
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <div
+              class="mention-pill"
+              style="--m-rgb: 79, 142, 247; --m-color: var(--accent)"
+            >
+              @portfolio
+            </div>
+            <div
+              class="mention-pill"
+              style="--m-rgb: 167, 139, 250; --m-color: var(--accent2)"
+            >
+              @watchlist
+            </div>
+            <div
+              class="mention-pill"
+              style="--m-rgb: 245, 158, 11; --m-color: var(--accent4)"
+            >
+              @stock
+            </div>
+          </div>
+        </div>
+
+        <!-- <div style="width: 1px; background: var(--border); margin: 0 4px"></div> -->
+
+        <!-- Enrichment Engine Column -->
+        <!-- <div style="flex: 1; text-align: left">
+          <div
+            class="node-title"
+            style="font-size: 10px; color: var(--accent6)"
+          >
+            2. Context Injection Engine
+          </div>
+          <div class="node-desc">
+            <span style="color: var(--accent); font-weight: 600"
+              >RETRIEVAL:</span
+            >
+            Pulls session user's holdings & buys from Supabase. <br /><br />
+            <span style="color: var(--accent4); font-weight: 600"
+              >LIVE DATA:</span
+            >
+            Fetches real-time prices & technicals via yfinance. <br /><br />
+          </div>
+        </div> -->
+      </div>
+
+      <!-- V connector -->
+      <div class="v-conn" style="height: 32px">
+        <div class="v-line" style="height: 12px"></div>
+        <div class="v-label">yield { status: "Thinking…" }</div>
+        <div class="v-line" style="height: 6px"></div>
+        <div class="v-arrow-head"></div>
+      </div>
+
+      <!-- ══════════════════════════════════
+         PHASE 2 — FIRST GEMINI CALL
+    ══════════════════════════════════ -->
+      <div class="phase-label" style="margin-top: 6px">
+        ② First Gemini Call — Intent & Tool Selection
+      </div>
+
+      <div
+        class="node n-engine"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 40px;
+          padding: 24px;
+        "
+      >
+        <div style="flex: 1.2; text-align: left">
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Gemini 2.5 Flash — Turn 1
+          </div>
+          <div class="node-desc">
+            Receives <strong>SYSTEM_INSTRUCTION</strong> (role, topic
+            enforcement, output schema) + enriched prompt +
+            <strong>TOOLS declaration</strong>. <br /><span
+              style="color: var(--accent5); font-weight: 500"
+              >Decision: "Is this query a market data request or a general
+              conversation?"</span
+            >
+          </div>
+        </div>
+        <div style="width: 1px; background: var(--border); margin: 0 4px"></div>
+        <div style="flex: 1; text-align: left">
+          <div
+            class="node-title"
+            style="font-size: 10px; color: var(--accent5)"
+          >
+            Tool declarations
+          </div>
+          <div
+            style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px"
+          >
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              analyze_ticker
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              get_market_overview
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              analyze_full_portfolio
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              get_user_position
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              fetch_catalyst_news
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              fetch_watchlist
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="v-conn" style="height: 32px">
+        <div class="v-line" style="height: 12px"></div>
+        <div class="v-label">response.candidates[0].content.parts</div>
+        <div class="v-line" style="height: 6px"></div>
+        <div class="v-arrow-head"></div>
+      </div>
+
+      <!-- ══════════════════════════════════
+         PHASE 3 — DECISION DIAMOND (CLEAN SVG FORK)
+    ══════════════════════════════════ -->
+      <div class="phase-label" style="margin-top: 12px">
+        ③ Response Branch Decision
+      </div>
+
+      <div style="width: 800px; height: 100px; position: relative">
+        <svg
+          width="800"
+          height="100"
+          viewBox="0 0 800 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          style="overflow: visible"
+        >
+          <!-- DIAMOND (Center 400) -->
+          <path
+            d="M400 6 L480 38 L400 70 L320 38 Z"
+            fill="var(--surface)"
+            stroke="rgba(244,114,182,0.6)"
+            stroke-width="1.5"
+          />
+          <!-- PATH LEFT (Center 200) -->
+          <polyline
+            points="320,38 200,38 200,100"
+            stroke="var(--border2)"
+            stroke-width="1.2"
+          />
+          <path
+            d="M196 95 L200 100 L204 95"
+            stroke="var(--border2)"
+            stroke-width="1.2"
+          />
+
+          <!-- PATH RIGHT (Center 600) -->
+          <polyline
+            points="480,38 600,38 600,100"
+            stroke="var(--border2)"
+            stroke-width="1.2"
+          />
+          <path
+            d="M596 95 L600 100 L604 95"
+            stroke="var(--border2)"
+            stroke-width="1.2"
+          />
+        </svg>
+
+        <!-- Diamond Text -->
+        <div
+          style="
+            position: absolute;
+            top: 38px;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--accent5);
+            text-align: center;
+            pointer-events: none;
+          "
+        >
+          function_call<br />present?
+        </div>
+
+        <!-- Labels -->
+        <div
+          class="h-label"
+          style="top: 22px; left: 240px; color: var(--muted); opacity: 0.8"
+        >
+          NO — direct
+        </div>
+        <div
+          class="h-label"
+          style="top: 22px; right: 240px; color: var(--muted); opacity: 0.8"
+        >
+          YES — tools
+        </div>
+      </div>
+
+      <div
+        class="fork-row"
+        style="margin-top: 0; align-items: stretch; gap: 0; width: 800px"
+      >
+        <!-- LEFT ARM: No tool call — direct answer -->
+        <div class="fork-branch" style="width: 400px; align-items: center">
+          <div style="width: 360px; text-align: left">
+            <div class="node n-engine" style="width: 100%">
+              <div class="node-title">
+                <div class="node-dot"></div>
+                Direct Text Response
+              </div>
+              <div class="node-desc">
+                Gemini returns a plain JSON narrative (off-topic, general
+                advice, clarifications).
+                <br /><br />
+                <span style="color: var(--accent5); font-weight: 500"
+                  >ACTION: Drafting a friendly response for off-topic
+                  inquiries.</span
+                >
+              </div>
+              <div class="status-row">
+                <div
+                  class="status-badge"
+                  style="
+                    color: var(--accent5);
+                    border-color: rgba(244, 114, 182, 0.25);
+                  "
+                >
+                  type: general
+                </div>
+                <div
+                  class="status-badge"
+                  style="color: var(--muted); border-color: var(--border)"
+                >
+                  type: off_topic
+                </div>
+              </div>
+            </div>
+            <div
+              class="v-conn"
+              style="height: 28px; width: 100%; align-items: center"
+            >
+              <div class="v-line" style="height: 16px"></div>
+              <div class="v-arrow-head"></div>
+            </div>
+            <div class="node n-data" style="width: 100%">
+              <div class="node-title">
+                <div class="node-dot"></div>
+                Persist + Yield Response
+              </div>
+              <div class="node-desc">
+                <code style="font-size: 9px; color: var(--accent6)"
+                  >_save_assistant_message()</code
+                >
+                → Supabase persistence. JSON yielded to WebSocket.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT ARM: Tool execution path -->
+        <div class="fork-branch" style="width: 400px; align-items: center">
+          <div style="width: 360px; text-align: left">
+            <div class="node n-api" style="width: 100%">
+              <div class="node-title">
+                <div class="node-dot"></div>
+                Status Emit → Client
+              </div>
+              <div class="node-desc">
+                Yields context-aware streaming status before dispatching tools.
+                <br /><br />
+                <span style="color: var(--accent2); font-weight: 500"
+                  >TRANSPARENCY: Informing user what the agent is
+                  checking.</span
+                >
+              </div>
+              <div class="status-row">
+                <div
+                  class="status-badge"
+                  style="
+                    color: var(--accent2);
+                    border-color: rgba(167, 139, 250, 0.25);
+                  "
+                >
+                  "Analyzing stock…"
+                </div>
+                <div
+                  class="status-badge"
+                  style="
+                    color: var(--accent2);
+                    border-color: rgba(167, 139, 250, 0.25);
+                  "
+                >
+                  "Checking portfolio…"
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="v-conn"
+              style="height: 22px; width: 100%; align-items: center"
+            >
+              <div class="v-line" style="height: 12px"></div>
+              <div class="v-arrow-head"></div>
+            </div>
+
+            <div class="node n-tool" style="width: 100%">
+              <div class="node-title">
+                <div class="node-dot"></div>
+                _execute_tool() — Parallel Dispatch
+              </div>
+              <div class="node-desc">
+                Iterates all tool requests.
+                <br /><br />
+                <span style="color: var(--accent4); font-weight: 500"
+                  >EFFICIENCY: Multiple markets tools running in parallel
+                  threads.</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════
+         PHASE 4 — TOOL DETAIL GRID
+    ══════════════════════════════════ -->
+      <div
+        class="phase-label"
+        style="
+          margin-top: 12px;
+          align-self: center;
+          width: fit-content;
+          text-align: center;
+        "
+      >
+        ④ Tool Execution Detail
+      </div>
+
+      <div style="width: 800px; margin-top: 4px">
+        <div class="tool-grid">
+          <div class="tool-chip">
+            <div class="tool-chip-name">analyze_ticker</div>
+            <div class="tool-chip-desc">
+              Calls <strong>analyze_single_ticker()</strong> for indicators.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Technicals: RSI/MACD detection and trend validation.</span
+              >
+            </div>
+          </div>
+
+          <div class="tool-chip">
+            <div class="tool-chip-name">get_market_overview</div>
+            <div class="tool-chip-desc">
+              Returns NIFTY / SENSEX levels and Index health.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Market Health: Checking broad market sentiment and
+                breadth.</span
+              >
+            </div>
+          </div>
+
+          <div class="tool-chip">
+            <div class="tool-chip-name">analyze_full_portfolio</div>
+            <div class="tool-chip-desc">
+              Regex-parses all holdings from portfolio context string. Routes to
+              <strong>run_portfolio_analysis()</strong> (stocks) or
+              <strong>run_mf_portfolio_analysis()</strong> (mutual funds).
+              Returns P&L, win rate, weights.
+            </div>
+          </div>
+
+          <div class="tool-chip">
+            <div class="tool-chip-name">get_user_position</div>
+            <div class="tool-chip-desc">
+              Regex-scan of portfolio context for ticker match.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Personalization: Customizing advice based on your current buy
+                price.</span
+              >
+            </div>
+          </div>
+
+          <div class="tool-chip" style="grid-column: 1 / -1">
+            <div class="tool-chip-name">fetch_catalyst_news</div>
+            <div class="tool-chip-desc">
+              Scrapes catalysts from ET Markets with sentiment.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Headlines: Injecting real-world news into the AI reasoning
+                loop.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════
+         PHASE 5 — LANGGRAPH AGENT
+    ══════════════════════════════════ -->
+      <div class="phase-label" style="margin-top: 12px">
+        ⑤ LangGraph Agentic Engine — run_agent_intelligence()
+      </div>
+      <div
+        style="
+          font-family: var(--mono);
+          font-size: 8px;
+          color: var(--muted);
+          opacity: 0.6;
+          margin-bottom: 10px;
+          margin-top: -6px;
+        "
+      >
+        Triggered only by analyze_ticker tool
+      </div>
+
+      <div class="flow-row" style="width: 800px">
+        <div
+          class="node n-agent"
+          style="
+            width: 100%;
+            padding: 24px;
+            border-width: 1.5px;
+            box-sizing: border-box;
+          "
+        >
+          <div class="node-title">
+            <div class="node-dot"></div>
+            StateGraph — AgentState
+          </div>
+          <div class="node-desc" style="margin-bottom: 12px">
+            Typed state:
+            <code style="font-size: 9px; color: var(--accent3)"
+              >symbol, data, news, signals, context, portfolio, verdict,
+              errors</code
+            >
+          </div>
+          <div class="agent-pipeline">
+            <div class="ap-node">
+              <div class="ap-node-name">detect_signals_node</div>
+              <div class="ap-node-sub">
+                Fetch data → Compute Indicators (RSI/MACD)
+              </div>
+            </div>
+            <div class="ap-arrow">
+              <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
+                <path
+                  d="M0 6h22M18 2l6 4-6 4"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
+              </svg>
+            </div>
+            <div class="ap-node">
+              <div class="ap-node-name">enrich_content_node</div>
+              <div class="ap-node-sub">Parse portfolio for cross-ref</div>
+            </div>
+            <div class="ap-arrow">
+              <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
+                <path
+                  d="M0 6h22M18 2l6 4-6 4"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
+              </svg>
+            </div>
+            <div class="ap-node">
+              <div class="ap-node-name">generate_verdict_node</div>
+              <div class="ap-node-sub">Gemini synthesis → JSON Verdict</div>
+            </div>
+          </div>
+          <div
+            style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap"
+          >
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              STRONG BUY / BUY / HOLD / SELL
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              confidence 0–100
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              entry · exit · stop_loss
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              portfolio_action
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- connector back up to tool results -->
+      <div class="v-conn" style="height: 44px">
+        <div class="v-line" style="height: 10px"></div>
+        <div class="v-label">agent_intelligence merged into tool_result</div>
+        <div class="v-line" style="height: 10px"></div>
+        <div class="v-arrow-head"></div>
+      </div>
+
+      <!-- ══════════════════════════════════
+         PHASE 6 — SECOND GEMINI CALL
+    ══════════════════════════════════ -->
+      <div class="phase-label" style="margin-top: 12px">
+        ⑥ Second Gemini Call — Narrative Synthesis
+      </div>
+
+      <div
+        class="node n-engine"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 40px;
+          padding: 24px;
+        "
+      >
+        <div style="flex: 1.2; text-align: left">
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Gemini 2.5 Flash — Turn 2 (Final)
+          </div>
+          <div class="node-desc">
+            Receives full conversation contents +
+            <strong>all tool_results</strong>. <br /><br />
+            <span style="color: var(--accent5); font-weight: 500"
+              >SYNTHESIS: Weaving technical data and news into a professional
+              research note.</span
+            >
+          </div>
+        </div>
+        <div style="width: 1px; background: var(--border); margin: 0 4px"></div>
+        <div style="flex: 1; text-align: left">
+          <div
+            class="node-title"
+            style="font-size: 10px; color: var(--accent5)"
+          >
+            Output Schema enforced
+          </div>
+          <div
+            style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px"
+          >
+            <div
+              class="resp-pill"
+              style="
+                color: var(--accent5);
+                border-color: rgba(244, 114, 182, 0.3);
+              "
+            >
+              stock_analysis
+            </div>
+            <div
+              class="resp-pill"
+              style="
+                color: var(--accent5);
+                border-color: rgba(244, 114, 182, 0.3);
+              "
+            >
+              portfolio_analysis
+            </div>
+            <div
+              class="resp-pill"
+              style="
+                color: var(--accent5);
+                border-color: rgba(244, 114, 182, 0.3);
+              "
+            >
+              market_overview
+            </div>
+          </div>
+          <div style="margin-top: 10px; font-size: 9.5px; color: var(--muted)">
+            metadata includes:<br />
+            <code style="font-size: 8.5px; color: var(--accent2)"
+              >tickers, charts, sources, summary, insight, sentiment</code
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="v-conn" style="height: 44px">
+        <div class="v-line" style="height: 10px"></div>
+        <div class="v-label">
+          yield { status: "Generating final insights…" }
+        </div>
+        <div class="v-line" style="height: 10px"></div>
+        <div class="v-arrow-head"></div>
+      </div>
+
+      <!-- ══════════════════════════════════
+         PHASE 7 — OUTPUT & PERSISTENCE
+    ══════════════════════════════════ -->
+      <div
+        class="phase-label"
+        style="
+          margin-top: 12px;
+          align-self: center;
+          width: fit-content;
+          text-align: center;
+        "
+      >
+        ⑦ Output Parsing, Persistence & Delivery
+      </div>
+
+      <div
+        class="node"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 24px;
+          border-color: var(--border);
+          background: var(--surface);
+          padding: 20px;
+        "
+      >
+        <div
+          class="node n-api"
+          style="
+            flex: 1;
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            box-shadow: none;
+          "
+        >
+          <div class="node-title">
+            <div class="node-dot"></div>
+            _parse_json()
+          </div>
+          <div class="node-desc">
+            Strips markdown fences. Finds boundaries. Falls back if parse fails.
+          </div>
+        </div>
+        <div style="display: flex; align-items: center">
+          <div class="h-arrow-head"></div>
+        </div>
+        <div
+          class="node n-data"
+          style="
+            flex: 1;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: none;
+          "
+        >
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Supabase Save
+          </div>
+          <div class="node-desc">
+            Writes narrative + metadata to session history.
+          </div>
+        </div>
+        <div style="display: flex; align-items: center">
+          <div class="h-arrow-head"></div>
+        </div>
+        <div
+          class="node n-user"
+          style="
+            flex: 1;
+            border: 1px solid rgba(79, 142, 247, 0.2);
+            box-shadow: none;
+          "
+        >
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Yield Final
+          </div>
+          <div class="node-desc">
+            JSON stream to React. <br /><span
+              style="color: var(--accent); font-weight: 500"
+              >INSIGHT: Actionable.</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /canvas -->
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <div class="footer-stack">
+        <div
+          class="stack-pill"
+          style="color: var(--accent5); border-color: rgba(244, 114, 182, 0.25)"
+        >
+          Gemini 2.5 Flash
+        </div>
+        <div
+          class="stack-pill"
+          style="color: var(--accent3); border-color: rgba(52, 211, 153, 0.25)"
+        >
+          LangGraph
+        </div>
+        <div
+          class="stack-pill"
+          style="color: var(--accent2); border-color: rgba(167, 139, 250, 0.25)"
+        >
+          FastAPI
+        </div>
+        <div
+          class="stack-pill"
+          style="color: var(--accent6); border-color: rgba(56, 189, 248, 0.25)"
+        >
+          Supabase
+        </div>
+        <div
+          class="stack-pill"
+          style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.25)"
+        >
+          yfinance
+        </div>
+        <div
+          class="stack-pill"
+          style="color: var(--accent); border-color: rgba(79, 142, 247, 0.25)"
+        >
+          React + Vite
+        </div>
+      </div>
+      <div
+        style="
+          font-family: var(--mono);
+          font-size: 9px;
+          color: var(--muted);
+          opacity: 0.5;
+          letter-spacing: 0.06em;
+        "
+      >
+        DECIXN · FOXY v1 · AGENTIC CHAT WORKFLOW
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Foxy v1 — News Catalyst Engine</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0a0c0f;
+        --surface: #111318;
+        --surface2: #181c23;
+        --border: rgba(255, 255, 255, 0.07);
+        --border2: rgba(255, 255, 255, 0.13);
+        --text: #e8eaf0;
+        --muted: #8e96a8;
+        --accent: #4f8ef7; /* blue  — ingress */
+        --accent2: #a78bfa; /* purple — logic */
+        --accent3: #34d399; /* green  — agentic scoring */
+        --accent4: #f59e0b; /* amber  — extraction */
+        --accent5: #f472b6; /* pink   — LLM synthesis */
+        --accent6: #38bdf8; /* sky    — data/DB */
+        --mono: "IBM Plex Mono", monospace;
+        --sans: "IBM Plex Sans", sans-serif;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        min-height: 100vh;
+        padding: 48px 40px 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* ── BG GRID ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--border) 1px, transparent 1px),
+          linear-gradient(90deg, var(--border) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: -1;
+        opacity: 0.45;
+      }
+
+      /* ── HEADER ── */
+      .header {
+        width: 800px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 52px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        z-index: 1;
+      }
+      .badge {
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent4);
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.28);
+        padding: 4px 10px;
+        border-radius: 4px;
+        width: fit-content;
+        margin-bottom: 8px;
+      }
+      .title {
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 300;
+        margin-top: 6px;
+      }
+
+      /* ── CANVAS ── */
+      .canvas {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        position: relative;
+        z-index: 1;
+        width: 800px;
+      }
+
+      /* ── SECTION LABELS ── */
+      .phase-label {
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        opacity: 0.6;
+        margin-bottom: 12px;
+        align-self: center;
+        width: fit-content;
+      }
+
+      /* ── NODE ── */
+      .node {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 16px 20px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+        width: 100%;
+      }
+      .node::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        border-radius: 12px 12px 0 0;
+      }
+      .node-title {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .node-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .node-desc {
+        font-size: 10.5px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* ARROWS */
+      .v-conn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 4px 0;
+        gap: 0;
+      }
+      .v-line {
+        width: 1px;
+        background: var(--border2);
+      }
+      .v-arrow {
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 6px solid var(--border2);
+      }
+      .v-label {
+        font-size: 8.5px;
+        color: var(--muted);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 2px 10px;
+        border-radius: 20px;
+        margin: 4px 0;
+      }
+
+      /* COLOR CLASSES */
+      .n-scrape {
+        border-color: rgba(79, 142, 247, 0.3);
+      }
+      .n-scrape::before {
+        background: var(--accent);
+      }
+      .n-scrape .node-dot {
+        background: var(--accent);
+      }
+
+      .n-extract {
+        border-color: rgba(245, 158, 11, 0.3);
+      }
+      .n-extract::before {
+        background: var(--accent4);
+      }
+      .n-extract .node-dot {
+        background: var(--accent4);
+      }
+
+      .n-agent {
+        border-color: rgba(52, 211, 153, 0.3);
+      }
+      .n-agent::before {
+        background: var(--accent3);
+      }
+      .n-agent .node-dot {
+        background: var(--accent3);
+      }
+
+      .n-llm {
+        border-color: rgba(244, 114, 182, 0.3);
+      }
+      .n-llm::before {
+        background: var(--accent5);
+      }
+      .n-llm .node-dot {
+        background: var(--accent5);
+      }
+
+      .n-data {
+        border-color: rgba(56, 189, 248, 0.3);
+      }
+      .n-data::before {
+        background: var(--accent6);
+      }
+      .n-data .node-dot {
+        background: var(--accent6);
+      }
+
+      /* SPECIAL BLOCKS */
+      .scraping-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .source-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 9px;
+        text-align: center;
+      }
+      .source-pill strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--accent);
+      }
+
+      .sentiment-strip {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .sent-badge {
+        flex: 1;
+        padding: 6px;
+        text-align: center;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        border: 1px solid transparent;
+      }
+      .bullish {
+        color: #34d399;
+        background: rgba(52, 211, 153, 0.08);
+        border-color: rgba(52, 211, 153, 0.2);
+      }
+      .bearish {
+        color: #f87171;
+        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.2);
+      }
+      .neutral {
+        color: var(--muted);
+        background: rgba(142, 150, 168, 0.08);
+        border-color: rgba(142, 150, 168, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div>
+        <div class="badge">Intelligence Engine</div>
+        <div class="title">News Catalyst Engine</div>
+        <div class="subtitle">
+          Multi-factor event extraction & sentiment pipeline.
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <!-- PHASE 1 -->
+      <div class="phase-label">① Event Ingestion & Scrape</div>
+      <div class="node n-scrape" style="width: 800px">
+        <div class="node-title">
+          <div class="node-dot"></div>
+          Data Ingress pipeline
+        </div>
+        <div class="node-desc">Stateless polling nodes trigger every 10m.</div>
+        <div class="node-desc">
+          Checks
+          <a
+            href="https://economictimes.indiatimes.com/markets/stocks/news"
+            target="_blank"
+            style="font-size: 10px; color: var(--accent)"
+            >ET Markets</a
+          >
+          latest news data, processes maximum of 5 new ones each time.
+        </div>
+        <!-- <div class="scraping-grid">
+          <div class="source-pill">
+            <strong>ET MARKETS</strong>
+            Corporate News feed
+          </div>
+          <div class="source-pill">
+            <strong>NSE/BSE</strong>
+            Corporate filings
+          </div>
+          <div class="source-pill">
+            <strong>REUTERS</strong>
+            Broad Market signals
+          </div>
+        </div> -->
+      </div>
+
+      <div class="v-conn">
+        <div class="v-line" style="height: 24px"></div>
+        <div class="v-label">Raw HTML / JSON Stream</div>
+        <div class="v-arrow"></div>
+      </div>
+
+      <!-- PHASE 2 -->
+      <div class="phase-label">② Extraction & Entity Mapping</div>
+      <div
+        class="node n-extract"
+        style="
+          width: 800px;
+          display: flex;
+          gap: 40px;
+          align-items: stretch;
+          padding: 24px;
+        "
+      >
+        <div style="flex: 1.2">
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Regex-Driven Categorization
+          </div>
+          <div class="node-desc">
+            Stripping HTML tags and normalizing timestamps. Detecting
+            <strong>Stock Mentions</strong> via Ticker Regex cross-ref.
+          </div>
+        </div>
+        <div style="width: 1px; background: var(--border)"></div>
+        <div style="flex: 1">
+          <div
+            style="
+              font-size: 9px;
+              color: var(--accent4);
+              font-weight: 600;
+              margin-bottom: 8px;
+            "
+          >
+            CATALYST CLASSES
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 4px;
+              font-size: 9px;
+              color: var(--muted);
+            "
+          >
+            <div>• EARNINGS</div>
+            <div>• RATINGS_CHG</div>
+            <div>• DIVIDEND</div>
+            <div>• M_AND_A</div>
+            <div>• IND_DATA</div>
+            <div>• GEN_MARKET</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="v-conn">
+        <div class="v-line" style="height: 24px"></div>
+        <div class="v-label">Clean Event Objects</div>
+        <div class="v-arrow"></div>
+      </div>
+
+      <!-- PHASE 3 -->
+      <div class="phase-label">③ Sentiment Scoring</div>
+      <div class="node n-agent" style="width: 800px">
+        <div class="node-title">
+          <div class="node-dot"></div>
+          Gemini Flash 2.5 — Contextual Scorer
+        </div>
+        <div class="node-desc">
+          Evaluates news impact magnitude (0-100) and directional bias. Unlike
+          simple keyword matching, the LLM understands market nuance.
+          <br /><br />
+          <span style="color: var(--accent3); font-weight: 600">LOGIC:</span>
+          "Will this news trigger immediate retail buying or institutional
+          sell-offs?"
+        </div>
+        <div class="sentiment-strip">
+          <div class="sent-badge bullish">BULLISH/POSITIVE</div>
+          <div class="sent-badge neutral">NEUTRAL</div>
+          <div class="sent-badge bearish">BEARISH/NEGATIVE</div>
+        </div>
+      </div>
+
+      <div class="v-conn">
+        <div class="v-line" style="height: 24px"></div>
+        <div class="v-label">Score Array [Sentiment, Magnitude]</div>
+        <div class="v-arrow"></div>
+      </div>
+
+      <!-- PHASE 4 -->
+      <!-- <div class="phase-label">④ Multi-Factor Catalyst Correlation</div>
+      <div class="node n-llm" style="width: 800px; border-style: dashed">
+        <div class="node-title">
+          <div class="node-dot"></div>
+          Cross-Indicator Validation
+        </div>
+        <div class="node-desc">
+          Determines if the catalyst is <strong>Significant</strong> enough to
+          alert users or pivot the Agent's Verdict.
+        </div>
+        <div style="margin-top: 12px; display: flex; gap: 12px">
+          <div
+            style="
+              flex: 1;
+              border: 1px solid var(--border);
+              padding: 8px;
+              border-radius: 6px;
+            "
+          >
+            <div
+              style="font-size: 9px; color: var(--muted); margin-bottom: 4px"
+            >
+              Technical Link
+            </div>
+            <div style="font-size: 10px">
+              Is news confirming RSI divergence?
+            </div>
+          </div>
+          <div
+            style="
+              flex: 1;
+              border: 1px solid var(--border);
+              padding: 8px;
+              border-radius: 6px;
+            "
+          >
+            <div
+              style="font-size: 9px; color: var(--muted); margin-bottom: 4px"
+            >
+              Volume Delta
+            </div>
+            <div style="font-size: 10px">Did volume spike post-headline?</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="v-conn">
+        <div class="v-line" style="height: 30px"></div>
+        <div class="v-arrow"></div>
+      </div> -->
+
+      <!-- PHASE 5 -->
+      <div class="phase-label">⑤ Persistence & Cache</div>
+      <div class="node n-data" style="width: 800px">
+        <div class="node-title">
+          <div class="node-dot"></div>
+          Supabase Persistence
+        </div>
+        <div class="node-desc">
+          Stores findings in the <strong>catalysts</strong> table. Cached for
+          15-30m at the Edge to prevent redundant LLM scoring costs.
+          <br /><br />
+          <code style="font-size: 9px; color: var(--accent6)"
+            >UPSERT INTO news_cache (headline_hash, sentiment, tickers)</code
+          >
+        </div>
+      </div>
+
+      <div class="v-conn">
+        <div class="v-line" style="height: 30px"></div>
+        <div class="v-label">WebSocket Dispatch</div>
+        <div class="v-arrow"></div>
+      </div>
+
+      <!-- PHASE 6 -->
+      <div
+        class="node"
+        style="
+          width: 800px;
+          border-color: var(--accent);
+          background: rgba(79, 142, 247, 0.05);
+        "
+      >
+        <div class="node-title">
+          <div class="node-dot" style="background: var(--accent)"></div>
+          Downstream Consumption
+        </div>
+        <div class="node-desc">
+          Findings are actively injected into
+          <strong>Foxy v1 Chat Logic</strong> & also passed in the
+          <strong>News Page</strong> & official <strong> Stock Page</strong> for
+          immediate retail consumption.
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div
+      style="
+        margin-top: 64px;
+        border-top: 1px solid var(--border);
+        width: 800px;
+        padding-top: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      "
+    >
+      <div
+        style="
+          font-size: 9px;
+          color: var(--muted);
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        "
+      >
+        DECIXN Catalyst Engine
+      </div>
+    </div>
+  </body>
+</html>

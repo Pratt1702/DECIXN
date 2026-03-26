@@ -18,11 +18,14 @@ import { MFInsights } from "./pages/MFInsights";
 import { MFCompare } from "./pages/MFCompare";
 import { AlertsManagement } from "./pages/AlertsManagement";
 import { Notifications } from "./pages/Notifications";
+import { ToastContainer } from "./components/ui/Toast";
 import "./App.css";
 
 function App() {
   return (
-    <Routes>
+    <>
+      <ToastContainer />
+      <Routes>
       <Route path="/login" element={<Login />} />
 
       {/* Protected Routes */}
@@ -77,6 +80,7 @@ function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 

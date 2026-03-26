@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../config/supabaseClient';
 import { getNotifications, markNotificationRead } from '../services/api';
+import { showToast } from '../components/ui/Toast';
 
 interface Notification {
   id: string;
@@ -80,11 +81,15 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         },
         (payload: any) => {
           console.log("New notification received:", payload);
-          get().addNotification(payload.new as Notification);
+          const newNotif = payload.new as Notification;
+          get().addNotification(newNotif);
           
-          // Optional: Trigger a browser notification or a toast here
+          // Trigger Toast
+          showToast(newNotif.title, newNotif.message);
+          
+          // Optional: Browser Notification
           if ('Notification' in window && Notification.permission === 'granted') {
-             new Notification(payload.new.title, { body: payload.new.message });
+             new Notification(newNotif.title, { body: newNotif.message });
           }
         }
       )

@@ -16,6 +16,7 @@ from services.mutual_funds.mf_portfolio_service import run_mf_portfolio_analysis
 from services.mutual_funds.mf_data_service import get_mf_latest_details
 from services.mutual_funds import mf_analytics_service
 from pydantic import BaseModel
+from services.alerts.alert_service import AlertService
 
 class MFInsightsRequest(BaseModel):
     holdings: list[dict]
@@ -67,9 +68,20 @@ async def news_ingestion_loop():
             print(f"❌ Ingestion loop error: {e}")
         await asyncio.sleep(900) # 15 minutes
 
+async def alerts_check_loop():
+    while True:
+        try:
+            print("🔔 Starting scheduled alert check...")
+            await AlertService.process_all_alerts()
+            print("✅ Alert check complete.")
+        except Exception as e:
+            print(f"❌ Alert loop error: {e}")
+        await asyncio.sleep(120) # 2 minutes
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(news_ingestion_loop())
+    asyncio.create_task(alerts_check_loop())
 
 app.add_middleware(
     CORSMiddleware,

@@ -156,6 +156,7 @@
         gap: 0;
         position: relative;
         z-index: 1;
+        width: 800px;
       }
 
       /* ── FLOW ROW ── */
@@ -164,7 +165,7 @@
         align-items: flex-start;
         justify-content: center;
         gap: 0;
-        width: 680px;
+        width: 800px;
         position: relative;
       }
 
@@ -449,6 +450,21 @@
         gap: 10px;
         width: 100%;
       }
+
+      /* ── MENTION PILLS ── */
+      .mention-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(var(--m-rgb), 0.08);
+        border: 1px solid rgba(var(--m-rgb), 0.25);
+        border-radius: 4px;
+        color: var(--m-color);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
       .tool-chip {
         background: var(--surface2);
         border: 1px solid rgba(245, 158, 11, 0.2);
@@ -710,40 +726,96 @@
 
       <div
         class="node n-user"
-        style="width: 680px; display: flex; align-items: stretch; gap: 32px; padding: 24px;"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 40px;
+          padding: 24px;
+        "
       >
-        <div style="flex: 1.2; text-align: left;">
+        <!-- Incoming Query Column -->
+        <div style="flex: 1.1; text-align: left">
           <div class="node-title">
             <div class="node-dot"></div>
-            User Message — ChatEngine.get_response()
+            1. User Message Input
           </div>
-          <div class="node-desc">
-            Incoming user query with 
-            <code style="font-size: 9.5px; color: var(--accent)">session_id</code> and enriched 
-            <code style="font-size: 9.5px; color: var(--accent)">chat_history</code> metadata.
-            <br /><br />
-            <span style="color: var(--text); opacity: 0.95; font-weight: 600; font-size: 11px; letter-spacing: 0.02em; display: block;">
-              HUMAN LOGIC: Identifies @stock symbols and @watchlist names to fetch
-              relevant market data.
-            </span>
+          <div class="node-desc" style="margin-bottom: 16px">
+            Raw query containing @mentions:
+            <div
+              style="
+                background: rgba(255, 255, 255, 0.03);
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                margin-top: 8px;
+                color: var(--muted);
+                line-height: 1.5;
+              "
+            >
+              "Is my <span style="color: var(--accent)">@portfolio</span> safe
+              if <span style="color: var(--accent4)">@stock:NHPC</span> drops
+              5%?"
+            </div>
+            <div
+              style="
+                background: rgba(255, 255, 255, 0.03);
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                margin-top: 8px;
+                color: var(--muted);
+                line-height: 1.5;
+              "
+            >
+              "Can you tell me if there are good buys in
+              <span style="color: var(--accent2)">@watchlist:IT_AND_BANKS</span
+              >?"
+            </div>
           </div>
-          <div class="status-row">
-            <div class="status-badge" style="color: var(--accent); border-color: rgba(79, 142, 247, 0.3);">@portfolio</div>
-            <div class="status-badge" style="color: var(--accent); border-color: rgba(79, 142, 247, 0.3);">@watchlist</div>
-            <div class="status-badge" style="color: var(--accent); border-color: rgba(79, 142, 247, 0.3);">@stock</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <div
+              class="mention-pill"
+              style="--m-rgb: 79, 142, 247; --m-color: var(--accent)"
+            >
+              @portfolio
+            </div>
+            <div
+              class="mention-pill"
+              style="--m-rgb: 167, 139, 250; --m-color: var(--accent2)"
+            >
+              @watchlist
+            </div>
+            <div
+              class="mention-pill"
+              style="--m-rgb: 245, 158, 11; --m-color: var(--accent4)"
+            >
+              @stock
+            </div>
           </div>
         </div>
-        <div style="width: 1px; background: var(--border); margin: 0 4px;"></div>
-        <div style="flex: 1; text-align: left;">
-          <div class="node-title" style="font-size: 10px; color: var(--accent6)">
-            ↪ _parse_mentions()
+
+        <!-- <div style="width: 1px; background: var(--border); margin: 0 4px"></div> -->
+
+        <!-- Enrichment Engine Column -->
+        <!-- <div style="flex: 1; text-align: left">
+          <div
+            class="node-title"
+            style="font-size: 10px; color: var(--accent6)"
+          >
+            2. Context Injection Engine
           </div>
           <div class="node-desc">
-            Regex-extracts mentions → fetches live prices via yfinance → builds enriched context.
-            <br /><br />
-            <span style="color: var(--accent6); font-weight: 500;">SECURITY: UUID authentication check for session-secure retrieval.</span>
+            <span style="color: var(--accent); font-weight: 600"
+              >RETRIEVAL:</span
+            >
+            Pulls session user's holdings & buys from Supabase. <br /><br />
+            <span style="color: var(--accent4); font-weight: 600"
+              >LIVE DATA:</span
+            >
+            Fetches real-time prices & technicals via yfinance. <br /><br />
           </div>
-        </div>
+        </div> -->
       </div>
 
       <!-- V connector -->
@@ -763,9 +835,15 @@
 
       <div
         class="node n-engine"
-        style="width: 680px; display: flex; align-items: stretch; gap: 32px; padding: 24px;"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 40px;
+          padding: 24px;
+        "
       >
-        <div style="flex: 1.2; text-align: left;">
+        <div style="flex: 1.2; text-align: left">
           <div class="node-title">
             <div class="node-dot"></div>
             Gemini 2.5 Flash — Turn 1
@@ -773,12 +851,15 @@
           <div class="node-desc">
             Receives <strong>SYSTEM_INSTRUCTION</strong> (role, topic
             enforcement, output schema) + enriched prompt +
-            <strong>TOOLS declaration</strong>. 
-            <br/><span style="color: var(--accent5); font-weight: 500;">Decision: "Is this query a market data request or a general conversation?"</span>
+            <strong>TOOLS declaration</strong>. <br /><span
+              style="color: var(--accent5); font-weight: 500"
+              >Decision: "Is this query a market data request or a general
+              conversation?"</span
+            >
           </div>
         </div>
-        <div style="width: 1px; background: var(--border); margin: 0 4px;"></div>
-        <div style="flex: 1; text-align: left;">
+        <div style="width: 1px; background: var(--border); margin: 0 4px"></div>
+        <div style="flex: 1; text-align: left">
           <div
             class="node-title"
             style="font-size: 10px; color: var(--accent5)"
@@ -788,12 +869,60 @@
           <div
             style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px"
           >
-            <div class="node-tag" style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.3);">analyze_ticker</div>
-            <div class="node-tag" style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.3);">get_market_overview</div>
-            <div class="node-tag" style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.3);">analyze_full_portfolio</div>
-            <div class="node-tag" style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.3);">get_user_position</div>
-            <div class="node-tag" style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.3);">fetch_catalyst_news</div>
-            <div class="node-tag" style="color: var(--accent4); border-color: rgba(245, 158, 11, 0.3);">fetch_watchlist</div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              analyze_ticker
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              get_market_overview
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              analyze_full_portfolio
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              get_user_position
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              fetch_catalyst_news
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent4);
+                border-color: rgba(245, 158, 11, 0.3);
+              "
+            >
+              fetch_watchlist
+            </div>
           </div>
         </div>
       </div>
@@ -812,37 +941,45 @@
         ③ Response Branch Decision
       </div>
 
-      <div style="width: 680px; height: 100px; position: relative;">
+      <div style="width: 800px; height: 100px; position: relative">
         <svg
-          width="680"
+          width="800"
           height="100"
-          viewBox="0 0 680 100"
+          viewBox="0 0 800 100"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           style="overflow: visible"
         >
-          <!-- DIAMOND Vertex Points: L(260,38), T(340,6), R(420,38), B(340,70) -->
+          <!-- DIAMOND (Center 400) -->
           <path
-            d="M340 6 L420 38 L340 70 L260 38 Z"
+            d="M400 6 L480 38 L400 70 L320 38 Z"
             fill="var(--surface)"
             stroke="rgba(244,114,182,0.6)"
             stroke-width="1.5"
           />
-          <!-- PATH LEFT (NO) - Points outwards to (170,38) then down -->
+          <!-- PATH LEFT (Center 200) -->
           <polyline
-            points="260,38 170,38 170,100"
+            points="320,38 200,38 200,100"
             stroke="var(--border2)"
             stroke-width="1.2"
           />
-          <path d="M166 95 L170 100 L174 95" stroke="var(--border2)" stroke-width="1.2" />
+          <path
+            d="M196 95 L200 100 L204 95"
+            stroke="var(--border2)"
+            stroke-width="1.2"
+          />
 
-          <!-- PATH RIGHT (YES) - Points outwards to (510,38) then down -->
+          <!-- PATH RIGHT (Center 600) -->
           <polyline
-            points="420,38 510,38 510,100"
+            points="480,38 600,38 600,100"
             stroke="var(--border2)"
             stroke-width="1.2"
           />
-          <path d="M506 95 L510 100 L514 95" stroke="var(--border2)" stroke-width="1.2" />
+          <path
+            d="M596 95 L600 100 L604 95"
+            stroke="var(--border2)"
+            stroke-width="1.2"
+          />
         </svg>
 
         <!-- Diamond Text -->
@@ -858,21 +995,33 @@
             color: var(--accent5);
             text-align: center;
             pointer-events: none;
-            line-height: 1.2;
           "
         >
           function_call<br />present?
         </div>
 
         <!-- Labels -->
-        <div class="h-label" style="top: 22px; left: 190px; color: var(--muted); opacity: 0.8;">NO — direct</div>
-        <div class="h-label" style="top: 22px; right: 190px; color: var(--muted); opacity: 0.8;">YES — tools</div>
+        <div
+          class="h-label"
+          style="top: 22px; left: 240px; color: var(--muted); opacity: 0.8"
+        >
+          NO — direct
+        </div>
+        <div
+          class="h-label"
+          style="top: 22px; right: 240px; color: var(--muted); opacity: 0.8"
+        >
+          YES — tools
+        </div>
       </div>
 
-      <div class="fork-row" style="margin-top: 0; align-items: stretch; gap: 0; width: 680px;">
+      <div
+        class="fork-row"
+        style="margin-top: 0; align-items: stretch; gap: 0; width: 800px"
+      >
         <!-- LEFT ARM: No tool call — direct answer -->
-        <div class="fork-branch" style="width: 340px; align-items: center">
-          <div style="width: 320px; text-align: left;">
+        <div class="fork-branch" style="width: 400px; align-items: center">
+          <div style="width: 360px; text-align: left">
             <div class="node n-engine" style="width: 100%">
               <div class="node-title">
                 <div class="node-dot"></div>
@@ -880,16 +1029,35 @@
               </div>
               <div class="node-desc">
                 Gemini returns a plain JSON narrative (off-topic, general
-                advice, clarifications). 
-                <br/><br/>
-                <span style="color: var(--accent5); font-weight: 500;">ACTION: Drafting a friendly response for off-topic inquiries.</span>
+                advice, clarifications).
+                <br /><br />
+                <span style="color: var(--accent5); font-weight: 500"
+                  >ACTION: Drafting a friendly response for off-topic
+                  inquiries.</span
+                >
               </div>
               <div class="status-row">
-                <div class="status-badge" style="color: var(--accent5); border-color: rgba(244, 114, 182, 0.25);">type: general</div>
-                <div class="status-badge" style="color: var(--muted); border-color: var(--border)">type: off_topic</div>
+                <div
+                  class="status-badge"
+                  style="
+                    color: var(--accent5);
+                    border-color: rgba(244, 114, 182, 0.25);
+                  "
+                >
+                  type: general
+                </div>
+                <div
+                  class="status-badge"
+                  style="color: var(--muted); border-color: var(--border)"
+                >
+                  type: off_topic
+                </div>
               </div>
             </div>
-            <div class="v-conn" style="height: 28px; width: 100%; align-items: center">
+            <div
+              class="v-conn"
+              style="height: 28px; width: 100%; align-items: center"
+            >
               <div class="v-line" style="height: 16px"></div>
               <div class="v-arrow-head"></div>
             </div>
@@ -899,7 +1067,9 @@
                 Persist + Yield Response
               </div>
               <div class="node-desc">
-                <code style="font-size: 9px; color: var(--accent6)">_save_assistant_message()</code>
+                <code style="font-size: 9px; color: var(--accent6)"
+                  >_save_assistant_message()</code
+                >
                 → Supabase persistence. JSON yielded to WebSocket.
               </div>
             </div>
@@ -907,8 +1077,8 @@
         </div>
 
         <!-- RIGHT ARM: Tool execution path -->
-        <div class="fork-branch" style="width: 340px; align-items: center">
-          <div style="width: 320px; text-align: left;">
+        <div class="fork-branch" style="width: 400px; align-items: center">
+          <div style="width: 360px; text-align: left">
             <div class="node n-api" style="width: 100%">
               <div class="node-title">
                 <div class="node-dot"></div>
@@ -916,16 +1086,38 @@
               </div>
               <div class="node-desc">
                 Yields context-aware streaming status before dispatching tools.
-                <br/><br/>
-                <span style="color: var(--accent2); font-weight: 500;">TRANSPARENCY: Informing user what the agent is checking.</span>
+                <br /><br />
+                <span style="color: var(--accent2); font-weight: 500"
+                  >TRANSPARENCY: Informing user what the agent is
+                  checking.</span
+                >
               </div>
               <div class="status-row">
-                <div class="status-badge" style="color: var(--accent2); border-color: rgba(167, 139, 250, 0.25);">"Analyzing stock…"</div>
-                <div class="status-badge" style="color: var(--accent2); border-color: rgba(167, 139, 250, 0.25);">"Checking portfolio…"</div>
+                <div
+                  class="status-badge"
+                  style="
+                    color: var(--accent2);
+                    border-color: rgba(167, 139, 250, 0.25);
+                  "
+                >
+                  "Analyzing stock…"
+                </div>
+                <div
+                  class="status-badge"
+                  style="
+                    color: var(--accent2);
+                    border-color: rgba(167, 139, 250, 0.25);
+                  "
+                >
+                  "Checking portfolio…"
+                </div>
               </div>
             </div>
 
-            <div class="v-conn" style="height: 22px; width: 100%; align-items: center">
+            <div
+              class="v-conn"
+              style="height: 22px; width: 100%; align-items: center"
+            >
               <div class="v-line" style="height: 12px"></div>
               <div class="v-arrow-head"></div>
             </div>
@@ -937,8 +1129,11 @@
               </div>
               <div class="node-desc">
                 Iterates all tool requests.
-                <br/><br/>
-                <span style="color: var(--accent4); font-weight: 500;">EFFICIENCY: Multiple markets tools running in parallel threads.</span>
+                <br /><br />
+                <span style="color: var(--accent4); font-weight: 500"
+                  >EFFICIENCY: Multiple markets tools running in parallel
+                  threads.</span
+                >
               </div>
             </div>
           </div>
@@ -960,13 +1155,15 @@
         ④ Tool Execution Detail
       </div>
 
-      <div style="width: 660px; margin-top: 4px">
+      <div style="width: 800px; margin-top: 4px">
         <div class="tool-grid">
           <div class="tool-chip">
             <div class="tool-chip-name">analyze_ticker</div>
             <div class="tool-chip-desc">
-              Calls <strong>analyze_single_ticker()</strong> for indicators. 
-              <br/><span style="color: var(--accent4); font-weight: 500;">Technicals: RSI/MACD detection and trend validation.</span>
+              Calls <strong>analyze_single_ticker()</strong> for indicators.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Technicals: RSI/MACD detection and trend validation.</span
+              >
             </div>
           </div>
 
@@ -974,7 +1171,10 @@
             <div class="tool-chip-name">get_market_overview</div>
             <div class="tool-chip-desc">
               Returns NIFTY / SENSEX levels and Index health.
-              <br/><span style="color: var(--accent4); font-weight: 500;">Market Health: Checking broad market sentiment and breadth.</span>
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Market Health: Checking broad market sentiment and
+                breadth.</span
+              >
             </div>
           </div>
 
@@ -991,16 +1191,22 @@
           <div class="tool-chip">
             <div class="tool-chip-name">get_user_position</div>
             <div class="tool-chip-desc">
-              Regex-scan of portfolio context for ticker match. 
-              <br/><span style="color: var(--accent4); font-weight: 500;">Personalization: Customizing advice based on your current buy price.</span>
+              Regex-scan of portfolio context for ticker match.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Personalization: Customizing advice based on your current buy
+                price.</span
+              >
             </div>
           </div>
 
           <div class="tool-chip" style="grid-column: 1 / -1">
             <div class="tool-chip-name">fetch_catalyst_news</div>
             <div class="tool-chip-desc">
-              Scrapes catalysts from ET Markets with sentiment. 
-              <br/><span style="color: var(--accent4); font-weight: 500;">Headlines: Injecting real-world news into the AI reasoning loop.</span>
+              Scrapes catalysts from ET Markets with sentiment.
+              <br /><span style="color: var(--accent4); font-weight: 500"
+                >Headlines: Injecting real-world news into the AI reasoning
+                loop.</span
+              >
             </div>
           </div>
         </div>
@@ -1025,10 +1231,15 @@
         Triggered only by analyze_ticker tool
       </div>
 
-      <div class="flow-row" style="width: 680px">
+      <div class="flow-row" style="width: 800px">
         <div
           class="node n-agent"
-          style="width: 100%; padding: 24px; border-width: 1.5px; box-sizing: border-box;"
+          style="
+            width: 100%;
+            padding: 24px;
+            border-width: 1.5px;
+            box-sizing: border-box;
+          "
         >
           <div class="node-title">
             <div class="node-dot"></div>
@@ -1036,16 +1247,25 @@
           </div>
           <div class="node-desc" style="margin-bottom: 12px">
             Typed state:
-            <code style="font-size: 9px; color: var(--accent3)">symbol, data, news, signals, context, portfolio, verdict, errors</code>
+            <code style="font-size: 9px; color: var(--accent3)"
+              >symbol, data, news, signals, context, portfolio, verdict,
+              errors</code
+            >
           </div>
           <div class="agent-pipeline">
             <div class="ap-node">
               <div class="ap-node-name">detect_signals_node</div>
-              <div class="ap-node-sub">Fetch data → Compute Indicators (RSI/MACD)</div>
+              <div class="ap-node-sub">
+                Fetch data → Compute Indicators (RSI/MACD)
+              </div>
             </div>
             <div class="ap-arrow">
               <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
-                <path d="M0 6h22M18 2l6 4-6 4" stroke="currentColor" stroke-width="1.3" />
+                <path
+                  d="M0 6h22M18 2l6 4-6 4"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
               </svg>
             </div>
             <div class="ap-node">
@@ -1054,7 +1274,11 @@
             </div>
             <div class="ap-arrow">
               <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
-                <path d="M0 6h22M18 2l6 4-6 4" stroke="currentColor" stroke-width="1.3" />
+                <path
+                  d="M0 6h22M18 2l6 4-6 4"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
               </svg>
             </div>
             <div class="ap-node">
@@ -1062,11 +1286,45 @@
               <div class="ap-node-sub">Gemini synthesis → JSON Verdict</div>
             </div>
           </div>
-          <div style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap">
-            <div class="node-tag" style="color: var(--accent3); border-color: rgba(52, 211, 153, 0.3)">STRONG BUY / BUY / HOLD / SELL</div>
-            <div class="node-tag" style="color: var(--accent3); border-color: rgba(52, 211, 153, 0.3)">confidence 0–100</div>
-            <div class="node-tag" style="color: var(--accent3); border-color: rgba(52, 211, 153, 0.3)">entry · exit · stop_loss</div>
-            <div class="node-tag" style="color: var(--accent3); border-color: rgba(52, 211, 153, 0.3)">portfolio_action</div>
+          <div
+            style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap"
+          >
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              STRONG BUY / BUY / HOLD / SELL
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              confidence 0–100
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              entry · exit · stop_loss
+            </div>
+            <div
+              class="node-tag"
+              style="
+                color: var(--accent3);
+                border-color: rgba(52, 211, 153, 0.3);
+              "
+            >
+              portfolio_action
+            </div>
           </div>
         </div>
       </div>
@@ -1088,22 +1346,30 @@
 
       <div
         class="node n-engine"
-        style="width: 680px; display: flex; align-items: stretch; gap: 32px; padding: 24px;"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 40px;
+          padding: 24px;
+        "
       >
-        <div style="flex: 1.2; text-align: left;">
+        <div style="flex: 1.2; text-align: left">
           <div class="node-title">
             <div class="node-dot"></div>
             Gemini 2.5 Flash — Turn 2 (Final)
           </div>
           <div class="node-desc">
             Receives full conversation contents +
-            <strong>all tool_results</strong>. 
-            <br/><br/>
-            <span style="color: var(--accent5); font-weight: 500;">SYNTHESIS: Weaving technical data and news into a professional research note.</span>
+            <strong>all tool_results</strong>. <br /><br />
+            <span style="color: var(--accent5); font-weight: 500"
+              >SYNTHESIS: Weaving technical data and news into a professional
+              research note.</span
+            >
           </div>
         </div>
-        <div style="width: 1px; background: var(--border); margin: 0 4px;"></div>
-        <div style="flex: 1; text-align: left;">
+        <div style="width: 1px; background: var(--border); margin: 0 4px"></div>
+        <div style="flex: 1; text-align: left">
           <div
             class="node-title"
             style="font-size: 10px; color: var(--accent5)"
@@ -1113,13 +1379,39 @@
           <div
             style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px"
           >
-            <div class="resp-pill" style="color: var(--accent5); border-color: rgba(244, 114, 182, 0.3);">stock_analysis</div>
-            <div class="resp-pill" style="color: var(--accent5); border-color: rgba(244, 114, 182, 0.3);">portfolio_analysis</div>
-            <div class="resp-pill" style="color: var(--accent5); border-color: rgba(244, 114, 182, 0.3);">market_overview</div>
+            <div
+              class="resp-pill"
+              style="
+                color: var(--accent5);
+                border-color: rgba(244, 114, 182, 0.3);
+              "
+            >
+              stock_analysis
+            </div>
+            <div
+              class="resp-pill"
+              style="
+                color: var(--accent5);
+                border-color: rgba(244, 114, 182, 0.3);
+              "
+            >
+              portfolio_analysis
+            </div>
+            <div
+              class="resp-pill"
+              style="
+                color: var(--accent5);
+                border-color: rgba(244, 114, 182, 0.3);
+              "
+            >
+              market_overview
+            </div>
           </div>
           <div style="margin-top: 10px; font-size: 9.5px; color: var(--muted)">
-            metadata includes:<br/>
-            <code style="font-size: 8.5px; color: var(--accent2)">tickers, charts, sources, summary, insight, sentiment</code>
+            metadata includes:<br />
+            <code style="font-size: 8.5px; color: var(--accent2)"
+              >tickers, charts, sources, summary, insight, sentiment</code
+            >
           </div>
         </div>
       </div>
@@ -1136,22 +1428,44 @@
       <!-- ══════════════════════════════════
          PHASE 7 — OUTPUT & PERSISTENCE
     ══════════════════════════════════ -->
-      <div class="phase-label" style="margin-top: 12px; align-self: center; width: fit-content; text-align: center;">
+      <div
+        class="phase-label"
+        style="
+          margin-top: 12px;
+          align-self: center;
+          width: fit-content;
+          text-align: center;
+        "
+      >
         ⑦ Output Parsing, Persistence & Delivery
       </div>
 
       <div
         class="node"
-        style="width: 680px; display: flex; align-items: stretch; gap: 14px; border-color: var(--border); background: var(--surface); padding: 18px;"
+        style="
+          width: 800px;
+          display: flex;
+          align-items: stretch;
+          gap: 24px;
+          border-color: var(--border);
+          background: var(--surface);
+          padding: 20px;
+        "
       >
         <div
           class="node n-api"
-          style="flex: 1; border: 1px solid rgba(167, 139, 250, 0.2); box-shadow: none;"
+          style="
+            flex: 1;
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            box-shadow: none;
+          "
         >
-          <div class="node-title"><div class="node-dot"></div>_parse_json()</div>
+          <div class="node-title">
+            <div class="node-dot"></div>
+            _parse_json()
+          </div>
           <div class="node-desc">
-            Strips markdown fences. Finds boundaries. Falls back if parse
-            fails.
+            Strips markdown fences. Finds boundaries. Falls back if parse fails.
           </div>
         </div>
         <div style="display: flex; align-items: center">
@@ -1159,9 +1473,16 @@
         </div>
         <div
           class="node n-data"
-          style="flex: 1; border: 1px solid rgba(56, 189, 248, 0.2); box-shadow: none;"
+          style="
+            flex: 1;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: none;
+          "
         >
-          <div class="node-title"><div class="node-dot"></div>Supabase Save</div>
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Supabase Save
+          </div>
           <div class="node-desc">
             Writes narrative + metadata to session history.
           </div>
@@ -1171,11 +1492,21 @@
         </div>
         <div
           class="node n-user"
-          style="flex: 1; border: 1px solid rgba(79, 142, 247, 0.2); box-shadow: none;"
+          style="
+            flex: 1;
+            border: 1px solid rgba(79, 142, 247, 0.2);
+            box-shadow: none;
+          "
         >
-          <div class="node-title"><div class="node-dot"></div>Yield Final</div>
+          <div class="node-title">
+            <div class="node-dot"></div>
+            Yield Final
+          </div>
           <div class="node-desc">
-            JSON stream to React. <br/><span style="color: var(--accent); font-weight: 500;">INSIGHT: Actionable.</span>
+            JSON stream to React. <br /><span
+              style="color: var(--accent); font-weight: 500"
+              >INSIGHT: Actionable.</span
+            >
           </div>
         </div>
       </div>

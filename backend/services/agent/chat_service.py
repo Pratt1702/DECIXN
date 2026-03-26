@@ -91,8 +91,8 @@ CORE RULES:
 5. **Tone**: Professional, sharp, data-driven, and slightly elite.
 6. **Portfolio Context**: Use tool `get_user_position` if they ask about 'my position in X'. Use `analyze_full_portfolio` for overall health reports.
 7. **Tool Chain**: You can and should call multiple tools in a single turn. For example, to analyze a user's Suzlon position, call `analyze_ticker(ticker='SUZLON')` AND `get_user_position(ticker='SUZLON')`.
-87. **Deep Intelligence**: When the `analyze_ticker` tool returns `agent_intelligence`, PRIORITIZE that narrative and actionable verdict in your final response. Use it to provide a "Why Now?" explanation.
-8. **News Citations**: Whenever you use `fetch_catalyst_news`, you **MUST** provide citations in your narrative using the format: [Article Title](URL). Also, populate the `metadata.sources` array with objects containing the title and url for each unique source used.
+8. **Deep Intelligence**: When the `analyze_ticker` tool returns `agent_intelligence`, PRIORITIZE that narrative and actionable verdict in your final response. Use it to provide a "Why Now?" explanation.
+9. **News Citations**: Whenever you use `fetch_catalyst_news`, you **MUST** provide citations in your narrative using the format: [Article Title](URL). Also, populate the `metadata.sources` array with objects containing the title and url for each unique source used.
 
 RESPONSE FORMAT (JSON ONLY):
 {
@@ -116,6 +116,12 @@ FORMATTING RULES:
 - Use `###` headers for sectioning if the response is long.
 - Use [Source Title](URL) for news citations from tools.
 - Keep the narrative concise but professional and data-rich.
+8. **News Citations**: Use [Article Title](URL). Populate `metadata.sources` with unique sources.
+9. **@ Mentions**: Acknowledge context from `@portfolio`, `@watchlist`, or `@stock`.
+10. **Synthesis & Conciseness**: 
+    - **Avoid Repetition**: If multiple stocks share the same sector news/tailwinds, mention it ONCE in an introductory or summary paragraph rather than repeating it for each ticker.
+    - **Conflict Resolution**: If technicals are Bearish but fundamentals/agent_intelligence are Bullish, provide a weighted verdict (e.g., "Short-term technical weakness, but long-term fundamental BUY"). Don't just list the conflict; resolve it for the user.
+    - **Narrative Flow**: Use a sharp, "Institutional Research" style. Be concise. Use `###` headers for stocks only if analyzing more than 2. For lists, keep descriptions to 2-3 impact-heavy sentences.
 """
 
 class ChatEngine:
@@ -144,13 +150,26 @@ class ChatEngine:
         
         contents = []
         # No history sent to avoid model confusion as per request
+        
+        # --- PARSE MENTIONS & ENRICH CONTEXT ---
+        enriched_context = portfolio_context or ""
+        mentions = await self._parse_mentions(user_message, user_id)
+        
+        if mentions["watchlists"]:
+            for wl_name, stocks in mentions["watchlists"].items():
+                enriched_context += f"\n\n[WATCHLIST: {wl_name}]\n"
+                for s in stocks:
+                    enriched_context += f"- {s['symbol']}: {s['price']} ({s['change_pct']}%)\n"
+        
+        if mentions["stocks"]:
+            enriched_context += f"\n\n[MENTIONED STOCKS]\n"
+            for s in mentions["stocks"]:
+                enriched_context += f"- {s['symbol']}: {s['price']} ({s['change_pct']}%)\n"
+
         prompt = f"User Message: {user_message}"
-        if portfolio_context:
-            print(f"DEBUG [ChatEngine]: Portfolio Context length: {len(portfolio_context)}")
-            print(f"DEBUG [ChatEngine]: Portfolio Context Snippet: {portfolio_context[:200]}...")
-            prompt += f"\n\n[PORTFOLIO CONTEXT]\n{portfolio_context}"
-        else:
-            print("DEBUG [ChatEngine]: No Portfolio Context received.")
+        if enriched_context:
+            print(f"DEBUG [ChatEngine]: Enriched Context length: {len(enriched_context)}")
+            prompt += f"\n\n[CONTEXT]\n{enriched_context}"
         
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
@@ -402,6 +421,73 @@ class ChatEngine:
             }
         
         return {"error": "Tool not found"}
+
+    async def _parse_mentions(self, message: str, user_id: str):
+        import re
+        mentions = {"watchlists": {}, "stocks": []}
+        
+        # 1. Parse @watchlist:Name
+        wl_matches = re.finditer(r"@watchlist:([\w\s\-]+)", message)
+        from ..supabase_client import supabase
+        
+        for m in wl_matches:
+            wl_name = m.group(1).strip()
+            try:
+                # Find watchlist id
+                res = supabase.table("watchlists").select("id").eq("user_id", user_id).ilike("name", wl_name).execute()
+                if res.data:
+                    wl_id = res.data[0]["id"]
+                    # Get items
+                    items_res = supabase.table("watchlist_items").select("symbol").eq("watchlist_id", wl_id).execute()
+                    symbols = [i["symbol"] for i in items_res.data]
+                    
+                    if symbols:
+                        # Fetch brief market data directly with yfinance to avoid circular imports
+                        import yfinance as yf
+                        ticker_symbols = [s if (s.endswith('.NS') or s.endswith('.BO')) else f"{s}.NS" for s in symbols]
+                        try:
+                            data = yf.download(ticker_symbols, period="1d", interval="1m", progress=False, group_by="ticker")
+                            wl_results = []
+                            for s in symbols:
+                                sym = s if (s.endswith('.NS') or s.endswith('.BO')) else f"{s}.NS"
+                                try:
+                                    # Handle single ticker result vs multiple
+                                    if len(symbols) == 1:
+                                        price = data['Close'].iloc[-1]
+                                        prev = data['Close'].iloc[0]
+                                    else:
+                                        price = data[sym]['Close'].iloc[-1]
+                                        prev = data[sym]['Close'].iloc[0]
+                                    change = ((price - prev) / prev * 100) if prev > 0 else 0
+                                    wl_results.append({"symbol": s, "price": round(price, 2), "change_pct": round(change, 2)})
+                                except: continue
+                            if wl_results:
+                                mentions["watchlists"][wl_name] = wl_results
+                        except: pass
+            except Exception as e:
+                print(f"Mention Parse Error (Watchlist {wl_name}): {e}")
+
+        # 2. Parse @stock:Ticker
+        stock_matches = re.finditer(r"@stock:([\w\.\-]+)", message)
+        for m in stock_matches:
+            symbol = m.group(1).strip().upper()
+            try:
+                import yf as yf_lib # avoid name collision
+                import yfinance as yf
+                sym = symbol if (symbol.endswith('.NS') or symbol.endswith('.BO')) else f"{symbol}.NS"
+                t = yf.Ticker(sym)
+                hist = t.history(period="2d")
+                if not hist.empty:
+                    price = hist['Close'].iloc[-1]
+                    prev = hist['Close'].iloc[0] if len(hist) > 1 else price
+                    change = ((price - prev) / prev * 100) if prev > 0 else 0
+                    mentions["stocks"].append({
+                        "symbol": symbol, "price": round(price, 2), "change_pct": round(change, 2)
+                    })
+            except Exception as e:
+                print(f"Mention Parse Error (Stock {symbol}): {e}")
+                
+        return mentions
 
     def _save_assistant_message(self, user_id, res_text, session_id=None):
         if not user_id or len(user_id) <= 20: return

@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Flow — Foxy v1</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0a0c0f;
+        --surface: #111318;
+        --surface2: #181c23;
+        --border: rgba(255, 255, 255, 0.07);
+        --border2: rgba(255, 255, 255, 0.12);
+        --text: #e8eaf0;
+        --muted: #8e96a8;
+        --accent: #4f8ef7;
+        --accent2: #a78bfa;
+        --accent3: #34d399;
+        --accent4: #f59e0b;
+        --accent5: #f472b6;
+        --glow-blue: rgba(79, 142, 247, 0.15);
+        --glow-purple: rgba(167, 139, 250, 0.12);
+        --glow-green: rgba(52, 211, 153, 0.12);
+        --mono: "IBM Plex Mono", monospace;
+        --sans: "IBM Plex Sans", sans-serif;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        min-height: 100vh;
+        padding: 48px;
+        overflow-x: hidden;
+      }
+
+      /* HEADER */
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 52px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--border);
+      }
+      .header-left {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .badge {
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent3);
+        background: rgba(52, 211, 153, 0.1);
+        border: 1px solid rgba(52, 211, 153, 0.25);
+        padding: 4px 10px;
+        border-radius: 4px;
+        width: fit-content;
+      }
+      .title {
+        font-family: var(--mono);
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 300;
+        letter-spacing: 0.01em;
+        margin-top: 4px;
+      }
+
+      /* AGENT GRID */
+      .agent-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        max-width: 1100px;
+        margin: 0 auto;
+        position: relative;
+      }
+
+      /* FLOW CONNECTOR SVG AREA */
+      .flow-path {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* LAYERS */
+      .layer {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        position: relative;
+        z-index: 1;
+        transition: border-color 0.2s;
+        margin-bottom: 40px;
+      }
+      .layer:hover {
+        border-color: var(--border2);
+      }
+      .layer-label {
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .layer-label::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+
+      /* COLOR VARIANTS */
+      .layer-blue {
+        border-color: rgba(79, 142, 247, 0.2);
+      }
+      .layer-blue .layer-label {
+        color: var(--accent);
+      }
+      .layer-blue .dot {
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+      }
+
+      .layer-purple {
+        border-color: rgba(167, 139, 250, 0.2);
+      }
+      .layer-purple .layer-label {
+        color: var(--accent2);
+      }
+      .layer-purple .dot {
+        background: var(--accent2);
+        box-shadow: 0 0 8px var(--accent2);
+      }
+
+      .layer-green {
+        border-color: rgba(52, 211, 153, 0.2);
+      }
+      .layer-green .layer-label {
+        color: var(--accent3);
+      }
+      .layer-green .dot {
+        background: var(--accent3);
+        box-shadow: 0 0 8px var(--accent3);
+      }
+
+      .layer-pink {
+        border-color: rgba(244, 114, 182, 0.2);
+      }
+      .layer-pink .layer-label {
+        color: var(--accent5);
+      }
+      .layer-pink .dot {
+        background: var(--accent5);
+        box-shadow: 0 0 8px var(--accent5);
+      }
+
+      /* NODES */
+      .node-container {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .node {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 18px;
+        flex: 1;
+        min-width: 200px;
+        position: relative;
+      }
+      .node-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .node-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .node-name {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .node-desc {
+        font-size: 10.5px;
+        color: var(--muted);
+        line-height: 1.5;
+        padding-left: 34px;
+      }
+      .node-tag {
+        font-family: var(--mono);
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--muted);
+        margin-top: 8px;
+        display: inline-block;
+      }
+
+      /* SPECIAL PIPELINE (LangGraph) */
+      .pipeline {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin-top: 12px;
+        width: 100%;
+      }
+      .p-node {
+        flex: 1;
+        text-align: center;
+        padding: 12px;
+        background: var(--surface2);
+        border: 1px solid rgba(52, 211, 153, 0.15);
+        border-radius: 10px;
+      }
+      .p-arrow {
+        width: 30px;
+        display: flex;
+        justify-content: center;
+        color: var(--accent3);
+        opacity: 0.5;
+      }
+      .p-name {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--accent3);
+        margin-bottom: 4px;
+      }
+      .p-desc {
+        font-size: 9px;
+        color: var(--muted);
+      }
+
+      /* CONNECTOR LABELS */
+      .flow-label {
+        position: absolute;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: var(--mono);
+        font-size: 8.5px;
+        color: var(--muted);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 3px 10px;
+        border-radius: 100px;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        z-index: 2;
+      }
+
+      /* SCANLINE TEXTURE */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.03) 0px,
+          rgba(0, 0, 0, 0.03) 1px,
+          transparent 1px,
+          transparent 2px
+        );
+        pointer-events: none;
+        z-index: 100;
+      }
+
+      /* FOOTER */
+      .footer {
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .footer-note {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--muted);
+        opacity: 0.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-left">
+        <div class="badge">Agent Intel</div>
+        <h1 class="title">FOXY v1 — Workflow DAG</h1>
+        <p class="subtitle">
+          Multi-Chain Logical Reasoning · Parallel Tool Execution · Stateless
+          Synthesis
+        </p>
+      </div>
+      <div style="text-align: right">
+        <div class="footer-note">Model: Gemini 2.5 Flash</div>
+        <div class="footer-note">Framework: LangGraph / LangChain</div>
+        <div class="footer-note">State: Dynamic Workspace Binding</div>
+      </div>
+    </div>
+
+    <div class="agent-grid">
+      <!-- STEP 1: Entry -->
+      <div class="layer layer-blue">
+        <div class="layer-label">
+          <div class="dot"></div>
+          PHASE 01: Client Context Ingestion
+        </div>
+        <div class="node-container">
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="node-name">Natural Language Query</div>
+            </div>
+            <div class="node-desc">
+              Analyze $RELIANCE RSI divergence and upcoming catalysts.
+            </div>
+          </div>
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="node-name">Workspace Context</div>
+            </div>
+            <div class="node-desc">
+              Current Portfolio · Watchlists · Trading Constraints.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 40px; position: relative">
+        <div class="flow-label">Orchestrator Trigger</div>
+        <svg class="flow-path" width="100%" height="40">
+          <line
+            x1="50%"
+            y1="0"
+            x2="50%"
+            y2="100%"
+            stroke="var(--border2)"
+            stroke-width="1"
+            stroke-dasharray="4 4"
+          />
+        </svg>
+      </div>
+
+      <!-- STEP 2: Logic Router -->
+      <div class="layer layer-pink">
+        <div class="layer-label">
+          <div class="dot"></div>
+          PHASE 02: Intent Mapping &amp; Planning
+        </div>
+        <div class="node-container">
+          <div class="node" style="flex: 2">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <div class="node-name">Intent Classifier ($GEMINI)</div>
+            </div>
+            <div class="node-desc">
+              Decouples query into actionable tool-calls vs general inquiry.
+            </div>
+            <div class="node-tag">Router Node</div>
+          </div>
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                </svg>
+              </div>
+              <div class="node-name">Parallel Graph Init</div>
+            </div>
+            <div class="node-desc">
+              Instantiates multi-threaded state for parallel execution.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 50px; position: relative">
+        <div class="flow-label">Fan-Out: Tool Dispatch</div>
+        <svg class="flow-path" width="100%" height="50">
+          <path
+            d="M 550 0 Q 550 25 100 50 M 550 0 Q 550 25 350 50 M 550 0 Q 550 25 550 50 M 550 0 Q 550 25 750 50 M 550 0 Q 550 25 1000 50"
+            stroke="var(--border2)"
+            stroke-width="1"
+            fill="none"
+          />
+        </svg>
+      </div>
+
+      <!-- STEP 3: Multi-Agent Tool Mesh -->
+      <div class="layer">
+        <div class="layer-label">
+          <div
+            class="dot"
+            style="
+              background: var(--accent2);
+              box-shadow: 0 0 8px var(--accent2);
+            "
+          ></div>
+          PHASE 03: Distributed Tool Mesh
+        </div>
+        <div
+          class="node-container"
+          style="
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+          "
+        >
+          <!-- Tool 1 -->
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--accent2)"
+                  stroke-width="2"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+              </div>
+              <div class="node-name">analyze_ticker</div>
+            </div>
+            <div class="node-desc">
+              Technical Indicators · Signal Detection.
+            </div>
+          </div>
+
+          <!-- Tool 2 -->
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--accent2)"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="node-name">fetch_watchlist</div>
+            </div>
+            <div class="node-desc">User-Specific Watchlist Context.</div>
+          </div>
+
+          <!-- Tool 3 -->
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--accent2)"
+                  stroke-width="2"
+                >
+                  <rect
+                    x="3"
+                    y="11"
+                    width="18"
+                    height="11"
+                    rx="2"
+                    ry="2"
+                  ></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <div class="node-name">get_holdings</div>
+            </div>
+            <div class="node-desc">User Portfolio Cost-Basis & Allocation.</div>
+          </div>
+
+          <!-- Tool 4 -->
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--accent2)"
+                  stroke-width="2"
+                >
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <div class="node-name">get_market_overview</div>
+            </div>
+            <div class="node-desc">
+              Indices · Equity Breadth · Gainers/Losers.
+            </div>
+          </div>
+
+          <!-- Tool 5 -->
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--accent2)"
+                  stroke-width="2"
+                >
+                  <path d="M23 12a11 11 0 1 1-22 0 11 11 0 0 1 22 0z"></path>
+                </svg>
+              </div>
+              <div class="node-name">analyze_full_portfolio</div>
+            </div>
+            <div class="node-desc">Sigma Volatility · Beta Mapping.</div>
+          </div>
+
+          <!-- Tool 6 -->
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--accent2)"
+                  stroke-width="2"
+                >
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+              </div>
+              <div class="node-name">fetch_catalyst_news</div>
+            </div>
+            <div class="node-desc">
+              ET Markets Catalysts · Sentiment Extraction.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 50px; position: relative">
+        <div class="flow-label">Invoke Intelligence Loop</div>
+        <svg class="flow-path" width="100%" height="50">
+          <path
+            d="M 100 0 Q 550 25 550 50 M 350 0 Q 550 25 550 50 M 550 0 Q 550 25 550 50 M 750 0 Q 550 25 550 50 M 1000 0 Q 550 25 550 50"
+            stroke="var(--border2)"
+            stroke-width="1"
+            fill="none"
+          />
+        </svg>
+      </div>
+
+      <!-- STEP 4: LangGraph Process -->
+      <div class="layer layer-green">
+        <div class="layer-label">
+          <div class="dot"></div>
+          PHASE 04: Agent Intelligence (LangGraph Cycle)
+        </div>
+        <div class="node-container">
+          <div class="pipeline">
+            <div class="p-node">
+              <div class="p-name">Signal Detection</div>
+              <div class="p-desc">Aggregates Technicals + Patterns</div>
+            </div>
+            <div class="p-arrow">→</div>
+            <div class="p-node">
+              <div class="p-name">Context Enrichment</div>
+              <div class="p-desc">Injects News catalysts + Sentiment</div>
+            </div>
+            <div class="p-arrow">→</div>
+            <div class="p-node">
+              <div class="p-name">Statistical Verdict</div>
+              <div class="p-desc">ATR Range Projector Logic</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 40px; position: relative">
+        <div class="flow-label">State Aggregation</div>
+        <svg class="flow-path" width="100%" height="40">
+          <line
+            x1="50%"
+            y1="0"
+            x2="50%"
+            y2="100%"
+            stroke="var(--border2)"
+            stroke-width="1"
+          />
+        </svg>
+      </div>
+
+      <!-- STEP 5: Synthesis -->
+      <div class="layer layer-pink">
+        <div class="layer-label">
+          <div class="dot"></div>
+          PHASE 05: Narrative Synthesis &amp; UI Mapping
+        </div>
+        <div class="node-container">
+          <div class="node" style="flex: 2">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </div>
+              <div class="node-name">Response Builder</div>
+            </div>
+            <div class="node-desc">
+              Transforms structured multi-agent state into actionable narrative.
+            </div>
+          </div>
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline
+                    points="22 12 16 12 14 15 10 15 8 12 2 12"
+                  ></polyline>
+                  <path
+                    d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="node-name">UI Metadata Hints</div>
+            </div>
+            <div class="node-desc">
+              Injects chart references, ticker highlights, and deep links.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 40px; position: relative">
+        <div class="flow-label">Streaming Response (SSE)</div>
+        <svg class="flow-path" width="100%" height="40">
+          <line
+            x1="50%"
+            y1="0"
+            x2="50%"
+            y2="100%"
+            stroke="var(--accent5)"
+            stroke-width="2"
+            stroke-dasharray="2 2"
+          />
+        </svg>
+      </div>
+
+      <!-- STEP 6: Final Output -->
+      <div class="layer layer-blue" style="margin-bottom: 0">
+        <div class="layer-label">
+          <div class="dot"></div>
+          PHASE 06: Terminal Interaction
+        </div>
+        <div class="node-container">
+          <div class="node">
+            <div class="node-header">
+              <div class="node-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="node-name">Foxy v1 Answer</div>
+            </div>
+            <div class="node-desc">
+              Real-time narrative explanation with embedded trading signals.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-note">
+        DECIXN Market Intelligence Platform · AGENT WORKFLOW
+      </div>
+      <div class="footer-note" style="color: var(--text); opacity: 0.9">
+        Prathik R Krishnan · Manisha V · Karthikeyan S
+      </div>
+    </div>
+  </body>
+</html>

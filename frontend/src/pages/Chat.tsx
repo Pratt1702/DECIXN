@@ -242,30 +242,55 @@ export function Chat() {
     }
 
     try {
-      // Build portfolio context
       let portfolioContext = "";
-      
-      // Stock Portfolio
-      if (portfolioData?.portfolio_summary) {
-        const s = portfolioData.portfolio_summary;
-        portfolioContext += `[STOCK PORTFOLIO] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl}.\n`;
-        if (portfolioData.portfolio_analysis?.length > 0) {
-          portfolioContext += `Stocks: ${portfolioData.portfolio_analysis.map((h: any) => h.symbol).join(', ')}\n`;
+
+      // Collect and categorize all holdings
+      const allStockHoldings = portfolioData?.portfolio_analysis || [];
+      const allMFHoldings = mfPortfolioData?.portfolio_analysis || [];
+
+      // Categorize
+      const equities: any[] = [];
+      const funds: any[] = [];
+
+      allStockHoldings.forEach((h: any) => {
+        if (h.data?.quote_type === 'MUTUALFUND' || h.symbol?.toLowerCase().includes('fund') || h.symbol?.toLowerCase().includes('plan')) {
+          funds.push(h);
+        } else {
+          equities.push(h);
         }
+      });
+
+      allMFHoldings.forEach((h: any) => {
+        // MF store holdings are always funds
+        funds.push(h);
+      });
+
+      // Format Stocks Section
+      if (equities.length > 0) {
+        portfolioContext += "[STOCK PORTFOLIO]\nHoldings:\n";
+        equities.forEach((h) => {
+          const qty = h.holding_context?.quantity || 0;
+          const avg = h.holding_context?.avg_cost || 0;
+          portfolioContext += `- ${h.symbol}: ${qty} shares @ avg ₹${avg}\n`;
+        });
       }
 
-      // MF Portfolio
-      if (mfPortfolioData?.portfolio_summary) {
-        const s = mfPortfolioData.portfolio_summary;
-        portfolioContext += `[MF PORTFOLIO] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl}.\n`;
-        if (mfPortfolioData.portfolio_analysis?.length > 0) {
-          portfolioContext += `Funds: ${mfPortfolioData.portfolio_analysis.map((h: any) => h.scheme_name || h.symbol).join(', ')}\n`;
-        }
+      // Format Funds Section
+      if (funds.length > 0) {
+        portfolioContext += "\n[MUTUAL FUND PORTFOLIO]\nFunds:\n";
+        funds.forEach((h) => {
+          const qty = h.holding_context?.quantity || 0;
+          const avg = h.holding_context?.avg_cost || 0;
+          const name = h.scheme_name || h.symbol;
+          portfolioContext += `- ${name}: ${qty} units @ avg ₹${avg}\n`;
+        });
       }
 
       if (!portfolioContext) {
         portfolioContext = "No portfolio data uploaded.";
       }
+
+      console.log("DEBUG [Chat]: Final Portfolio Context:\n", portfolioContext);
 
       const historyData = messages.slice(-6).map((m) => ({
         role: m.role,

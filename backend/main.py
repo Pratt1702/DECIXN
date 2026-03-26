@@ -204,6 +204,40 @@ async def analyze_ticker(ticker: str):
         
     return result
 
+@app.get("/news")
+async def get_all_news(limit: int = 20, offset: int = 0):
+    """
+    Returns a global feed of news from the database (Catalyst Engine).
+    """
+    try:
+        from services.supabase_client import supabase
+        # Fetch news with basic stock/sector info
+        res = supabase.table("news") \
+            .select("*, news_stocks(symbol), news_sectors(sector)") \
+            .order("published_at", desc=True) \
+            .range(offset, offset + limit - 1) \
+            .execute()
+        return res.data
+    except Exception as e:
+        print(f"News Fetch Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/opportunity-radar")
+async def get_radar(symbols: str = None):
+    """
+    Provides upcoming dividends and high-impact catalysts.
+    'symbols' can be a comma-separated list of tickers.
+    """
+    ticker_list = None
+    if symbols:
+        ticker_list = [s.strip().upper() for s in symbols.split(",")]
+        # Add .NS if missing and not a special symbol
+        ticker_list = [s if ("." in s or "-" in s) else f"{s}.NS" for s in ticker_list]
+        
+    from services.opportunity_radar import get_market_opportunities
+    radar = await get_market_opportunities(ticker_list)
+    return radar
+
 @app.post("/quotes/batch")
 def get_batch_quotes(payload: BatchQuotesRequest):
     """
@@ -356,7 +390,7 @@ async def compare_mf(ids: str):
     """
     try:
         scheme_codes = ids.split(",")
-        result = mf_analytics_service.compare_mutual_funds(scheme_codes)
+        result = await mf_analytics_service.compare_mutual_funds(scheme_codes)
         return result
     except Exception as e:
         print(f"MF Compare Error: {e}")
@@ -471,6 +505,15 @@ async def get_chat_history(user_id: str, session_id: str = None):
     except Exception as e:
         print(f"DB Fetch Error: {e}")
         return []
+
+@app.delete("/chat/sessions/{session_id}")
+async def delete_chat_session(session_id: str):
+    from services.supabase_client import supabase
+    try:
+        supabase.table("chat_history").delete().eq("session_id", session_id).execute()
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- ALERTS & NOTIFICATIONS ---
 

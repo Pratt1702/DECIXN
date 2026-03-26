@@ -13,6 +13,8 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -20,6 +22,7 @@ import remarkGfm from "remark-gfm";
 import _logo from "../assets/logo.png";
 import { useAuthStore } from "../store/useAuthStore";
 import { usePortfolioStore } from "../store/usePortfolioStore";
+import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 // import { MiniChart } from "../components/ui/MiniChart";
 import { StockChart } from "../components/ui/StockChart";
 import { PortfolioSummary } from "../components/ui/PortfolioSummary";
@@ -70,6 +73,7 @@ export function Chat() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { user } = useAuthStore();
   const { data: portfolioData } = usePortfolioStore();
+  const { data: mfPortfolioData } = useMFPortfolioStore();
   const [userName, setUserName] = useState<string | null>(
     localStorage.getItem("user_chat_name"),
   );
@@ -90,6 +94,9 @@ export function Chat() {
   const [sessions, setSessions] = useState<
     { id: string; title: string; created_at: string }[]
   >([]);
+  const [menuOpenSessionId, setMenuOpenSessionId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -149,6 +156,32 @@ export function Chat() {
     setMessages([]);
     setSessionId(null);
     setCompletedMessages(new Set());
+  };
+
+  const deleteSession = async (sid: string) => {
+    setDeleteConfirmSessionId(sid);
+    setMenuOpenSessionId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmSessionId) return;
+    const sid = deleteConfirmSessionId;
+    
+    try {
+      const res = await fetch(`http://localhost:8000/chat/sessions/${sid}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setSessions(prev => prev.filter(s => s.id !== sid));
+        if (sessionId === sid) {
+          handleNewChat();
+        }
+      }
+    } catch (e) {
+      console.error("Failed to delete session:", e);
+    } finally {
+      setDeleteConfirmSessionId(null);
+    }
   };
 
   useEffect(() => {
@@ -211,20 +244,26 @@ export function Chat() {
     try {
       // Build portfolio context
       let portfolioContext = "";
+      
+      // Stock Portfolio
       if (portfolioData?.portfolio_summary) {
         const s = portfolioData.portfolio_summary;
-        portfolioContext += `[PORTFOLIO SUMMARY] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl} (${s.win_rate} win rate).\n`;
-
-        if (
-          portfolioData.portfolio_analysis &&
-          portfolioData.portfolio_analysis.length > 0
-        ) {
-          portfolioContext += `[HOLDINGS LIST]\n`;
-          portfolioData.portfolio_analysis.forEach((h: any) => {
-            portfolioContext += `- ${h.symbol}: ${h.holding_context.quantity} shares @ avg ₹${h.holding_context.avg_cost}\n`;
-          });
+        portfolioContext += `[STOCK PORTFOLIO] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl}.\n`;
+        if (portfolioData.portfolio_analysis?.length > 0) {
+          portfolioContext += `Stocks: ${portfolioData.portfolio_analysis.map((h: any) => h.symbol).join(', ')}\n`;
         }
-      } else {
+      }
+
+      // MF Portfolio
+      if (mfPortfolioData?.portfolio_summary) {
+        const s = mfPortfolioData.portfolio_summary;
+        portfolioContext += `[MF PORTFOLIO] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl}.\n`;
+        if (mfPortfolioData.portfolio_analysis?.length > 0) {
+          portfolioContext += `Funds: ${mfPortfolioData.portfolio_analysis.map((h: any) => h.scheme_name || h.symbol).join(', ')}\n`;
+        }
+      }
+
+      if (!portfolioContext) {
         portfolioContext = "No portfolio data uploaded.";
       }
 
@@ -414,7 +453,7 @@ export function Chat() {
           opacity: isSidebarOpen ? 1 : 0,
         }}
         transition={{ duration: 0.25, ease: "easeInOut" }}
-        className="bg-[#0c0c0c] border-r border-white/5 flex flex-col h-full overflow-hidden shrink-0"
+        className="bg-[#0c0c0c] border-r border-white/5 flex flex-col h-full shrink-0 relative z-[50]"
       >
         {/* Sidebar Header */}
         <div className="p-4 flex items-center justify-between border-b border-white/5">
@@ -449,17 +488,55 @@ export function Chat() {
               </p>
               <div className="space-y-0 text-white font-bold">
                 {sessions.map((session) => (
-                  <button
-                    key={session.id}
-                    onClick={() => loadSession(session.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-[14px] transition-all truncate cursor-pointer ${
-                      sessionId === session.id
-                        ? "bg-white/10 text-white"
-                        : "text-text-muted hover:bg-white/[0.03] hover:text-white"
-                    }`}
-                  >
-                    {session.title}
-                  </button>
+                  <div key={session.id} className="group relative">
+                    <button
+                      onClick={() => loadSession(session.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-[14px] transition-all truncate pr-10 cursor-pointer ${
+                        sessionId === session.id ? 'bg-white/10 text-white' : 'text-text-muted hover:bg-white/5'
+                      }`}
+                    >
+                      {session.title}
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setMenuPosition({ top: rect.top, left: rect.right + 8 });
+                        setMenuOpenSessionId(menuOpenSessionId === session.id ? null : session.id);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-white/10 hover:text-white hover:bg-white/5 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Context Menu */}
+                    <AnimatePresence>
+                      {menuOpenSessionId === session.id && menuPosition && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-[110]" 
+                            onClick={() => setMenuOpenSessionId(null)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, x: 10 }}
+                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, x: 10 }}
+                            style={{ top: menuPosition.top, left: menuPosition.left }}
+                            className="fixed z-[120] min-w-[120px] bg-[#1a1a1a] border border-white/10 rounded-xl p-1 shadow-2xl overflow-hidden"
+                          >
+                            <button
+                              onClick={() => deleteSession(session.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-danger hover:bg-danger/10 text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Delete Chat
+                            </button>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 ))}
               </div>
             </div>
@@ -871,6 +948,49 @@ export function Chat() {
           )}
         </div>
       </main>
+
+      {/* ── DELETE CONFIRMATION MODAL ── */}
+      <AnimatePresence>
+        {deleteConfirmSessionId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="max-w-sm w-full bg-[#161616] border border-white/10 p-8 rounded-[32px] shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-[#e13451]/10 border border-[#e13451]/20 flex items-center justify-center mb-6 mx-auto">
+                <Trash2 className="w-8 h-8 text-[#e13451]" />
+              </div>
+              <h2 className="text-xl font-black text-white tracking-tight mb-2">
+                Delete Chat?
+              </h2>
+              <p className="text-text-muted mb-8 text-sm leading-relaxed">
+                This will permanently delete this conversation and its history. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirmSessionId(null)}
+                  className="flex-1 bg-white/5 text-white font-bold py-4 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 bg-[#e13451] text-white font-black py-4 rounded-2xl hover:bg-[#c92a44] transition-colors shadow-lg shadow-danger/20 cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

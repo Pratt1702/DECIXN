@@ -1,4 +1,4 @@
-import { Info } from "lucide-react";
+import { Info, Newspaper, Globe, ExternalLink, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Native CSS Group-Hover Tooltip
@@ -176,16 +176,25 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                           {data.trade_type || 'Positional'}
                        </span>
                     </div>
-                    {data.pattern && data.pattern !== 'None' && (
-                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{data.pattern}</p>
+                    {data.dividends?.ex_dividend_date && (
+                      <div className="flex items-center gap-2 mt-2 px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-md w-fit">
+                        <Calendar size={10} className="text-indigo-400" />
+                        <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                          Ex-Dividend: {data.dividends.ex_dividend_date}
+                        </span>
+                      </div>
+                    )}
+                    {data.dividends?.dividend_yield && (
+                       <div className="flex items-center gap-2 mt-2 px-2 py-1 bg-success/10 border border-success/20 rounded-md w-fit">
+                         <div className="text-[9px] font-black text-success uppercase tracking-widest">
+                            Yield: {(data.dividends.dividend_yield * 100).toFixed(2)}%
+                         </div>
+                       </div>
                     )}
                   </div>
                   
                   <p className="text-sm text-text-muted leading-relaxed">
                     {data.action}
-                    {data.watch_condition && (
-                       <span className="block mt-2 text-[10px] italic text-[#9ca3af]">Trigger: {data.watch_condition}</span>
-                    )}
                   </p>
 
                   <div className="flex gap-6 pt-2 border-t border-white/5">
@@ -203,6 +212,67 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                 </div>
               )}
             </div>
+
+            {/* News Intelligence Section */}
+            {!!data?.news_insight?.has_catalyst && (
+              <div>
+                <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-success/60 rounded-full" />
+                  News Catalyst Impact
+                </h3>
+                <div className="bg-success/5 border border-success/10 rounded-xl p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                       <Newspaper size={14} className="text-success" />
+                       <span className={`text-[10px] font-black uppercase tracking-widest ${data.news_insight.sentiment === 'positive' ? 'text-success' : 'text-danger'}`}>
+                          {data.news_insight.sentiment} sentiment
+                       </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-success/60">Impact: {data.news_insight.impact_strength}/5</span>
+                  </div>
+                  <p className="text-sm text-[#cbd5e1] leading-relaxed font-bold">
+                    {data.news_insight.title}
+                  </p>
+                  <p className="text-xs text-text-muted mt-2 leading-relaxed italic">
+                    {data.news_insight.summary}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Enhanced Ticker News */}
+            {(data?.news?.length > 0 || data?.yahoo_news?.length > 0 || data?.sector_news?.length > 0) && (
+              <div>
+                <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
+                  <div className="w-1.5 h-4 bg-blue-500/40 rounded-full" />
+                  Broad Market Context
+                </h3>
+                <div className="space-y-3">
+                  {[...(data.news || []), ...(data.sector_news || []), ...(data.yahoo_news || [])].slice(0, 5).map((n: any, i: number) => (
+                    <a 
+                      key={i}
+                      href={n.link || n.url}
+                      target="_blank"
+                      rel="noopener noreferrer" 
+                      className="group/news flex flex-col gap-1 p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:bg-white/[0.05] hover:border-white/10 transition-all block"
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <span className="text-sm font-bold text-text-bold leading-tight group-hover/news:text-accent transition-colors">
+                          {n.title}
+                        </span>
+                        <ExternalLink size={12} className="text-text-muted opacity-0 group-hover/news:opacity-100 transition-opacity shrink-0 mt-1" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe size={10} className="text-text-muted" />
+                        <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                          {n.publisher || 'Yahoo Finance'}
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
         )}

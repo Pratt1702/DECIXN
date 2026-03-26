@@ -30,6 +30,42 @@ def fetch_data(symbol, period="100d"):
         print(f"Failed to fetch data for {symbol} ({e}).")
         raise e
 
+def fetch_ticker_metadata(symbol):
+    """
+    Fetch rich metadata: info, calendar, and news from yfinance.
+    """
+    symbol = symbol.strip().upper().replace('$', '').replace('#', '')
+    try:
+        t = yf.Ticker(symbol)
+        
+        # Calendar: can be empty for many stocks
+        calendar = {}
+        try:
+            if not t.calendar.empty:
+                calendar = t.calendar.to_dict()
+        except:
+            pass
+
+        # News: yfinance specific news
+        news_list = t.news if t.news else []
+        
+        # Info: expensive but contains dividends
+        info = {}
+        try:
+            info = t.info
+        except:
+            pass
+
+        return {
+            "symbol": symbol,
+            "info": info,
+            "calendar": calendar,
+            "news": news_list
+        }
+    except Exception as e:
+        print(f"Error fetching metadata for {symbol}: {e}")
+        return {"symbol": symbol, "error": str(e)}
+
 def generate_mock_data(days=100):
     """Generate generic mock OHLCV data as fallback."""
     dates = pd.date_range(end=datetime.today(), periods=days)

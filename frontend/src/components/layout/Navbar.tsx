@@ -131,6 +131,12 @@ export function Navbar() {
             >
               Mutual Funds
             </Link>
+            <Link 
+              to="/stocks/news"
+              className={`text-base font-black tracking-tight transition-colors cursor-pointer ${location.pathname.startsWith("/stocks/news") ? "text-white" : "text-text-muted hover:text-white"}`}
+            >
+              News
+            </Link>
           </div>
         </div>
 

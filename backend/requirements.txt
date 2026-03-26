@@ -12,3 +12,4 @@ google-generativeai
 supabase
 python-dotenv
 dotenv
+langgraph

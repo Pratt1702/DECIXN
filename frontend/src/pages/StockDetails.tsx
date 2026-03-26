@@ -13,6 +13,7 @@ import {
   Bookmark,
   Bell,
   Zap,
+  ExternalLink,
 } from "lucide-react";
 import {
   LineChart,
@@ -457,9 +458,24 @@ export function StockDetails() {
                 </span>{" "}
                 impact on this stock
               </h3>
-              <p className="text-sm text-[#cbd5e1] leading-relaxed font-black uppercase tracking-widest opacity-80">
-                Impact score {data.news_insight.impact_strength}/5
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] text-[#cbd5e1] leading-relaxed font-black uppercase tracking-widest opacity-60">
+                  Impact score {data.news_insight.impact_strength}/5
+                </p>
+                {data.news_insight.url && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-white/10" />
+                    <a 
+                      href={data.news_insight.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-black text-accent/60 uppercase tracking-widest hover:text-accent transition-colors flex items-center gap-1"
+                    >
+                      Source <ExternalLink size={10} />
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>

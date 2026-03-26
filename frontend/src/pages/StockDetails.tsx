@@ -12,7 +12,6 @@ import {
   CandlestickChart,
   Bookmark,
   Bell,
-  Newspaper,
   Zap,
 } from "lucide-react";
 import {
@@ -87,16 +86,16 @@ export function StockDetails() {
           const cleanTicker = ticker
             .toLowerCase()
             .trim()
-            .split('.')[0] // Strip .NS, .BO, etc reliably
+            .split(".")[0] // Strip .NS, .BO, etc reliably
             .replace(/\s+/g, "");
 
           const match = port.portfolio_analysis.find((h: any) => {
             if (!h.symbol) return false;
-            
+
             const hSymClean = h.symbol
               .toLowerCase()
               .trim()
-              .split('.')[0]
+              .split(".")[0]
               .replace(/\s+/g, "");
 
             const dataNameClean = (data?.companyName || "")
@@ -123,9 +122,12 @@ export function StockDetails() {
   useEffect(() => {
     async function fetchTicker() {
       if (!ticker) return;
-      
-      const cleanTicker = ticker.toUpperCase().replace(".NS", "").replace(".BO", "");
-      
+
+      const cleanTicker = ticker
+        .toUpperCase()
+        .replace(".NS", "")
+        .replace(".BO", "");
+
       setLoading(true);
       setData(null);
       try {
@@ -174,7 +176,7 @@ export function StockDetails() {
         companyName: data.companyName || data.symbol,
         price: data.price,
         change: priceChange,
-        changePercent: priceChangePct
+        changePercent: priceChangePct,
       });
     }
   }, [data, period, addRecentView]);
@@ -271,7 +273,9 @@ export function StockDetails() {
                 className={`ml-1 p-1.5 rounded-lg border transition-all cursor-pointer active:scale-95 ${isSymbolInAnyWatchlist(ticker || "") ? "bg-accent/10 border-accent/20 text-accent" : "bg-white/5 border-white/10 text-white/40 hover:text-white/80 hover:bg-white/10"}`}
                 title="Save to Watchlist"
               >
-                <Bookmark className={`w-5 h-5 ${isSymbolInAnyWatchlist(ticker || "") ? "fill-accent" : ""}`} />
+                <Bookmark
+                  className={`w-5 h-5 ${isSymbolInAnyWatchlist(ticker || "") ? "fill-accent" : ""}`}
+                />
               </button>
               <button
                 onClick={() => setAlertModalOpen(true)}
@@ -402,47 +406,59 @@ export function StockDetails() {
           </div>
         </div>
       </header>
-      
+
       {/* HIGH IMPACT CATALYST SIGNAL */}
-      {data?.news_insight && (
-        <motion.div 
+      {data?.news_insight?.has_catalyst && (
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className={`relative overflow-hidden p-6 rounded-2xl border ${
-            data.news_insight.sentiment === 'positive' 
-              ? 'bg-success/5 border-success/20 ring-1 ring-success/10' 
-              : 'bg-danger/5 border-danger/20 ring-1 ring-danger/10'
+            data.news_insight.sentiment === "positive"
+              ? "bg-success/5 border-success/20 ring-1 ring-success/10"
+              : "bg-danger/5 border-danger/20 ring-1 ring-danger/10"
           }`}
         >
           {/* Glow Effect */}
-          <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-20 -mr-10 -mt-10 ${
-            data.news_insight.sentiment === 'positive' ? 'bg-success' : 'bg-danger'
-          }`} />
-          
+          <div
+            className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-20 -mr-10 -mt-10 ${
+              data.news_insight.sentiment === "positive"
+                ? "bg-success"
+                : "bg-danger"
+            }`}
+          />
+
           <div className="relative flex items-start gap-5">
-            <div className={`p-3 rounded-xl ${
-              data.news_insight.sentiment === 'positive' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-            }`}>
+            <div
+              className={`p-3 rounded-xl ${
+                data.news_insight.sentiment === "positive"
+                  ? "bg-success/10 text-success"
+                  : "bg-danger/10 text-danger"
+              }`}
+            >
               <Zap size={24} className="animate-pulse" />
             </div>
-            
+
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${
-                  data.news_insight.sentiment === 'positive' ? 'text-success' : 'text-danger'
-                }`}>
+                <span
+                  className={`text-[10px] font-black uppercase tracking-widest ${
+                    data.news_insight.sentiment === "positive"
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
                   Live Catalyst Detected
-                </span>
-                <span className="w-1 h-1 rounded-full bg-white/20" />
-                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                  Intelligence Inference
                 </span>
               </div>
               <h3 className="text-lg font-black text-text-bold leading-snug mb-2">
-                {data.news_insight.sentiment === 'positive' ? 'Bullish' : 'Bearish'} Signal Confirmed
+                A news - {data.news_insight.title} might have a{" "}
+                <span className={data.news_insight.sentiment === "positive" ? "text-success" : "text-danger"}>
+                  {data.news_insight.sentiment === "positive" ? "positive" : "negative"}
+                </span>{" "}
+                impact on this stock
               </h3>
-              <p className="text-sm text-[#cbd5e1] leading-relaxed font-medium">
-                {data.news_insight.impact_summary}
+              <p className="text-sm text-[#cbd5e1] leading-relaxed font-black uppercase tracking-widest opacity-80">
+                Impact score {data.news_insight.impact_strength}/5
               </p>
             </div>
           </div>
@@ -586,7 +602,11 @@ export function StockDetails() {
                             max: (max: any) => max * 1.01,
                             crosshairs: {
                               show: true,
-                              stroke: { color: '#ffffff20', width: 1, dashArray: 4 },
+                              stroke: {
+                                color: "#ffffff20",
+                                width: 1,
+                                dashArray: 4,
+                              },
                             },
                           },
                           {
@@ -684,7 +704,6 @@ export function StockDetails() {
 
         <div className="flex items-center justify-between gap-4 mt-6">
           <div className="flex-1" /> {/* Spacer to keep center row centered */}
-          
           <div className="flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none">
             {PERIODS.map((p) => {
               const isActive = period === p;
@@ -703,14 +722,15 @@ export function StockDetails() {
               );
             })}
           </div>
-
           <div className="flex-1 flex justify-end">
             <button
               onClick={() => window.open(`/terminal/${ticker}`, "_blank")}
               className="group flex items-center gap-2.5 bg-bg-surface hover:bg-white/5 border border-border-main hover:border-white/10 text-text-muted hover:text-text-bold px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
               title="Open Advanced Terminal"
             >
-              <span className="group-hover:text-text-bold transition-colors">Terminal</span>
+              <span className="group-hover:text-text-bold transition-colors">
+                Terminal
+              </span>
               <CandlestickChart className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
             </button>
           </div>

@@ -30,10 +30,10 @@ const MOCK_PORTFOLIO = {
 
 export const getPortfolio = async () => {
   // Priority 1: Check session storage for custom uploaded holdings
-  const sessionHoldings = sessionStorage.getItem('uploaded_holdings');
+  const sessionHoldings = sessionStorage.getItem('uploaded_stock_holdings');
   if (sessionHoldings && sessionHoldings !== "undefined") {
     try {
-      const sessionSummary = sessionStorage.getItem('portfolio_summary');
+      const sessionSummary = sessionStorage.getItem('stock_portfolio_summary');
       const summaryParsed = (sessionSummary && sessionSummary !== "undefined") 
         ? JSON.parse(sessionSummary) 
         : null;
@@ -45,12 +45,12 @@ export const getPortfolio = async () => {
       };
     } catch (e) {
       console.warn("Session holdings corrupt, clearing:", e);
-      sessionStorage.removeItem('uploaded_holdings');
+      sessionStorage.removeItem('uploaded_stock_holdings');
     }
   }
 
-  const cacheKey = 'decixn_portfolio';
-  const cacheTimeKey = 'decixn_portfolio_time';
+  const cacheKey = 'decixn_stock_portfolio';
+  const cacheTimeKey = 'decixn_stock_portfolio_time';
   const cached = localStorage.getItem(cacheKey);
   const cacheTime = localStorage.getItem(cacheTimeKey);
   

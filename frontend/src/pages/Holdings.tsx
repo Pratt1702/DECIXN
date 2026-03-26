@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 import { usePortfolioStore } from "../store/usePortfolioStore";
 
-const SESSION_KEY = "uploaded_holdings";
+const SESSION_KEY = "uploaded_stock_holdings";
 
 export function Holdings() {
   const navigate = useNavigate();
@@ -239,7 +239,7 @@ export function Holdings() {
         JSON.stringify(res.portfolio_analysis),
       );
       sessionStorage.setItem(
-        "portfolio_summary",
+        "stock_portfolio_summary",
         JSON.stringify(res.portfolio_summary),
       );
 
@@ -272,8 +272,8 @@ export function Holdings() {
     clearData();
 
     // 3. Clear API cache specifically
-    localStorage.removeItem("decixn_portfolio");
-    localStorage.removeItem("decixn_portfolio_time");
+    localStorage.removeItem("decixn_stock_portfolio");
+    localStorage.removeItem("decixn_stock_portfolio_time");
 
     // 4. Force a fresh data load
     setData(null);

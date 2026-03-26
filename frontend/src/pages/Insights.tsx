@@ -15,7 +15,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { usePortfolioStore } from "../store/usePortfolioStore";
 
-const SESSION_KEY = "uploaded_holdings";
+const SESSION_KEY = "uploaded_stock_holdings";
 
 const MOCK_DATA = {
   portfolio_summary: {

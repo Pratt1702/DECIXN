@@ -176,13 +176,20 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                           {data.trade_type || 'Positional'}
                        </span>
                     </div>
-                    {data.dividend_calendar?.['Ex-Dividend Date'] && (
+                    {data.dividends?.ex_dividend_date && (
                       <div className="flex items-center gap-2 mt-2 px-2 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-md w-fit">
                         <Calendar size={10} className="text-indigo-400" />
                         <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-                          Ex-Dividend: {data.dividend_calendar['Ex-Dividend Date']}
+                          Ex-Dividend: {data.dividends.ex_dividend_date}
                         </span>
                       </div>
+                    )}
+                    {data.dividends?.dividend_yield && (
+                       <div className="flex items-center gap-2 mt-2 px-2 py-1 bg-success/10 border border-success/20 rounded-md w-fit">
+                         <div className="text-[9px] font-black text-success uppercase tracking-widest">
+                            Yield: {(data.dividends.dividend_yield * 100).toFixed(2)}%
+                         </div>
+                       </div>
                     )}
                   </div>
                   
@@ -207,11 +214,11 @@ export function AIIntelligencePanel({ data }: { data: any }) {
             </div>
 
             {/* News Intelligence Section */}
-            {data?.news_insight && (
+            {data?.news_insight?.has_catalyst && (
               <div>
                 <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
                   <div className="w-1.5 h-4 bg-success/60 rounded-full" />
-                  News Intelligence Inference
+                  News Catalyst Impact
                 </h3>
                 <div className="bg-success/5 border border-success/10 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -221,24 +228,27 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                           {data.news_insight.sentiment} sentiment
                        </span>
                     </div>
-                    <span className="text-[10px] font-bold text-success/60">Catalyst Engine Inference</span>
+                    <span className="text-[10px] font-bold text-success/60">Impact: {data.news_insight.impact_strength}/5</span>
                   </div>
-                  <p className="text-sm text-[#cbd5e1] leading-relaxed italic">
-                    "{data.news_insight.impact_summary}"
+                  <p className="text-sm text-[#cbd5e1] leading-relaxed font-bold">
+                    {data.news_insight.title}
+                  </p>
+                  <p className="text-xs text-text-muted mt-2 leading-relaxed italic">
+                    {data.news_insight.summary}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Yahoo News List */}
-            {data?.yahoo_news && data.yahoo_news.length > 0 && (
+            {/* Enhanced Ticker News */}
+            {(data?.news || data?.yahoo_news) && (
               <div>
                 <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
                   <div className="w-1.5 h-4 bg-blue-500/40 rounded-full" />
                   Broad Market Context
                 </h3>
                 <div className="space-y-3">
-                  {data.yahoo_news.map((n: any, i: number) => (
+                  {(data.news || data.yahoo_news || []).slice(0, 5).map((n: any, i: number) => (
                     <a 
                       key={i}
                       href={n.link}

@@ -11,6 +11,7 @@ from services.technical_indicators import calculate_indicators, get_benchmark_co
 from services.signal_generator import generate_signals
 from services.decision_engine import make_decision, make_holding_decision
 from services.news.catalyst_engine import get_relevant_news
+from services.fundamental_service import get_dividend_data, get_ticker_news
 
 warnings.filterwarnings('ignore')
 
@@ -172,7 +173,22 @@ async def analyze_single_ticker(symbol: str) -> dict:
         # --- CATALYST ENGINE INTEGRATION ---
         news = await get_relevant_news(original_symbol, context=signals['Trend'])
         
-        decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight = make_decision(signals, news=news)
+        decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight_list = make_decision(signals, news=news)
+        
+        # Refine news_insight for frontend display
+        primary_catalyst = None
+        if news and len(news) > 0:
+            # Pick the news item with highest catalyst_score
+            primary_catalyst = news[0] 
+            
+        news_insight = {
+            "has_catalyst": primary_catalyst is not None,
+            "title": primary_catalyst["title"] if primary_catalyst else None,
+            "sentiment": primary_catalyst["sentiment"] if primary_catalyst else "neutral",
+            "impact_strength": primary_catalyst["impact_strength"] if primary_catalyst else 0,
+            "summary": primary_catalyst.get("impact_summary", "No major fundamental catalysts detected today.") if primary_catalyst else "No major fundamental catalysts detected today.",
+            "url": primary_catalyst.get("url") if primary_catalyst else None
+        }
         
         # Benchmark Comparison
         benchmark_comparison = get_benchmark_comparison(df)
@@ -206,10 +222,17 @@ async def analyze_single_ticker(symbol: str) -> dict:
             yahoo_news = yahoo_meta.get("news", [])
             dividend_cal = yahoo_meta.get("calendar", {})
             info = yahoo_meta.get("info", {})
+
+            # New: Enhanced Dividend and News Data
+            ticker_obj = yf.Ticker(symbol)
+            dividend_info = get_dividend_data(ticker_obj)
+            enhanced_news = get_ticker_news(ticker_obj)
         except:
             yahoo_news = []
             dividend_cal = {}
             info = {}
+            dividend_info = {}
+            enhanced_news = []
             
         company_name = info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', '')))
             
@@ -281,6 +304,8 @@ async def analyze_single_ticker(symbol: str) -> dict:
                 "pivots": pivots,
                 "moving_averages": moving_averages,
                 "benchmark_comparison": benchmark_comparison,
+                "dividends": dividend_info,
+                "news": enhanced_news,
                 "signals": {
                     "breakout": convert_numpy(signals['Breakout']),
                     "breakout_strength": convert_numpy(signals.get('Breakout_Strength', 0)),

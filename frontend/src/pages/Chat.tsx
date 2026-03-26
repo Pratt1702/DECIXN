@@ -20,6 +20,7 @@ import remarkGfm from "remark-gfm";
 import _logo from "../assets/logo.png";
 import { useAuthStore } from "../store/useAuthStore";
 import { usePortfolioStore } from "../store/usePortfolioStore";
+import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 // import { MiniChart } from "../components/ui/MiniChart";
 import { StockChart } from "../components/ui/StockChart";
 import { PortfolioSummary } from "../components/ui/PortfolioSummary";
@@ -70,6 +71,7 @@ export function Chat() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { user } = useAuthStore();
   const { data: portfolioData } = usePortfolioStore();
+  const { data: mfPortfolioData } = useMFPortfolioStore();
   const [userName, setUserName] = useState<string | null>(
     localStorage.getItem("user_chat_name"),
   );
@@ -211,20 +213,26 @@ export function Chat() {
     try {
       // Build portfolio context
       let portfolioContext = "";
+      
+      // Stock Portfolio
       if (portfolioData?.portfolio_summary) {
         const s = portfolioData.portfolio_summary;
-        portfolioContext += `[PORTFOLIO SUMMARY] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl} (${s.win_rate} win rate).\n`;
-
-        if (
-          portfolioData.portfolio_analysis &&
-          portfolioData.portfolio_analysis.length > 0
-        ) {
-          portfolioContext += `[HOLDINGS LIST]\n`;
-          portfolioData.portfolio_analysis.forEach((h: any) => {
-            portfolioContext += `- ${h.symbol}: ${h.holding_context.quantity} shares @ avg ₹${h.holding_context.avg_cost}\n`;
-          });
+        portfolioContext += `[STOCK PORTFOLIO] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl}.\n`;
+        if (portfolioData.portfolio_analysis?.length > 0) {
+          portfolioContext += `Stocks: ${portfolioData.portfolio_analysis.map((h: any) => h.symbol).join(', ')}\n`;
         }
-      } else {
+      }
+
+      // MF Portfolio
+      if (mfPortfolioData?.portfolio_summary) {
+        const s = mfPortfolioData.portfolio_summary;
+        portfolioContext += `[MF PORTFOLIO] Health: ${s.health}, Total Value: ₹${s.total_value_live}, P&L: ₹${s.total_pnl}.\n`;
+        if (mfPortfolioData.portfolio_analysis?.length > 0) {
+          portfolioContext += `Funds: ${mfPortfolioData.portfolio_analysis.map((h: any) => h.scheme_name || h.symbol).join(', ')}\n`;
+        }
+      }
+
+      if (!portfolioContext) {
         portfolioContext = "No portfolio data uploaded.";
       }
 

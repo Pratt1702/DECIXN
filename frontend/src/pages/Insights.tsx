@@ -162,12 +162,31 @@ export function Insights() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const navigate = useNavigate();
+  const {
+    setData: setStoreData,
+    shouldRefresh,
+    data: cachedData,
+  } = usePortfolioStore();
+
   useEffect(() => {
     async function fetchRadar() {
+      if (!data && !cachedData) {
+        // Fallback or early fetch if no data yet
+        try {
+          const res = await getOpportunityRadar();
+          setRadar(res);
+        } catch {}
+        return;
+      }
+
+      const portfolio = data || cachedData;
+      const symbols = portfolio?.portfolio_analysis?.map((h: any) => h.symbol).join(',');
+      
       setRadarLoading(true);
       try {
-        const data = await getOpportunityRadar();
-        setRadar(data);
+        const res = await getOpportunityRadar(symbols);
+        setRadar(res);
       } catch (err) {
         console.error("Radar error:", err);
       } finally {
@@ -175,14 +194,7 @@ export function Insights() {
       }
     }
     fetchRadar();
-  }, []);
-
-  const navigate = useNavigate();
-  const {
-    setData: setStoreData,
-    shouldRefresh,
-    data: cachedData,
-  } = usePortfolioStore();
+  }, [data, cachedData]);
   const [progress, setProgress] = useState<{ current: number; total: number }>({
     current: 0,
     total: 0,
@@ -788,45 +800,71 @@ export function Insights() {
               </div>
 
               <div className="space-y-4">
-                {radar.length > 0 ? (
-                  radar.map((opp, i) => (
-                    <div key={i} className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:border-accent/20 transition-all">
-                      <div className="flex justify-between items-start">
-                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
-                          opp.type === 'DIVIDEND_EVENT' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-accent/10 text-accent'
-                        }`}>
-                          {opp.type.replace('_', ' ')}
-                        </span>
-                        {opp.priority === 'HIGH' && (
-                          <span className="text-[8px] font-black text-danger animate-pulse">CRITICAL</span>
-                        )}
+                {/* Dividend Alerts for Holdings */}
+                {radar.some(o => o.type === 'DIVIDEND_EVENT') && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Portfolio Dividends</span>
+                    {radar.filter(o => o.type === 'DIVIDEND_EVENT').map((opp, i) => (
+                      <div key={i} className="flex flex-col gap-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl hover:border-indigo-500/30 transition-all group">
+                        <div className="flex justify-between items-start">
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-indigo-500/10 text-indigo-400">
+                            Upcoming Dividend
+                          </span>
+                          {opp.priority === 'HIGH' && (
+                            <span className="text-[8px] font-black text-danger animate-pulse">ACTION REQUIRED</span>
+                          )}
+                        </div>
+                        <p className="text-xs font-black text-white leading-tight">
+                          {opp.symbol}: Ex-Date in {opp.days_to_go} days (₹{opp.amount})
+                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] text-indigo-400/60 font-bold">Yield: {opp.yield?.toFixed(2)}%</span>
+                          <ChevronRight 
+                            size={12} 
+                            className="text-text-muted cursor-pointer hover:text-white transition-all group-hover:translate-x-1" 
+                            onClick={() => navigate(`/stocks/details/${opp.symbol}`)}
+                          />
+                        </div>
                       </div>
-                      
-                      <p className="text-xs font-black text-text-bold leading-tight">
-                        {opp.type === 'DIVIDEND_EVENT' 
-                          ? `${opp.symbol}: Upcoming Dividend (₹${opp.amount})` 
-                          : opp.title
-                        }
-                      </p>
-
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[10px] text-text-muted font-bold">
-                          {opp.type === 'DIVIDEND_EVENT' ? `Ex-Date: ${opp.ex_date}` : `${opp.impact}/5 Impact`}
-                        </span>
-                        <ChevronRight 
-                          size={12} 
-                          className="text-text-muted cursor-pointer hover:text-accent" 
-                          onClick={() => {
-                            const sym = opp.symbol || (opp.stocks && opp.stocks[0]);
-                            if (sym) navigate(`/stocks/details/${sym}`);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                ) : !radarLoading && (
-                  <p className="text-[11px] text-text-muted text-center py-4 font-bold border border-dashed border-white/5 rounded-xl">No active opportunities detected.</p>
+                    ))}
+                  </div>
                 )}
+
+                {/* News Catalysts */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">High Impact Catalysts</span>
+                  {radar.filter(o => o.type === 'NEWS_CATALYST').length > 0 ? (
+                    radar.filter(o => o.type === 'NEWS_CATALYST').map((opp, i) => (
+                      <div key={i} className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:border-accent/20 transition-all group">
+                        <div className="flex justify-between items-start">
+                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-accent/10 text-accent">
+                            {opp.sentiment} catalyst
+                          </span>
+                          <span className="text-[8px] font-black text-text-muted uppercase tracking-widest">Impact {opp.impact}/5</span>
+                        </div>
+                        <p className="text-xs font-bold text-[#f3f4f6] line-clamp-2 leading-snug">
+                          {opp.title}
+                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] text-text-muted font-medium italic">
+                            {opp.stocks && opp.stocks.length > 0 ? `$${opp.stocks[0]}` : 'Sector Level'}
+                          </span>
+                          <ChevronRight 
+                            size={12} 
+                            className="text-text-muted cursor-pointer hover:text-accent group-hover:translate-x-1" 
+                            onClick={() => {
+                              const s = opp.stocks && opp.stocks[0];
+                              if (s) navigate(`/stocks/details/${s}`);
+                              else navigate('/stocks/news');
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[10px] text-text-muted font-bold py-2">Scanning for catalysts...</p>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTickerAnalysis, getPortfolio } from "../services/api";
+import { motion } from "framer-motion";
 import { useExploreStore } from "../store/useExploreStore";
 import {
   ArrowLeft,
@@ -11,6 +12,8 @@ import {
   CandlestickChart,
   Bookmark,
   Bell,
+  Newspaper,
+  Zap,
 } from "lucide-react";
 import {
   LineChart,
@@ -141,6 +144,9 @@ export function StockDetails() {
           moving_averages: res.data.moving_averages,
           indicators: res.data.indicators,
           benchmark_comparison: res.data.benchmark_comparison,
+          news_insight: res.data.news_insight,
+          yahoo_news: res.data.yahoo_news,
+          dividend_calendar: res.data.dividend_calendar,
         });
       } catch (err) {
         console.error("Failed to fetch ticker:", err);
@@ -396,6 +402,52 @@ export function StockDetails() {
           </div>
         </div>
       </header>
+      
+      {/* HIGH IMPACT CATALYST SIGNAL */}
+      {data?.news_insight && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`relative overflow-hidden p-6 rounded-2xl border ${
+            data.news_insight.sentiment === 'positive' 
+              ? 'bg-success/5 border-success/20 ring-1 ring-success/10' 
+              : 'bg-danger/5 border-danger/20 ring-1 ring-danger/10'
+          }`}
+        >
+          {/* Glow Effect */}
+          <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-20 -mr-10 -mt-10 ${
+            data.news_insight.sentiment === 'positive' ? 'bg-success' : 'bg-danger'
+          }`} />
+          
+          <div className="relative flex items-start gap-5">
+            <div className={`p-3 rounded-xl ${
+              data.news_insight.sentiment === 'positive' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+            }`}>
+              <Zap size={24} className="animate-pulse" />
+            </div>
+            
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-[10px] font-black uppercase tracking-widest ${
+                  data.news_insight.sentiment === 'positive' ? 'text-success' : 'text-danger'
+                }`}>
+                  Live Catalyst Detected
+                </span>
+                <span className="w-1 h-1 rounded-full bg-white/20" />
+                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                  Intelligence Inference
+                </span>
+              </div>
+              <h3 className="text-lg font-black text-text-bold leading-snug mb-2">
+                {data.news_insight.sentiment === 'positive' ? 'Bullish' : 'Bearish'} Signal Confirmed
+              </h3>
+              <p className="text-sm text-[#cbd5e1] leading-relaxed font-medium">
+                {data.news_insight.impact_summary}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <div className="border-b border-white/5 pb-8 mt-4">
         <div className="flex items-center justify-between mb-4">

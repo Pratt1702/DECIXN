@@ -1,3 +1,9 @@
+import sys
+if sys.version_info >= (3, 13):
+    print(f"WARNING: You are running on Python {sys.version}. This project is optimized for 3.11 and 3.12.")
+    print("Dependencies or code may not work as expected.")
+    
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

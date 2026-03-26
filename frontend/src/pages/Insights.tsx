@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { getPortfolio, analyzeCustomPortfolio } from "../services/api";
+import { getPortfolio, analyzeCustomPortfolio, getOpportunityRadar } from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -9,6 +9,7 @@ import {
   Crosshair,
   BarChart3,
   Activity,
+  ChevronRight
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
@@ -129,6 +130,8 @@ export function Insights() {
     "urgency",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [radar, setRadar] = useState<any[]>([]);
+  const [radarLoading, setRadarLoading] = useState(false);
 
   const [isSortOpen, setIsSortOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -157,6 +160,21 @@ export function Insights() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    async function fetchRadar() {
+      setRadarLoading(true);
+      try {
+        const data = await getOpportunityRadar();
+        setRadar(data);
+      } catch (err) {
+        console.error("Radar error:", err);
+      } finally {
+        setRadarLoading(false);
+      }
+    }
+    fetchRadar();
   }, []);
 
   const navigate = useNavigate();
@@ -754,6 +772,61 @@ export function Insights() {
                     className="text-sm font-black text-text-bold"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Opportunity Radar Section */}
+            <div className="bg-bg-surface border border-border-main rounded-xl p-5 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-accent/10 rounded-lg">
+                    <Activity size={16} className="text-accent" />
+                  </div>
+                  <h3 className="text-sm font-black text-text-bold uppercase tracking-widest">Opportunity Radar</h3>
+                </div>
+                {radarLoading && <Loader2 className="w-3 h-3 animate-spin text-accent" />}
+              </div>
+
+              <div className="space-y-4">
+                {radar.length > 0 ? (
+                  radar.map((opp, i) => (
+                    <div key={i} className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:border-accent/20 transition-all">
+                      <div className="flex justify-between items-start">
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
+                          opp.type === 'DIVIDEND_EVENT' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-accent/10 text-accent'
+                        }`}>
+                          {opp.type.replace('_', ' ')}
+                        </span>
+                        {opp.priority === 'HIGH' && (
+                          <span className="text-[8px] font-black text-danger animate-pulse">CRITICAL</span>
+                        )}
+                      </div>
+                      
+                      <p className="text-xs font-black text-text-bold leading-tight">
+                        {opp.type === 'DIVIDEND_EVENT' 
+                          ? `${opp.symbol}: Upcoming Dividend (₹${opp.amount})` 
+                          : opp.title
+                        }
+                      </p>
+
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] text-text-muted font-bold">
+                          {opp.type === 'DIVIDEND_EVENT' ? `Ex-Date: ${opp.ex_date}` : `${opp.impact}/5 Impact`}
+                        </span>
+                        <ChevronRight 
+                          size={12} 
+                          className="text-text-muted cursor-pointer hover:text-accent" 
+                          onClick={() => {
+                            const sym = opp.symbol || (opp.stocks && opp.stocks[0]);
+                            if (sym) navigate(`/stocks/details/${sym}`);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : !radarLoading && (
+                  <p className="text-[11px] text-text-muted text-center py-4 font-bold border border-dashed border-white/5 rounded-xl">No active opportunities detected.</p>
+                )}
               </div>
             </div>
 

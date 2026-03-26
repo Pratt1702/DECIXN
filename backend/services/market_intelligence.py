@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import warnings
 
 # Import from modules
-from services.data_fetcher import fetch_data
+from services.data_fetcher import fetch_data, fetch_ticker_metadata
 from services.technical_indicators import calculate_indicators, get_benchmark_comparison
 from services.signal_generator import generate_signals
 from services.decision_engine import make_decision, make_holding_decision
@@ -201,8 +201,14 @@ async def analyze_single_ticker(symbol: str) -> dict:
         } for d, o, h, l, p, v in zip(df.index, df['Open'], df['High'], df['Low'], df['Close'], df['Volume'])]
         
         try:
-            info = yf.Ticker(symbol).info
+            # --- YAHOO METADATA INTEGRATION ---
+            yahoo_meta = fetch_ticker_metadata(symbol)
+            yahoo_news = yahoo_meta.get("news", [])
+            dividend_cal = yahoo_meta.get("calendar", {})
+            info = yahoo_meta.get("info", {})
         except:
+            yahoo_news = []
+            dividend_cal = {}
             info = {}
             
         company_name = info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', '')))
@@ -267,6 +273,8 @@ async def analyze_single_ticker(symbol: str) -> dict:
                 "action": action,
                 "reasons": reasons,
                 "news_insight": news_insight,
+                "yahoo_news": yahoo_news[:5], # Limit to 5 for efficiency
+                "dividend_calendar": dividend_cal,
                 "chart_data": chart_data,
                 "charts": get_multi_period_charts(symbol),
                 "fundamentals": fundamentals,

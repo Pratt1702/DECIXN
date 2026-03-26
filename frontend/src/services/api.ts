@@ -190,3 +190,16 @@ export const markNotificationRead = async (notificationId: string) => {
   return response.data;
 };
 
+// --- NEWS & RADAR ---
+
+export const getNews = async (limit: number = 20, offset: number = 0) => {
+  const response = await apiClient.get(`/news?limit=${limit}&offset=${offset}`);
+  return response.data;
+};
+
+export const getOpportunityRadar = async (symbols?: string) => {
+  const url = symbols ? `/opportunity-radar?symbols=${symbols}` : '/opportunity-radar';
+  const response = await apiClient.get(url);
+  return response.data;
+};
+

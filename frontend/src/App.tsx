@@ -7,6 +7,7 @@ import { Holdings } from "./pages/Holdings";
 import { Explore } from "./pages/Explore";
 import { Insights } from "./pages/Insights";
 import { StockDetails } from "./pages/StockDetails";
+import News from "./pages/News";
 import { Terminal } from "./pages/Terminal";
 import { Watchlist } from "./pages/Watchlist";
 import { PortfolioInfo } from "./pages/PortfolioInfo";
@@ -37,6 +38,7 @@ function App() {
             <Route path="insights" element={<Insights />} />
             <Route path="watchlist" element={<Watchlist />} />
             <Route path="alerts" element={<AlertsManagement />} />
+            <Route path="news" element={<News />} />
             <Route path="details/:ticker" element={<StockDetails />} />
           </Route>
 

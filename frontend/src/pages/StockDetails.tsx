@@ -409,7 +409,7 @@ export function StockDetails() {
       </header>
 
       {/* HIGH IMPACT CATALYST SIGNAL */}
-      {data?.news_insight?.has_catalyst && (
+      {!!data?.news_insight?.has_catalyst && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

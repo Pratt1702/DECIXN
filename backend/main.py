@@ -390,7 +390,7 @@ async def compare_mf(ids: str):
     """
     try:
         scheme_codes = ids.split(",")
-        result = mf_analytics_service.compare_mutual_funds(scheme_codes)
+        result = await mf_analytics_service.compare_mutual_funds(scheme_codes)
         return result
     except Exception as e:
         print(f"MF Compare Error: {e}")

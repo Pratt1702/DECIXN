@@ -214,7 +214,7 @@ export function AIIntelligencePanel({ data }: { data: any }) {
             </div>
 
             {/* News Intelligence Section */}
-            {data?.news_insight?.has_catalyst && (
+            {!!data?.news_insight?.has_catalyst && (
               <div>
                 <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
                   <div className="w-1.5 h-4 bg-success/60 rounded-full" />

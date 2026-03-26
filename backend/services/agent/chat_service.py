@@ -36,21 +36,33 @@ TOOLS = [
             },
             {
                 "name": "analyze_full_portfolio",
-                "description": "Comprehensive health check for the ENTIRE portfolio. Use this when the user asks for a 'portfolio review', 'holdings report', or 'overall health'. Do NOT use this for single stock questions.",
+                "description": "Comprehensive health check for the ENTIRE portfolio. Use this when the user asks for a 'portfolio review', 'holdings report', or 'overall health'.",
                 "parameters": {
                     "type": "OBJECT",
-                    "properties": {}
+                    "properties": {
+                        "portfolio_type": {
+                            "type": "string", 
+                            "enum": ["stock", "mutual_fund"], 
+                            "description": "The type of portfolio to analyze. Use 'stock' for equity holdings and 'mutual_fund' for fund holdings."
+                        }
+                    },
+                    "required": ["portfolio_type"]
                 }
             },
             {
                 "name": "get_user_position",
-                "description": "Checks if the user owns a specific stock. Returns their avg cost and quantity. Use this for 'How much TCS do I own?', 'Is my Suzlon in profit?', etc.",
+                "description": "Checks if the user owns a specific stock or mutual fund. Returns avg cost and quantity.",
                 "parameters": {
                     "type": "OBJECT",
                     "properties": {
-                        "ticker": {"type": "string", "description": "The stock symbol to check position for"}
+                        "ticker": {"type": "string", "description": "The stock symbol or mutual fund name to check position for"},
+                        "asset_type": {
+                            "type": "string",
+                            "enum": ["stock", "mutual_fund"],
+                            "description": "Specify if checking for a 'stock' or a 'mutual_fund'."
+                        }
                     },
-                    "required": ["ticker"]
+                    "required": ["ticker", "asset_type"]
                 }
             },
             {
@@ -134,7 +146,11 @@ class ChatEngine:
         # No history sent to avoid model confusion as per request
         prompt = f"User Message: {user_message}"
         if portfolio_context:
+            print(f"DEBUG [ChatEngine]: Portfolio Context length: {len(portfolio_context)}")
+            print(f"DEBUG [ChatEngine]: Portfolio Context Snippet: {portfolio_context[:200]}...")
             prompt += f"\n\n[PORTFOLIO CONTEXT]\n{portfolio_context}"
+        else:
+            print("DEBUG [ChatEngine]: No Portfolio Context received.")
         
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
@@ -168,7 +184,9 @@ class ChatEngine:
                 if part.function_call:
                     fn_name = part.function_call.name
                     args = part.function_call.args
+                    print(f"DEBUG [ChatEngine]: Executing tool: {fn_name} with args: {args}")
                     result = await self._execute_tool(fn_name, args, portfolio_context)
+                    print(f"DEBUG [ChatEngine]: Tool result: {str(result)[:200]}...")
                     
                     tool_results.append({
                         "function_response": {
@@ -225,15 +243,24 @@ class ChatEngine:
             # 2. Run the new Agentic Engine for "Why Now?" and Context
             # Extract portfolio context for this specific ticker if available
             ticker_clean = ticker.upper().replace(".NS", "").replace(".BO", "")
+            print(f"DEBUG [_execute_tool]: analyze_ticker for {ticker_clean}")
             holding_ctx = {}
             if portfolio_context:
                 import re
-                holding_match = re.search(fr"- {ticker_clean}: ([\d\.]+) shares @ avg ₹([\d\.]+)", portfolio_context)
+                # Flexible pattern: look for ticker anywhere in the symbol part (before the colon)
+                pattern = fr"- .*?{ticker_clean}(?:\.[A-Z]+)?.*?:\s*([\d\.]+)\s*shares\s*@\s*avg\s*₹?([\d\.]+)"
+                print(f"DEBUG [_execute_tool]: Matching pattern: {pattern}")
+                holding_match = re.search(pattern, portfolio_context, re.IGNORECASE)
                 if holding_match:
+                    print(f"DEBUG [_execute_tool]: MATCH FOUND: Qty={holding_match.group(1)}, Avg={holding_match.group(2)}")
                     holding_ctx = {
                         "quantity": float(holding_match.group(1)),
                         "avg_cost": float(holding_match.group(2))
                     }
+                else:
+                    print(f"DEBUG [_execute_tool]: NO MATCH found for ticker {ticker_clean}")
+                    # Log a snippet of the context to see what symbols are actually there
+                    print(f"DEBUG [_execute_tool]: Context Symbols Sample: {[line[:50] for line in portfolio_context.splitlines() if ':' in line][:5]}")
             
             agent_res = await run_agent_intelligence(ticker, holding_ctx)
             
@@ -267,13 +294,16 @@ class ChatEngine:
         
         elif name == "analyze_full_portfolio":
             if not portfolio_context: return {"success": False, "error": "No portfolio context available."}
+            p_type = args.get("portfolio_type", "stock")
             
-            # Parse ALL holdings from the context string
             import re
             holdings = []
-            pattern = r"- ([^:]+): ([\d\.]+) shares @ avg ₹([\d\.]+)"
+            if p_type == "stock":
+                pattern = r"- ([^:]+): ([\d\.]+) shares @ avg ₹([\d\.]+)"
+            else:
+                pattern = r"- ([^:]+): ([\d\.]+) units @ avg ₹([\d\.]+)"
+                
             matches = re.finditer(pattern, portfolio_context)
-            
             for m in matches:
                 holdings.append({
                     "symbol": m.group(1),
@@ -282,31 +312,64 @@ class ChatEngine:
                 })
 
             if not holdings:
-                return {"success": False, "error": "Could not extract holdings from context."}
+                return {"success": False, "error": f"Could not extract {p_type} holdings from context."}
             
-            from ..portfolio_logic import run_portfolio_analysis
-            # User explicitly requested full analysis regardless of wait time
-            summary_data = await run_portfolio_analysis(holdings)
+            if p_type == "stock":
+                from ..portfolio_logic import run_portfolio_analysis
+                summary_data = await run_portfolio_analysis(holdings)
+            else:
+                from ..mutual_funds.mf_portfolio_service import run_mf_portfolio_analysis
+                summary_data = await run_mf_portfolio_analysis(holdings)
             
             return {
                 "success": True,
                 "summary": summary_data.get("portfolio_summary"),
-                "holdings": summary_data.get("portfolio_analysis")[:10] # Top 10 for AI dashboard display
+                "holdings": summary_data.get("portfolio_analysis" if p_type == "stock" else "mf_analysis")[:10]
             }
 
         elif name == "get_user_position":
-            ticker = args.get("ticker", "").upper().replace(".NS", "")
+            ticker = args.get("ticker", "").upper().replace(".NS", "").replace(".BO", "")
+            asset_type = args.get("asset_type", "stock")
+            print(f"DEBUG [_execute_tool]: get_user_position for {ticker} ({asset_type})")
             if not portfolio_context: return {"owned": False, "error": "No portfolio data"}
             
+            import re
             lines = portfolio_context.split("\n")
+            
+            # Use specific patterns to avoid cross-contamination
+            if asset_type == "stock":
+                # Flexible pattern for stock: allow ticker within a name
+                pattern = fr"^- .*?{ticker}(?:\.[A-Z]+)?.*?:\s*[\d\.]+\s*shares"
+            else:
+                # For MF, search the ticker/name in the "units" lines
+                pattern = fr"^- .*{ticker}.*:\s*[\d\.]+\s*units"
+            
+            print(f"DEBUG [_execute_tool]: get_user_position pattern: {pattern}")
             for line in lines:
-                if line.strip().startswith(f"- {ticker}:"):
+                if re.search(pattern, line.strip(), re.IGNORECASE):
+                    print(f"DEBUG [_execute_tool]: MATCH FOUND in line: {line.strip()}")
                     return {
                         "owned": True,
                         "symbol": ticker,
+                        "asset_type": asset_type,
                         "position_details": line.strip("- ").strip()
                     }
-            return {"owned": False, "symbol": ticker, "message": "Not in current portfolio holdings."}
+            
+            # Special case: check if it exists in the OTHER section to provide a better error
+            other_pattern = fr"^- .*{ticker}.*:\s*[\d\.]+\s*(?:shares|units)"
+            found_other = False
+            for line in lines:
+                if re.search(other_pattern, line.strip(), re.IGNORECASE):
+                    found_other = True
+                    details = line.strip("- ").strip()
+                    print(f"DEBUG [_execute_tool]: FOUND in other category: {details}")
+                    break
+            
+            if found_other:
+                return {"owned": True, "note": f"Found in portfolio but as a different asset type.", "details": details}
+
+            print(f"DEBUG [_execute_tool]: NO MATCH found for {ticker} in context lines")
+            return {"owned": False, "symbol": ticker, "message": f"Not in current {asset_type} holdings."}
         
         elif name == "fetch_catalyst_news":
             ticker = args.get("ticker")

@@ -138,53 +138,34 @@ def generate_signals(df):
     return signals
 
 def generate_price_forecast(df, confidence_score, horizon_days=5):
-    """
-    Generate a price range forecast using the ATR + HV Hybrid method.
-    """
     import math
     import pandas as pd
-    if df is None or df.empty or 'ATR' not in df or 'HV20' not in df:
-        return None
-        
-    atr = df['ATR'].iloc[-1]
-    hv20 = df['HV20'].iloc[-1]
-    current_price = df['Close'].iloc[-1]
-    
-    if pd.isna(atr) or pd.isna(hv20) or pd.isna(current_price):
-        return None
-        
-    # Horizon factor
+    backtest_shift = 10
+    horizon_days = 20
+    if df is None or df.empty or "ATR" not in df or "HV20" not in df or len(df) <= backtest_shift: return None
+    idx = -1 - backtest_shift
+    atr = df["ATR"].iloc[idx]
+    hv20 = df["HV20"].iloc[idx]
+    current_price = df["Close"].iloc[idx]
+    try: start_date = df.index[idx].strftime("%Y-%m-%d")
+    except: start_date = None
+    if pd.isna(atr) or pd.isna(hv20) or pd.isna(current_price): return None
     hf = math.sqrt(horizon_days) * 0.85
     base_width = atr * hf
-    
-    # Directional skew
     mean_offset = ((confidence_score - 50) / 50.0) * base_width * 0.4
     mean_price = current_price + mean_offset
-    
-    forecast_high = mean_price + base_width
-    forecast_low = mean_price - base_width
-    
-    # Cap HIGH and LOW to +- 20%
-    max_price = current_price * 1.20
-    min_price = current_price * 0.80
-    
-    forecast_high = min(forecast_high, max_price)
-    forecast_low = max(forecast_low, min_price)
-    
-    # confidence derivation
+    forecast_high = min(mean_price + base_width, current_price * 1.20)
+    forecast_low = max(mean_price - base_width, current_price * 0.80)
     if hv20 > 0 and current_price > 0:
         expected_move_ann = (base_width / current_price) / math.sqrt(horizon_days/252)
         diff_ratio = abs(expected_move_ann - hv20) / hv20
         confidence_pct = 85.0 - (diff_ratio * 50.0)
-    else:
-        confidence_pct = 50.0
-        
+    else: confidence_pct = 50.0
     confidence_pct = max(50.0, min(85.0, confidence_pct))
-    
     bias = "Bullish" if confidence_score > 50 else ("Bearish" if confidence_score < 50 else "Neutral")
-    
     return {
         "horizon_days": int(horizon_days),
+        "start_date": start_date,
         "current_price": round(float(current_price), 2),
         "forecast_high": round(float(forecast_high), 2),
         "forecast_mean": round(float(mean_price), 2),

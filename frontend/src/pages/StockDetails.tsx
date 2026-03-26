@@ -130,7 +130,8 @@ export function PriceForecastChart({ ticker, historicalData, forecastData, autoR
   const { current_price, forecast_high, forecast_mean, forecast_low, horizon_days, bias } = forecast;
   const biasColor = bias === 'Bullish' ? '#1d9e75' : bias === 'Bearish' ? '#e24b4a' : '#9ca3af';
 
-  const today = new Date();
+  const startDateStr = forecastData?.start_date || new Date().toISOString().split('T')[0];
+  const today = new Date(startDateStr);
   const history = [...historicalData]
     .filter((d: any) => d.date)
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -146,15 +147,14 @@ export function PriceForecastChart({ ticker, historicalData, forecastData, autoR
       historyPoints.push({ x: today.getTime(), y: current_price });
   }
 
-  const targetDays = 7;
+  const targetDays = horizon_days || 7;
   const targetDate = new Date(today);
   targetDate.setDate(targetDate.getDate() + targetDays);
   const targetTime = targetDate.getTime();
   
-  const scale = targetDays / (horizon_days || 5);
-  const targetHigh = current_price + (forecast_high - current_price) * scale;
-  const targetMean = current_price + (forecast_mean - current_price) * scale;
-  const targetLow = current_price + (forecast_low - current_price) * scale;
+  const targetHigh = forecast_high;
+  const targetMean = forecast_mean;
+  const targetLow = forecast_low;
 
   const datasetHigh = {
     label: 'HIGH',

@@ -179,8 +179,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
 
               {(() => {
                 const totalRange = pivots.R3 - pivots.S3 || 1;
-                const targetPos =
-                  ((currentPrice - pivots.S3) / totalRange) * 100;
+                const targetPos = Math.max(0, Math.min(100, ((currentPrice - pivots.S3) / totalRange) * 100));
                 return (
                   <motion.div
                     initial={{ left: "50%", opacity: 0 }}

@@ -247,7 +247,7 @@ class ChatEngine:
                     "technical_decision": d.get("decision"),
                     "risk_level": d.get("risk_level"),
                     "indicators": d.get("indicators"),
-                    "fundamentals": d.get("fundamentals"),
+                    "fundamentals": {k: v for k, v in d.get("fundamentals", {}).items() if k != "pe_ratio"},
                     "sparkline": [float(p["price"]) for p in d.get("chart_data", [])[-20:]] if d.get("chart_data") else [],
                     "agent_intelligence": agent_res.get("verdict", {}),
                     "latest_news": [

@@ -506,6 +506,15 @@ async def get_chat_history(user_id: str, session_id: str = None):
         print(f"DB Fetch Error: {e}")
         return []
 
+@app.delete("/chat/sessions/{session_id}")
+async def delete_chat_session(session_id: str):
+    from services.supabase_client import supabase
+    try:
+        supabase.table("chat_history").delete().eq("session_id", session_id).execute()
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- ALERTS & NOTIFICATIONS ---
 
 from services.alerts.alert_service import AlertService

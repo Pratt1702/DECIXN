@@ -85,48 +85,34 @@ export function Holdings() {
   };
 
   const loadData = useCallback(async () => {
-    const sessionData = sessionStorage.getItem(SESSION_KEY);
+    const sessionData = localStorage.getItem(SESSION_KEY);
 
-    // Priority 1: Uploaded session data (Current CSV)
+    // Priority 1: Uploaded session data (Current CSV) - DONT LET IT EXPIRE
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
-        // Create a simple hash/identifier for this CSV session
-        const currentHash =
-          sessionData.length.toString() + (parsed[0]?.symbol || "");
+        const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
 
-        // If store has valid, non-expired data for THIS CSV, use it
-        if (!shouldRefresh(currentHash) && cachedData) {
-          setData(cachedData);
-          setIsManual(true);
-          setLoading(false);
-          return;
+        // Even if EXPIRED, if we have the holdings, we just want to re-analyze
+        if (shouldRefresh(currentHash)) {
+           console.log("Analysis expired, re-analyzing existing holdings...");
+           handleDataParsed(parsed);
+           return;
         }
 
-        if (Array.isArray(parsed)) {
-          const sessionSummary = sessionStorage.getItem("portfolio_summary");
-          const summaryParsed =
-            sessionSummary && sessionSummary !== "undefined"
-              ? JSON.parse(sessionSummary)
-              : calculateSummary(parsed);
-
-          const result = {
-            portfolio_analysis: parsed,
-            portfolio_summary: summaryParsed,
-          };
-          setData(result);
-          setStoreData(result, currentHash);
+        if (cachedData) {
+          setData(cachedData);
           setIsManual(true);
           setLoading(false);
           return;
         }
       } catch (err) {
         console.error("Invalid session data, falling back to API:", err);
-        sessionStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(SESSION_KEY);
       }
     }
 
-    // Priority 2: Standard API/Mock data
+    // Priority 2: Standard API/Store data (Test Mode)
     if (!shouldRefresh() && cachedData) {
       setData(cachedData);
       setIsManual(false);
@@ -242,11 +228,11 @@ export function Holdings() {
       const currentHash =
         JSON.stringify(newHoldings).length.toString() +
         (newHoldings[0]?.symbol || "");
-      sessionStorage.setItem(
+      localStorage.setItem(
         SESSION_KEY,
         JSON.stringify(res.portfolio_analysis),
       );
-      sessionStorage.setItem(
+      localStorage.setItem(
         "stock_portfolio_summary",
         JSON.stringify(res.portfolio_summary),
       );
@@ -258,7 +244,7 @@ export function Holdings() {
       console.error("Failed to fetch custom portfolio analysis", err);
       if (interval) clearInterval(interval);
       // Fallback to local calculation if backend fails
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
       const fallback = {
         portfolio_analysis: newHoldings,
         portfolio_summary: calculateSummary(newHoldings),
@@ -272,9 +258,10 @@ export function Holdings() {
   };
 
   const clearManualData = () => {
-    // 1. Clear session data
-    sessionStorage.removeItem(SESSION_KEY);
-    sessionStorage.removeItem("portfolio_summary");
+    // 1. Clear storage data
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem("portfolio_summary");
+    localStorage.removeItem("stock_portfolio_summary");
 
     // 2. Clear Zustand store (persistent)
     clearData();

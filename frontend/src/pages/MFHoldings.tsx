@@ -33,14 +33,20 @@ export function MFHoldings() {
   const [editingHolding, setEditingHolding] = useState<any>(null);
 
   const loadData = useCallback(async () => {
-    const sessionData = sessionStorage.getItem(SESSION_KEY);
+    const sessionData = localStorage.getItem(SESSION_KEY);
 
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
         const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
 
-        if (!shouldRefresh(currentHash) && cachedData) {
+        if (shouldRefresh(currentHash)) {
+          console.log("Analysis expired, re-analyzing existing MF holdings...");
+          handleDataParsed(parsed);
+          return;
+        }
+
+        if (cachedData) {
           setData(cachedData);
           setIsManual(true);
           setLoading(false);
@@ -48,7 +54,7 @@ export function MFHoldings() {
         }
       } catch (err) {
         console.error("Invalid session data:", err);
-        sessionStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(SESSION_KEY);
       }
     }
 
@@ -177,7 +183,7 @@ export function MFHoldings() {
       await animationPromise;
 
       const currentHash = JSON.stringify(newHoldings).length.toString() + (newHoldings[0]?.symbol || "");
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
 
       setData(res);
       setStoreData(res, currentHash);
@@ -192,7 +198,7 @@ export function MFHoldings() {
   };
 
   const clearManualData = () => {
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
     clearData();
     setData(null);
     setLoading(true);

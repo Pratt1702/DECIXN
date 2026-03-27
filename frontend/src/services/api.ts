@@ -105,6 +105,7 @@ export const searchMF = async (query: string) => {
 export const analyzeCustomPortfolio = async (holdings: any[]) => {
   const payload = {
     holdings: holdings.map((h) => ({
+      id: h.id,
       symbol: h.symbol,
       quantity: h.holding_context.quantity,
       avg_cost: h.holding_context.avg_cost,
@@ -119,6 +120,7 @@ export const analyzeCustomPortfolio = async (holdings: any[]) => {
 export const analyzeMFPortfolio = async (holdings: any[]) => {
   const payload = {
     holdings: holdings.map((h) => ({
+      id: h.id,
       symbol: h.scheme_name || h.symbol || "",
       isin: h.isin || h.holding_context?.isin || "",
       quantity: h.quantity || h.holding_context?.quantity || 0,

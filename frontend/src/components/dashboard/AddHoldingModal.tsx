@@ -83,8 +83,12 @@ export function AddHoldingModal({ isOpen, onClose, onSuccess, initialData }: Add
       };
 
       if (initialData) {
-        // Edit mode: replace the existing holding
-        holdings = holdings.map(h => (h.id === initialData.id || h.symbol === initialData.symbol) ? newHolding : h);
+        // Edit mode: replace the existing holding using ID-first matching
+        holdings = holdings.map(h => {
+          const isMatch = (h.id && h.id === initialData.id) || 
+                          (!h.id && !initialData.id && h.symbol === initialData.symbol);
+          return isMatch ? newHolding : h;
+        });
       } else {
         // Add mode: push new holding
         holdings.push(newHolding);

@@ -103,70 +103,88 @@ export function PortfolioInfo() {
             </h2>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/10 rounded-3xl overflow-hidden p-8">
+          {/* ── STOCK FORMAT ── */}
+          <div className="bg-white/[0.02] border border-white/10 rounded-3xl overflow-hidden p-8 mb-8">
+            <h3 className="text-xl font-black mb-4 tracking-tight uppercase italic text-accent flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-accent" />
+              Stock Format (Equity)
+            </h3>
             <p className="text-text-muted font-medium mb-8 leading-relaxed">
               We provide native support for{" "}
               <strong className="text-white">Zerodha Kite</strong> CSV exports.
-              Support for Groww, Upstox, and ICICI Direct is coming soon. For
-              any other platform, please format your CSV as follows:
+              For any other platform, ensure these columns exist:
+            </p>
+
+            <div className="overflow-x-auto mb-4 bg-bg-surface border border-border-main rounded-xl">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-white/[0.05] border-b border-white/10">
+                  <tr className="text-[12px] font-black uppercase tracking-[0.1em] text-text-bold">
+                    <th className="px-6 py-4 border-r border-white/5">
+                      Symbol / Ticker
+                    </th>
+                    <th className="px-6 py-4 border-r border-white/5">
+                      Quantity / Qty
+                    </th>
+                    <th className="px-6 py-4">Avg Cost / Price</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-sm font-medium">
+                  <tr>
+                    <td className="px-6 py-4 border-r border-white/5 text-text-bold font-black">
+                      RELIANCE
+                    </td>
+                    <td className="px-6 py-4 border-r border-white/5 text-text-muted">
+                      10
+                    </td>
+                    <td className="px-6 py-4 text-text-muted">2540.20</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── MUTUAL FUND FORMAT ── */}
+          <div className="bg-white/[0.02] border border-white/10 rounded-3xl overflow-hidden p-8">
+            <h3 className="text-xl font-black mb-4 tracking-tight uppercase italic text-accent flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-accent" />
+              Mutual Fund Format (CAS/CAMS)
+            </h3>
+            <p className="text-text-muted font-medium mb-8 leading-relaxed text-sm">
+              We support{" "}
+              <strong className="text-white">
+                CAMS/Karvy Consolidated Account Statements (CAS)
+              </strong>{" "}
+              and Zerodha Coin exports. The following columns are required for
+              accurate fund tracking:
             </p>
 
             <div className="overflow-x-auto mb-8 bg-bg-surface border border-border-main rounded-xl">
               <table className="w-full text-left border-collapse">
                 <thead className="bg-white/[0.05] border-b border-white/10">
-                  <tr className="text-[14px] font-black uppercase tracking-[0.1em] text-text-bold">
+                  <tr className="text-[12px] font-black uppercase tracking-[0.1em] text-text-bold">
                     <th className="px-6 py-4 border-r border-white/5">
-                      Symbol
-                      <span className="block mt-1 text-[10px] font-medium opacity-50 tracking-widest lowercase italic">
-                        or Instrument, Ticker
-                      </span>
+                      Scheme Name
                     </th>
+                    <th className="px-6 py-4 border-r border-white/5">ISIN</th>
                     <th className="px-6 py-4 border-r border-white/5">
-                      Quantity
-                      <span className="block mt-1 text-[10px] font-medium opacity-50 tracking-widest lowercase italic">
-                        or Qty, Shares
-                      </span>
+                      Units / Holding
                     </th>
-                    <th className="px-6 py-4">
-                      Avg Cost
-                      <span className="block mt-1 text-[10px] font-medium opacity-50 tracking-widest lowercase italic">
-                        or Buy Price, Cost
-                      </span>
-                    </th>
+                    <th className="px-6 py-4">Avg NAV / Cost</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 text-sm">
+                <tbody className="divide-y divide-white/5 text-sm font-medium">
                   <tr>
-                    <td className="px-6 py-6 border-r border-white/5 font-black text-text-bold tracking-tight">
-                      RELIANCE
+                    <td className="px-6 py-4 border-r border-white/5 text-text-bold font-black tracking-tighter">
+                      Parag Parikh Flexi Cap
                     </td>
-                    <td className="px-6 py-6 border-r border-white/5 text-text-muted font-bold tabular-nums">
-                      10
+                    <td className="px-6 py-4 border-r border-white/5 text-text-muted ">
+                      INF200K01MT1
                     </td>
-                    <td className="px-6 py-6 text-text-muted font-bold tabular-nums">
-                      2540.20
+                    <td className="px-6 py-4 border-r border-white/5 text-text-muted tabular-nums">
+                      452.12
                     </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-6 border-r border-white/5 font-black text-text-bold tracking-tight">
-                      TATASTEEL
-                    </td>
-                    <td className="px-6 py-6 border-r border-white/5 text-text-muted font-bold tabular-nums">
-                      100
-                    </td>
-                    <td className="px-6 py-6 text-text-muted font-bold tabular-nums">
-                      145.50
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-6 border-r border-white/5 font-black text-text-bold tracking-tight">
-                      TMPV
-                    </td>
-                    <td className="px-6 py-6 border-r border-white/5 text-text-muted font-bold tabular-nums">
-                      500
-                    </td>
-                    <td className="px-6 py-6 text-text-muted font-bold tabular-nums">
-                      460.00
+                    <td className="px-6 py-4 text-text-muted tabular-nums">
+                      65.40
                     </td>
                   </tr>
                 </tbody>
@@ -176,9 +194,10 @@ export function PortfolioInfo() {
             <div className="p-4 rounded-xl bg-accent/5 border border-accent/10 flex items-start gap-3">
               <AlertCircle className="text-accent shrink-0 mt-0.5" size={16} />
               <p className="text-xs text-text-muted font-medium leading-relaxed italic">
-                Note: Our parser uses fuzzy matching for headers. As long as
-                your column names contain "Symbol", "Qty", or "Cost", they
-                should be identified correctly.
+                <strong>Critical:</strong> ISIN is the only way to accurately
+                distinguish between <strong>Direct vs Regular</strong> plans and{" "}
+                <strong>Growth vs IDCW</strong> options. While we fall back to
+                Scheme Name, using ISIN ensures 100% data integrity.
               </p>
             </div>
           </div>

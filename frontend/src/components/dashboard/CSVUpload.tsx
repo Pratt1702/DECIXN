@@ -71,7 +71,9 @@ export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
 
 
           return {
+            id: crypto.randomUUID(),
             symbol: symbolStr,
+            scheme_name: symbolStr,
             isin: isin,
             holding_context: {
               quantity,
@@ -94,7 +96,11 @@ export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
         }
 
         setSuccess(true);
-        onDataParsed(mappedData);
+          const mappedDataWithIds = mappedData.map(h => ({
+            ...h,
+            id: crypto.randomUUID()
+          }));
+          onDataParsed(mappedDataWithIds);
         setTimeout(() => setSuccess(false), 3000);
       },
       error: (err) => {

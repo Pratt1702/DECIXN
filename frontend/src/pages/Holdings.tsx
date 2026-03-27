@@ -89,11 +89,12 @@ export function Holdings() {
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
-        const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
+        const dataCheck = parsed.reduce((acc: number, h: any) => 
+          acc + (h.holding_context?.quantity || 0) * (h.holding_context?.avg_cost || 0), 0
+        ).toFixed(2);
+        const currentHash = `stock-v6-${sessionData.length}-${dataCheck}`;
 
-        // Even if EXPIRED, if we have the holdings, we just want to re-analyze
         if (shouldRefresh(currentHash)) {
-           console.log("Analysis expired, re-analyzing existing holdings...");
            handleDataParsed(parsed);
            return;
         }
@@ -223,12 +224,15 @@ export function Holdings() {
       // WAIT FOR BOTH: API and Animation
       const [res] = await Promise.all([dataPromise, animationPromise]);
 
-      const currentHash =
-        JSON.stringify(newHoldings).length.toString() +
-        (newHoldings[0]?.symbol || "");
+      const dataCheck = res.portfolio_analysis.reduce((acc: number, h: any) => 
+        acc + (h.holding_context?.quantity || 0) * (h.holding_context?.avg_cost || 0), 0
+      ).toFixed(2);
+      const savedData = JSON.stringify(res.portfolio_analysis);
+      const currentHash = `stock-v6-${savedData.length}-${dataCheck}`;
+      
       localStorage.setItem(
         SESSION_KEY,
-        JSON.stringify(res.portfolio_analysis),
+        savedData
       );
       localStorage.setItem(
         "stock_portfolio_summary",

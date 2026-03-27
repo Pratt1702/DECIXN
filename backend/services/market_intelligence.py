@@ -346,7 +346,7 @@ async def analyze_single_ticker(symbol: str) -> dict:
         })
 
 
-async def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float) -> dict:
+async def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: float, holding_id: str = None) -> dict:
     """
     Analyzes a holding with P&L-adjusted decisions.
     """
@@ -450,6 +450,7 @@ async def analyze_single_holding(symbol: str, avg_cost: float, qty: float, pnl: 
         risk_tag = risk_level
 
         return sanitize_data({
+            "id": holding_id,
             "symbol": symbol.replace('.NS', '').replace('.BO', ''),
             "success": True,
             "holding_context": {

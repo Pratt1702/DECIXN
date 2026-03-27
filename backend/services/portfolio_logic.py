@@ -16,8 +16,9 @@ async def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
             qty = float(h["quantity"])
             avg_cost = float(h["avg_cost"])
             pnl = float(h.get("pnl", 0.0))
+            holding_id = h.get("id")
             if not symbol or qty <= 0: return None
-            return await analyze_single_holding(symbol, avg_cost, qty, pnl)
+            return await analyze_single_holding(symbol, avg_cost, qty, pnl, holding_id=holding_id)
         except Exception as e:
             print(f"DEBUG: Critical failure on holding {h}: {e}")
             return None

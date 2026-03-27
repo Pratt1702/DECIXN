@@ -27,7 +27,7 @@ def get_isin_from_db(name_or_code: str):
         print(f"DB ISIN Lookup Error: {e}")
         return None
 
-def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: float, isin: str = None):
+def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: float, isin: str = None, holding_id: str = None):
     """
     Analyzes a single mutual fund holding by fetching the latest NAV via yfinance.
     """
@@ -89,6 +89,7 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
         
         return {
             "success": True,
+            "id": holding_id,
             "symbol": name_or_isin,
             "ticker": ticker_symbol,
             "isin": isin or lookup_target if len(lookup_target) == 12 else None,
@@ -112,15 +113,14 @@ def run_mf_portfolio_analysis(holdings_data: list[dict]) -> dict:
     """
     Analyzes a list of MF holdings and returns a summary.
     """
-    results = []
-    
     def process_holding(h):
         name = h.get("symbol")
         isin = h.get("isin")
         qty = float(h.get("quantity", 0))
         avg_price = float(h.get("avg_cost", 0))
+        holding_id = h.get("id")
         if not (name or isin) or qty <= 0: return None
-        return analyze_single_mf_holding(name, avg_price, qty, isin=isin)
+        return analyze_single_mf_holding(name, avg_price, qty, isin=isin, holding_id=holding_id)
 
     # Note: increased workers might hit yfinance rate limits if too many
     with ThreadPoolExecutor(max_workers=5) as executor:

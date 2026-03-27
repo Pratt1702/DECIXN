@@ -29,9 +29,13 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: A
       return;
     }
     if (initialData) {
-      setSelectedFund({ scheme_code: initialData.isin || initialData.scheme_code, scheme_name: initialData.scheme_name });
-      setQuantity(initialData.holding_context.quantity.toString());
-      setAvgPrice(initialData.holding_context.avg_cost.toString());
+      const code = initialData.isin || initialData.scheme_code || initialData.scheme_name;
+      setSelectedFund({ 
+        scheme_code: code, 
+        scheme_name: initialData.scheme_name 
+      });
+      setQuantity(initialData.holding_context?.quantity?.toString() || "");
+      setAvgPrice(initialData.holding_context?.avg_cost?.toString() || "");
     }
   }, [isOpen, initialData]);
 
@@ -45,8 +49,9 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: A
       try {
         const res = await searchMF(search);
         // searchMF returns an array directly
-        if (Array.isArray(res)) {
-          setSuggestions(res.slice(0, 5));
+        const results = res.results || (Array.isArray(res) ? res : []);
+        if (Array.isArray(results)) {
+          setSuggestions(results.slice(0, 5));
         }
       } catch (e) {
         console.error("Search failed", e);
@@ -73,7 +78,7 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: A
       const newHolding = {
         id: initialData?.id || crypto.randomUUID(),
         scheme_name: selectedFund.scheme_name,
-        isin: selectedFund.scheme_code.toString(),
+        isin: selectedFund.scheme_code?.toString() || selectedFund.scheme_name,
         holding_context: {
           quantity: parseFloat(quantity),
           avg_cost: parseFloat(avgPrice),
@@ -84,8 +89,12 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: A
       };
 
       if (initialData) {
-        // Edit mode
-        holdings = holdings.map(h => (h.id === initialData.id || (h.isin === initialData.isin && h.scheme_name === initialData.scheme_name)) ? newHolding : h);
+        // Edit mode - prefer ID matching, fallback to Name+ISIN only if ID is missing (legacy)
+        holdings = holdings.map(h => {
+          const isMatch = (h.id && h.id === initialData.id) || 
+                          (!h.id && !initialData.id && h.isin === initialData.isin && h.scheme_name === initialData.scheme_name);
+          return isMatch ? newHolding : h;
+        });
       } else {
         // Add mode
         holdings.push(newHolding);

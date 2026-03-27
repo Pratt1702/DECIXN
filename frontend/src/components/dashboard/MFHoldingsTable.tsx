@@ -24,22 +24,23 @@ export function MFHoldingsTable({ holdings, onSort, sortField, sortOrder, onEdit
             {[
               { label: "Scheme Name", field: "scheme_name" },
               { label: "Units", field: "quantity" },
-              { label: "NAV", field: "current_price" },
+              { label: "Avg NAV", field: "avg_cost" },
+              { label: "Current NAV", field: "current_price" },
+              { label: "Value", field: "current_value" },
               { label: "Returns", field: "pnl_pct" },
-              { label: "Current Value", field: "current_value" },
               { label: "", field: "actions" },
             ].map((col) => (
               <th
                 key={col.label}
-                className={`px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-[0.15em] cursor-pointer hover:text-text-bold transition-colors whitespace-nowrap ${
-                    col.field === "actions" ? "text-left w-[1%]" : "text-left"
+                className={`px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-[0.15em] cursor-pointer hover:text-text-bold transition-colors whitespace-nowrap border-r border-white/5 last:border-r-0 ${
+                    col.field === "actions" ? "text-center w-[1%]" : "text-left"
                 }`}
                 onClick={() => col.field !== "actions" && onSort(col.field)}
               >
-                <div className="flex items-center gap-1.5">
-                  {col.label}
+                <div className="flex items-center justify-between gap-1.5 min-w-0">
+                  <span className="truncate">{col.label}</span>
                   {sortField === col.field && (
-                    <span className="text-accent">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                    <span className="text-accent shrink-0 text-xs">{sortOrder === "asc" ? "↑" : "↓"}</span>
                   )}
                 </div>
               </th>
@@ -58,32 +59,29 @@ export function MFHoldingsTable({ holdings, onSort, sortField, sortOrder, onEdit
                 className="border-b border-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer group"
                 onClick={() => navigate(`/mutual-funds/details/${isin}`)}
               >
-                <td className="px-6 py-5">
+                <td className="px-6 py-5 border-r border-white/[0.03]">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-black text-text-bold tracking-tight group-hover:text-white transition-colors">
                       {h.scheme_name || h.symbol}
                     </span>
-                    <span className="text-[10px] font-mono text-text-muted opacity-60 tracking-tighter uppercase">
-                      {isin || "N/A"}
-                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-5 text-left font-bold text-text-muted text-sm tabular-nums">
+                <td className="px-6 py-5 text-left font-bold text-text-muted text-sm tabular-nums border-r border-white/[0.03]">
                   {ctx.quantity.toFixed(3)}
                 </td>
-                <td className="px-6 py-5 text-left font-black text-text-bold text-sm tabular-nums">
+                <td className="px-6 py-5 text-left font-black text-text-muted text-sm tabular-nums border-r border-white/[0.03]">
+                  ₹{ctx.avg_cost?.toFixed(2)}
+                </td>
+                <td className="px-6 py-5 text-left font-black text-white text-sm tabular-nums border-r border-white/[0.03]">
                   ₹{ctx.current_price?.toFixed(2)}
                 </td>
-                <td className="px-6 py-5 text-left font-black tabular-nums">
+                <td className="px-6 py-5 text-left border-r border-white/[0.03]">
+                  <div className="font-black text-text-bold text-sm tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                </td>
+                <td className="px-6 py-5 text-left font-black tabular-nums border-r border-white/[0.03]">
                   <div className={`flex items-center justify-start gap-1 text-sm ${isPos ? 'text-success' : 'text-danger'}`}>
                     {isPos ? <ArrowUpRight size={14} className="stroke-[3]" /> : <ArrowDownRight size={14} className="stroke-[3]" />}
                     {isPos ? '+' : ''}{ctx.pnl_pct.toFixed(2)}%
-                  </div>
-                </td>
-                <td className="px-6 py-5 text-left">
-                  <div className="font-black text-text-bold text-base tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                  <div className="text-[9px] text-accent font-black uppercase tracking-[0.2em] mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    DEEP ANALYSIS
                   </div>
                 </td>
                 <td className="px-6 py-4 w-[1%] whitespace-nowrap relative">

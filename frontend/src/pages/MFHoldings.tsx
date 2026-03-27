@@ -37,10 +37,12 @@ export function MFHoldings() {
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
-        const currentHash = sessionData.length.toString() + (parsed[0]?.symbol || "");
+        const dataCheck = parsed.reduce((acc: number, h: any) => 
+          acc + (h.holding_context?.quantity || 0) * (h.holding_context?.avg_cost || 0), 0
+        ).toFixed(2);
+        const currentHash = `mf-v6-${sessionData.length}-${dataCheck}`;
 
         if (shouldRefresh(currentHash)) {
-          console.log("Analysis expired, re-analyzing existing MF holdings...");
           handleDataParsed(parsed);
           return;
         }
@@ -50,18 +52,14 @@ export function MFHoldings() {
           setIsManual(true);
           setLoading(false);
           return;
+        } else {
+          handleDataParsed(parsed);
+          return;
         }
       } catch (err) {
         console.error("Invalid session data:", err);
         localStorage.removeItem(SESSION_KEY);
       }
-    }
-
-    if (!shouldRefresh() && cachedData) {
-      setData(cachedData);
-      setIsManual(false);
-      setLoading(false);
-      return;
     }
 
     // Default: Mock data for MF if nothing uploaded
@@ -81,6 +79,7 @@ export function MFHoldings() {
           {
             id: "mf-mock-1",
             scheme_name: "Quant Small Cap Fund - Direct Plan",
+            isin: "INF709K01GZ1",
             holding_context: {
               quantity: 245.8,
               avg_cost: 203.41,
@@ -88,11 +87,13 @@ export function MFHoldings() {
               current_value: 62450,
               current_pnl: 12450,
               pnl_pct: 24.9,
+              isin: "INF709K01GZ1"
             },
           },
           {
              id: "mf-mock-2",
              scheme_name: "Parag Parikh Flexi Cap Fund - Direct Plan",
+             isin: "INF200K01MT1",
              holding_context: {
                quantity: 1540.2,
                avg_cost: 64.92,
@@ -100,6 +101,7 @@ export function MFHoldings() {
                current_value: 118200,
                current_pnl: 18200,
                pnl_pct: 18.2,
+               isin: "INF200K01MT1"
              },
           }
         ],
@@ -181,8 +183,14 @@ export function MFHoldings() {
       const res = await analyzeMFPortfolio(newHoldings);
       await animationPromise;
 
-      const currentHash = JSON.stringify(newHoldings).length.toString() + (newHoldings[0]?.symbol || "");
-      localStorage.setItem(SESSION_KEY, JSON.stringify(newHoldings));
+      // Unify hash calculation from the BACKEND RESULTS
+      const dataCheck = res.portfolio_analysis.reduce((acc: number, h: any) => 
+        acc + (h.holding_context?.quantity || 0) * (h.holding_context?.avg_cost || 0), 0
+      ).toFixed(2);
+      const savedData = JSON.stringify(res.portfolio_analysis);
+      const currentHash = `mf-v6-${savedData.length}-${dataCheck}`;
+
+      localStorage.setItem(SESSION_KEY, savedData);
 
       setData(res);
       setStoreData(res, currentHash);

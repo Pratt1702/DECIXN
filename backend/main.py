@@ -102,6 +102,7 @@ class TickerRequest(BaseModel):
     ticker: str
 
 class StockHoldingInput(BaseModel):
+    id: str | None = None
     symbol: str
     quantity: float
     avg_cost: float
@@ -191,6 +192,7 @@ async def analyze_portfolio_custom(payload: StockPortfolioInput):
     """
     holdings_data = [
         {
+            "id": h.id,
             "symbol": h.symbol,
             "quantity": h.quantity,
             "avg_cost": h.avg_cost,

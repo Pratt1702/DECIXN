@@ -19,7 +19,6 @@ import { MFCompare } from "./pages/MFCompare";
 import { AlertsManagement } from "./pages/AlertsManagement";
 import { Notifications } from "./pages/Notifications";
 import { ToastContainer } from "./components/ui/Toast";
-import AgentWorkflow from "./pages/AgentWorkflow";
 import "./App.css";
 
 function App() {
@@ -28,7 +27,6 @@ function App() {
       <ToastContainer />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/info/workflow" element={<AgentWorkflow />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>

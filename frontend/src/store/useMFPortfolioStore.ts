@@ -32,20 +32,23 @@ export const useMFPortfolioStore = create<PortfolioState>()(
       shouldRefresh: (currentHash) => {
         const { lastAnalysis, sourceHash, data } = get();
         
+        // 1. If hash matches exactly, we are strictly in sync (even if empty)
+        if (currentHash && currentHash === sourceHash) return false;
+
         if (!lastAnalysis || !data || !data.portfolio_analysis || data.portfolio_analysis.length === 0) {
           return true;
         }
         
         if (currentHash && currentHash !== sourceHash) return true;
         
-        const thirtyMins = 30 * 60 * 1000;
-        if (Date.now() - lastAnalysis > thirtyMins) return true;
+        const fifteenMins = 15 * 60 * 1000;
+        if (Date.now() - lastAnalysis > fifteenMins) return true;
         
         return false;
       }
     }),
     {
-      name: 'mf-portfolio-cache',
+      name: 'mf-v6-portfolio-cache',
       storage: createJSONStorage(() => localStorage),
     }
   )

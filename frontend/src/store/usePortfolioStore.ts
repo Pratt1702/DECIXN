@@ -32,15 +32,17 @@ export const usePortfolioStore = create<PortfolioState>()(
       shouldRefresh: (currentHash) => {
         const { lastAnalysis, sourceHash, data } = get();
         
-        // 1. If no data or data is effectively empty, refresh
+        // 1. If hash matches exactly, we are strictly in sync (even if empty)
+        if (currentHash && currentHash === sourceHash) return false;
+
+        // 2. If no data or data is effectively empty, refresh (fallback for first load)
         if (!lastAnalysis || !data || !data.portfolio_analysis || data.portfolio_analysis.length === 0) {
           return true;
         }
         
-        // 2. If source (CSV) changed, refresh
+        // 3. If source (CSV) changed, refresh
         if (currentHash && currentHash !== sourceHash) return true;
         
-        // 3. If older than 15 mins (900,000 ms), refresh
         const fifteenMins = 15 * 60 * 1000;
         if (Date.now() - lastAnalysis > fifteenMins) return true;
         
@@ -48,7 +50,7 @@ export const usePortfolioStore = create<PortfolioState>()(
       }
     }),
     {
-      name: 'portfolio-cache',
+      name: 'stock-v6-portfolio-cache',
       storage: createJSONStorage(() => localStorage),
     }
   )

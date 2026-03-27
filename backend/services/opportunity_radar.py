@@ -102,15 +102,16 @@ async def get_market_opportunities(symbols: list = None):
             })
         
         filing = alpha_service.get_corporate_filings(sym_clean)
-        if filing.get("success"):
-            opportunities.append({
-                "type": "CORPORATE_ALPHA",
-                "symbol": sym_clean,
-                "title": filing["title"],
-                "details": filing["summary"],
-                "impact": filing["sentiment"].upper(),
-                "priority": "MEDIUM"
-            })
+        if filing.get("success") and filing.get("signals"):
+            for sig in filing["signals"]:
+                opportunities.append({
+                    "type": "CORPORATE_ALPHA",
+                    "symbol": sym_clean,
+                    "title": sig["title"],
+                    "details": sig["summary"],
+                    "impact": "POSITIVE" if sig["relevance"] == "High" else "NEUTRAL",
+                    "priority": "HIGH" if sig["relevance"] == "High" else "MEDIUM"
+                })
 
     # Sort opportunities: High priority/impact first
     # (Custom sorting logic can be added here)

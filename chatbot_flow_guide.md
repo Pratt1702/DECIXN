@@ -47,6 +47,12 @@ Foxy has access to several specialized "skills" that it can call upon depending 
 - **Capability**: Fetches the status of major indices like NIFTY 50 and SENSEX.
 - **Data Fetched**: Top gainers, top losers, and overall market sentiment.
 
+### E. Alpha Signal Fusion (`AlphaSignalService`)
+
+- **Capability**: Injects institutional-grade qualitative data into the reasoning loop.
+- **Data Fetched**: **Live NSE India** Insider Trades (PIT) and Corporate Announcements (Dividends, M&A, Results).
+- **Impact**: Allows the agent to detect "Hidden Alpha" where technicals might be neutral but insiders are buying or major value-unlock events are announced.
+
 ---
 
 ## 3. Data Flow & API Architecture
@@ -107,14 +113,16 @@ sequenceDiagram
     participant B as Backend (FastAPI)
     participant G as Gemini AI
     participant T as Tools (Market Data)
+    participant N as NSE Live Service
 
     U->>B: POST /chat (Prompt + Portfolio Snapshot)
     B->>G: Decision: Which tool is needed?
     G-->>B: Call select_tool(args)
-    B->>T: Execute Local Python Logic
-    T-->>B: Return Structured JSON Results
-    B->>G: Generate Narrative based on Tool Results
-    G-->>B: { JSON Narrative + Metadata } (Streamed)
+    B->>T: Fetch Technical Indicators (yfinance)
+    B->>N: Fetch Alpha Signals (Insider/Filings)
+    N-->>B: High-Impact Signal Detected
+    B->>G: Generate Narrative (Technical + Alpha Fusion)
+    G-->>B: { JSON Narrative + Reasoning Trace } (Streamed)
     B-->>U: Final UI JSON (Interpreted by Chat.tsx)
-    U->>U: Render Charts/Buttons based on Metadata
+    U->>U: Render Reasoning Steps & Charts
 ```

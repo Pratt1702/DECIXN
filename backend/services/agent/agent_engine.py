@@ -6,6 +6,7 @@ from ..technical_indicators import calculate_indicators
 from ..data_fetcher import fetch_data
 from ..news.catalyst_engine import get_relevant_news
 from ..gemini_service import client as gemini_client
+from ..alpha_signals import alpha_service
 import json
 import numpy as np
 
@@ -29,6 +30,7 @@ class AgentState(TypedDict):
     data: dict
     signals: dict
     context: List[dict]
+    alpha_signals: dict
     portfolio_context: dict
     verdict: dict
     errors: List[str]
@@ -60,7 +62,7 @@ async def detect_signals_node(state: AgentState):
     except Exception as e:
         return {"errors": [f"Signal detection failed: {str(e)}"]}
 
-# 3. Node 2: Enrich Context (News + Portfolio)
+# 3. Node 2: Enrich Context (News + Alpha Signals + Portfolio)
 async def enrich_context_node(state: AgentState):
     symbol = state["symbol"]
     signals = state.get("signals", {})
@@ -70,21 +72,46 @@ async def enrich_context_node(state: AgentState):
     portfolio = state.get("portfolio_context", {})
     portfolio_symbols = [portfolio.get("symbol")] if portfolio.get("symbol") else []
     
-    # Fetch News from Catalyst Engine (Deterministic)
+    # 1. Fetch News from Catalyst Engine
     news = await get_relevant_news(symbol, context=trend, portfolio_symbols=portfolio_symbols)
     
-    return {"context": news}
+    # 2. Fetch Alpha Signals (Insiders & Filings)
+    insider = alpha_service.get_insider_trades(symbol)
+    filing = alpha_service.get_corporate_filings(symbol)
+    
+    alpha_data = {
+        "insider_activity": insider if insider.get("success") else None,
+        "key_filing": filing if filing.get("success") else None
+    }
+    
+    return {
+        "context": news,
+        "alpha_signals": alpha_data
+    }
 
 # 4. Node 3: Generate Verdict (The "Why Now?" Agent)
 async def generate_verdict_node(state: AgentState):
     symbol = state["symbol"]
     signals = state.get("signals", {"Price": 0, "Trend": "Unknown", "MACD": {}, "RSI": 50})
     news_context = state.get("context", [])
+    alpha = state.get("alpha_signals", {})
     portfolio = state.get("portfolio_context", {})
     
     # Construct a prompt for Gemini that synthesizes everything
     news_text = "\n".join([f"- {n['title']}: {n['summary']}" for n in news_context[:3]])
     
+    alpha_text = ""
+    if alpha.get("insider_activity"):
+        ia = alpha["insider_activity"]
+        alpha_text += f"\n- INSIDER: {ia['signal']} ({ia['details']}) [Source: {ia['source']}]"
+    if alpha.get("key_filing"):
+        kf = alpha["key_filing"]
+        if "signals" in kf:
+            for s in kf["signals"]:
+                alpha_text += f"\n- FILING [{s['relevance']}]: {s['title']} - {s['summary']}"
+        else:
+            alpha_text += f"\n- FILING: {kf.get('title')} - {kf.get('summary')}"
+
     prompt = f"""
 You are a sharp, data-driven market analyst.
 
@@ -93,6 +120,9 @@ Analyze {symbol} using the inputs below and produce a concise, actionable output
 [DATA]
 TECHNICALS:
 {json.dumps(signals)}
+
+QUALITATIVE (INSIDERS & FILINGS):
+{alpha_text if alpha_text else "No significant recent activities."}
 
 NEWS:
 {news_text if news_text else "None"}
@@ -109,15 +139,16 @@ PORTFOLIO:
 - If data is missing, ignore it — do NOT mention missing data
 
 [THINKING PRIORITY]
-1. What is the strongest signal right now?
-2. Are there conflicting signals?
-3. What should the user DO?
+1. Does the technical signal (e.g. Trend) align with Insider/Filing data? 
+2. If Insiders are buying but technicals are neutral, it's a "HIDDEN ALPHA" buy.
+3. If Insiders are selling but news is bullish, flag as "DISTRIBUTION RISK".
+4. What should the user DO right now?
 
 [RETURN JSON ONLY]
 {{
   "summary": [
     "1-line key insight",
-    "2-3 bullet reasons max"
+    "2-3 bullet reasons max (cite Insiders/Filings if available)"
   ],
   "verdict": "STRONG BUY | BUY | HOLD | REDUCE | SELL",
   "confidence": 0-100,
@@ -126,7 +157,12 @@ PORTFOLIO:
     "exit": number,
     "stop_loss": number
   }},
-  "portfolio_action": "Specific action for user's position (1-2 lines max)"
+  "portfolio_action": "Specific action for user's position (1-2 lines max)",
+  "reasoning_steps": [
+    "Step 1: Analyzed Technicals (Result: ...)",
+    "Step 2: Checked Alpha Signals (Result: ...)",
+    "Step 3: Correlated with News (Result: ...)"
+  ]
 }}
 """
     
@@ -174,6 +210,7 @@ async def run_agent_intelligence(symbol: str, portfolio_context: dict = None):
         "symbol": symbol,
         "portfolio_context": portfolio_context or {},
         "context": [],
+        "alpha_signals": {},
         "errors": []
     }
     result = await agent_engine.ainvoke(initial_state)

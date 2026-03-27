@@ -105,7 +105,8 @@ RESPONSE FORMAT (JSON ONLY):
     "portfolio_summary": { "health": "string", "total_pnl": number, "total_value_live": number, "win_rate": "string", "working_capital_pct": number },
     "portfolio_holdings": [{ "symbol": "string", "holding_context": { "portfolio_weight_pct": number } }], // Top 5
     "actionable_insight": "string",
-    "sentiment": "Bullish" | "Bearish" | "Neutral"
+    "sentiment": "Bullish" | "Bearish" | "Neutral",
+    "reasoning_steps": ["Step 1...", "Step 2...", "Step 3..."] // REQUIRED for stock analysis
   },
   "ui_hints": { "show_chart": true/false }
 }
@@ -296,6 +297,7 @@ class ChatEngine:
                     "fundamentals": {k: v for k, v in d.get("fundamentals", {}).items() if k != "pe_ratio"},
                     "sparkline": [float(p["price"]) for p in d.get("chart_data", [])[-20:]] if d.get("chart_data") else [],
                     "agent_intelligence": agent_res.get("verdict", {}),
+                    "reasoning_steps": agent_res.get("verdict", {}).get("reasoning_steps", []),
                     "latest_news": [
                         {
                             "title": n.get("title"),
@@ -472,7 +474,6 @@ class ChatEngine:
         for m in stock_matches:
             symbol = m.group(1).strip().upper()
             try:
-                import yf as yf_lib # avoid name collision
                 import yfinance as yf
                 sym = symbol if (symbol.endswith('.NS') or symbol.endswith('.BO')) else f"{symbol}.NS"
                 t = yf.Ticker(sym)

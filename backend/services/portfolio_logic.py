@@ -107,6 +107,22 @@ async def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
 
     if winners > 0:
         recommendations.append("Let winners run with trailing stop-losses.")
+    
+    # RISK SENTINEL: Detect Trend Exhaustion for "Skip Losses"
+    for r in results:
+        h_ctx = r.get('holding_context', {})
+        pnl_pct = (h_ctx.get('current_pnl', 0) / h_ctx.get('invested_value', 1)) * 100
+        
+        # Simple logical exhaustion: RSI > 75 and Volume Ratio > 2.0 while price is flat
+        indicators = r.get('data', {}).get('indicators', {})
+        rsi = indicators.get('RSI', 50)
+        vol_ratio = r.get('data', {}).get('Vol_Ratio', 1.0)
+        
+        if rsi > 75 and vol_ratio > 1.8:
+            recommendations.append(f"RISK SENTINEL: {r['symbol']} shows extreme exhaustion (RSI:{rsi:.0f}). Exit now to skip a likely reversal.")
+        elif pnl_pct < -15 and r.get('data', {}).get('trend') == 'Bearish':
+            recommendations.append(f"RISK SENTINEL: {r['symbol']} is in a freefall. Cut losses to preserve remaining capital.")
+
     if losers > winners:
         recommendations.append("Review win-rate; entries might need refinement.")
 

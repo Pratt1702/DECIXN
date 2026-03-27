@@ -1,19 +1,58 @@
-PROBLEM STATEMENT 
-India has 14 crore+ demat accounts, but most retail investors are flying blind — reacting to tips, missing 
-filings, unable to read technicals, and managing mutual fund portfolios on gut feel. ET Markets has the 
-data. Build the intelligence layer that turns data into actionable, money-making decisions. 
-WHAT YOU MAY BUILD 
-• Opportunity Radar — AI that continuously monitors corporate filings, quarterly results, bulk/block 
-deals, insider trades, management commentary shifts, and regulatory changes — surfacing 
-missed opportunities as daily alerts. Not a summarizer — a signal-finder. 
-• Chart Pattern Intelligence — Real-time technical pattern detection (breakouts, reversals, 
-support/resistance, divergences) across the full National Stock Exchange (NSE) universe — with 
-plain-English explanation and historical back-tested success rates for that pattern on that specific 
-stock. 
-• Market ChatGPT — Next Gen — ET already has a Market ChatGPT product. Your challenge: 
-break it and rebuild it better. Deeper data integration, multi-step analysis, portfolio-aware answers, 
-and source-cited responses. 
-• AI Market Video Engine — Auto-generate short, visually rich market update videos (30–90 
-seconds) from real-time data. Race-chart simulators, daily market wraps, sector rotations, Foreign 
-Institutional Investor (FII) / Domestic Institutional Investor (DII) flow visualizations, Initial Public 
-Offering (IPO) trackers — zero human editing required.
+6. AI for the Indian Investor
+Problem Statement: India has 14 crore+ demat accounts, but most retail investors are flying blind — reacting to
+tips, missing filings, unable to read technicals, and managing mutual fund portfolios on gut feel. ET Markets has
+the data. Build the intelligence layer that turns data into actionable, money-making decisions.
+What You May Build:
+• Opportunity Radar — AI that continuously monitors corporate filings, quarterly results, bulk/block deals,
+insider trades, management commentary shifts, and regulatory changes — surfacing missed opportunities
+as daily alerts. Not a summarizer — a signal-finder.
+• Chart Pattern Intelligence — Real-time technical pattern detection (breakouts, reversals,
+support/resistance, divergences) across the full NSE universe — with plain-English explanation and
+historical back-tested success rates for that pattern on that specific stock.
+• Market ChatGPT — Next Gen — ET already has a Market ChatGPT product. Your challenge: break it and
+rebuild it better. Deeper data integration, multi-step analysis, portfolio-aware answers, and source-cited
+responses.
+• AI Market Video Engine — Auto-generate short, visually rich market update videos (30–90 seconds) from
+real-time data. Race-chart simulators, daily market wraps, sector rotations, FII/DII flow visualizations, IPO
+trackers — zero human editing required.
+Evaluation Focus: Signal quality over summarization (real alpha, not news rehash), depth of financial data
+integration, agent's ability to act on signals — not just surface them — accuracy of technical pattern detection,
+and quality of portfolio-aware personalization.
+Agentic Architecture Expectation: Teams must demonstrate an agent that completes at least 3
+sequential analysis steps without human input (e.g. detect signal → enrich with context → generate
+actionable alert). For video or chart-generation builds, the full pipeline from raw data ingestion to
+final output must be autonomous. Extra credit for agents that learn from user portfolio context and
+personalise signals accordingly.
+
+All
+submissions, scenario packs, and judging will be track-specific. Choose the track where your team
+has the strongest domain understanding or technical edge. You will be evaluated on depth, not
+breadth.
+
+Technology Guidelines
+There is no mandated platform or framework. Use whatever you are most productive with. The table below lists
+recommended options across key categories:
+Category Recommended Options Notes
+Agent Frameworks LangGraph, CrewAI, AutoGen, Google ADK,
+Semantic Kernel, or custom
+Pick what you know best. No single
+framework is mandated.
+Tool Integration MCP (Model Context Protocol), native
+function calling, or custom tool APIs
+MCP is a good option for multi-tool
+setups but is not required.
+LLMs Any: OpenAI, Anthropic, Google, Mistral,
+open-source (Llama, Qwen, etc.)
+Extra credit for cost-efficient
+architectures, e.g. routing between
+large and small models.
+Knowledge /
+Context
+RAG pipelines, knowledge graphs, vector
+DBs, structured context injection
+Show how your agent maintains
+and uses domain context across
+steps.
+Deployment Local demo, cloud-hosted, or containerized Working prototype required.
+Production deployment is not
+expected.

@@ -82,7 +82,37 @@ async def get_market_opportunities(symbols: list = None):
         if r:
             opportunities.append(r)
 
-    # Sort opportunities: Dividends soon first, then high impact news
+    # 3. Alpha Signals (Insiders & Filings)
+    from .alpha_signals import alpha_service
+    # If no symbols, use NIFTY 10
+    if not symbols:
+        symbols = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS", "SBIN.NS", "BHARTIARTL.NS", "ITC.NS", "LT.NS", "HINDUNILVR.NS"]
+    
+    for sym in symbols[:15]:
+        sym_clean = sym.replace(".NS", "").replace(".BO", "")
+        insider = alpha_service.get_insider_trades(sym_clean)
+        if insider.get("success"):
+            opportunities.append({
+                "type": "INSIDER_ALPHA",
+                "symbol": sym_clean,
+                "title": insider["signal"],
+                "details": insider["details"],
+                "impact": "POSITIVE" if insider["sentiment_score"] > 0 else "NEGATIVE",
+                "priority": "HIGH"
+            })
+        
+        filing = alpha_service.get_corporate_filings(sym_clean)
+        if filing.get("success"):
+            opportunities.append({
+                "type": "CORPORATE_ALPHA",
+                "symbol": sym_clean,
+                "title": filing["title"],
+                "details": filing["summary"],
+                "impact": filing["sentiment"].upper(),
+                "priority": "MEDIUM"
+            })
+
+    # Sort opportunities: High priority/impact first
     # (Custom sorting logic can be added here)
     
     return opportunities

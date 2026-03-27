@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from ..db_service import supabase
 
 async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols: list = []):
@@ -7,7 +7,7 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
     Deterministic scoring of news catalysts for a given symbol.
     """
     # Calculate cutoff time (last 48h)
-    cutoff = (datetime.utcnow() - timedelta(hours=48)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
 
     try:
         # Fetch news items related to the symbol within the last 48h
@@ -31,7 +31,7 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
             return []
 
         # 2. Score each news item
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         scored_news = []
         for item in news_items:
             # Sentiment score
@@ -45,8 +45,12 @@ async def get_relevant_news(symbol: str, context: str = None, portfolio_symbols:
             try:
                 # Handle potential formats
                 ts = item.get("published_at") or item.get("created_at")
-                date_str = ts.replace("Z", "+00:00")
-                created_at = datetime.fromisoformat(date_str).replace(tzinfo=None)
+                # fromisoformat handles +00:00 and +05:30 correctly
+                created_at = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                
+                # Ensure created_at is aware
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
             except:
                 created_at = now - timedelta(hours=24) # fallback
                 

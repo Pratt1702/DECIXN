@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .db_service import supabase
 from .data_fetcher import fetch_ticker_metadata
 import asyncio
@@ -14,7 +14,7 @@ async def get_market_opportunities(symbols: list = None):
     # 1. High Impact News (Catalyst Engine)
     try:
         # Get news from the last 72 hours with impact >= 4
-        cutoff = (datetime.utcnow() - timedelta(days=3)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
         if symbols:
             res = supabase.table("news") \
                 .select("*, news_stocks!inner(symbol)") \

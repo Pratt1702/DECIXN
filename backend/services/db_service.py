@@ -1,7 +1,7 @@
 from supabase import create_client
 from .config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 
 
@@ -9,9 +9,9 @@ supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 def parse_et_time(time_str: str):
     if not time_str:
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     t = time_str.lower()
     
     try:
@@ -30,12 +30,20 @@ def parse_et_time(time_str: str):
             if m: return (now - timedelta(days=int(m.group(1)))).isoformat()
             
         # Check for absolute format: "Mar 25, 2026, 08:00 PM IST"
+        is_ist = "ist" in t
         clean = time_str.replace("Last Updated:", "").replace("Updated:", "").replace("IST", "").strip()
         clean_norm = clean.replace(",", "") # "Mar 25 2026 08:00 PM"
         
         # Format might be "%b %d %Y %I:%M %p"
         dt = datetime.strptime(clean_norm, "%b %d %Y %I:%M %p")
-        return dt.isoformat()
+        
+        if is_ist:
+            # Add IST offset (+5:30) and convert to UTC
+            ist_offset = timedelta(hours=5, minutes=30)
+            aware_dt = dt.replace(tzinfo=timezone(ist_offset))
+            return aware_dt.astimezone(timezone.utc).isoformat()
+            
+        return dt.replace(tzinfo=timezone.utc).isoformat()
     except:
         return now.isoformat()
 

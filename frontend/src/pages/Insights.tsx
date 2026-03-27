@@ -26,15 +26,15 @@ const MOCK_DATA = {
     total_pnl: -25239,
     win_rate: "20%",
     insight:
-      "Majority of holdings are currently sitting at a loss but showing recovery signs. Keep an eye on Tata Steel support levels.",
+      "Majority of holdings are currently sitting at a loss but showing recovery signs. Keep an eye on TATASTEEL.NS support levels.",
   },
   recommended_actions: [
-    "Cut losses in deeply bearish stocks like Tata Steel to preserve capital if gap down occurs.",
-    "Let your winners run. High confidence in Karnataka Bank breakout.",
+    "Cut losses in deeply bearish stocks like TATASTEEL.NS to preserve capital if gap down occurs.",
+    "Let your winners run. High confidence in KTKBANK.NS breakout.",
   ],
   portfolio_analysis: [
     {
-      symbol: "Karnataka Bank",
+      symbol: "KTKBANK.NS",
       holding_context: {
         quantity: 100,
         avg_cost: 170.71,
@@ -53,7 +53,7 @@ const MOCK_DATA = {
       },
     },
     {
-      symbol: "Tata Steel",
+      symbol: "TATASTEEL.NS",
       holding_context: {
         quantity: 100,
         avg_cost: 250,
@@ -515,7 +515,7 @@ export function Insights() {
                       <div>
                         <div className="flex items-center gap-2.5">
                           <h3 className="text-xl font-black text-text-bold tracking-tight">
-                            {item.symbol.replace(".NS", "")}
+                            {item.symbol.replace(".NS", "").replace(".BO", "")}
                           </h3>
                           {item.data?.portfolio_tag &&
                             item.data.portfolio_tag !== "NEUTRAL" && (
@@ -528,7 +528,7 @@ export function Insights() {
                         </div>
                         <p className="text-xs text-text-muted mt-0.5 font-medium">
                           {item.data?.companyName ||
-                            item.symbol.replace(".NS", "")}
+                            item.symbol.replace(".NS", "").replace(".BO", "")}
                         </p>
                       </div>
                       <span

@@ -18,13 +18,13 @@ const MOCK_PORTFOLIO = {
     "Let your winners run. High confidence in Karnataka Bank breakout."
   ],
   portfolio_analysis: [
-    { symbol: "tatapower", holding_context: { quantity: 200, avg_cost: 195.50, current_value: 0, pnl_pct: 0, current_pnl: 0 } },
-    { symbol: "tcs", holding_context: { quantity: 15, avg_cost: 3850.00, current_value: 0, pnl_pct: 0, current_pnl: 0 } },
-    { symbol: "Karnataka Bank", holding_context: { quantity: 100, avg_cost: 170.71, current_value: 23132, pnl_pct: 35.5, current_pnl: 6061 } },
-    { symbol: "Coal India", holding_context: { quantity: 200, avg_cost: 450, current_value: 79000, pnl_pct: -12.22, current_pnl: -11000 } },
-    { symbol: "Tata Steel", holding_context: { quantity: 100, avg_cost: 250, current_value: 15000, pnl_pct: -40.0, current_pnl: -10000 } },
-    { symbol: "HDFC Bank", holding_context: { quantity: 50, avg_cost: 1600, current_value: 72500, pnl_pct: -9.37, current_pnl: -7500 } },
-    { symbol: "Infosys", holding_context: { quantity: 10, avg_cost: 1800, current_value: 15200, pnl_pct: -15.55, current_pnl: -2800 } }
+    { symbol: "TATAPOWER.NS", holding_context: { quantity: 200, avg_cost: 195.50, current_value: 0, pnl_pct: 0, current_pnl: 0 } },
+    { symbol: "TCS.NS", holding_context: { quantity: 15, avg_cost: 3850.00, current_value: 0, pnl_pct: 0, current_pnl: 0 } },
+    { symbol: "KTKBANK.NS", holding_context: { quantity: 100, avg_cost: 170.71, current_value: 23132, pnl_pct: 35.5, current_pnl: 6061 } },
+    { symbol: "COALINDIA.NS", holding_context: { quantity: 200, avg_cost: 450, current_value: 79000, pnl_pct: -12.22, current_pnl: -11000 } },
+    { symbol: "TATASTEEL.NS", holding_context: { quantity: 100, avg_cost: 250, current_value: 15000, pnl_pct: -40.0, current_pnl: -10000 } },
+    { symbol: "HDFCBANK.NS", holding_context: { quantity: 50, avg_cost: 1600, current_value: 72500, pnl_pct: -9.37, current_pnl: -7500 } },
+    { symbol: "INFY.NS", holding_context: { quantity: 10, avg_cost: 1800, current_value: 15200, pnl_pct: -15.55, current_pnl: -2800 } }
   ]
 };
 

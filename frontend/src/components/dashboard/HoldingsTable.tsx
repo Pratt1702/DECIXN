@@ -92,7 +92,9 @@ export function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTableProps
                 }}
                 className="hover:bg-white/[0.04] transition-all cursor-pointer group"
               >
-                <td className="px-6 py-4 font-black text-text-bold tracking-tight">{h.symbol}</td>
+                <td className="px-6 py-4 font-black text-text-bold tracking-tight">
+                  {h.symbol.replace(".NS", "").replace(".BO", "")}
+                </td>
                 <td className="px-6 py-4 text-text-muted font-bold tabular-nums">{ctx.quantity}</td>
                 <td className="px-6 py-4 text-text-muted font-bold tabular-nums">₹{ctx.avg_cost.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td className="px-6 py-4 text-text-bold font-black tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

@@ -140,7 +140,7 @@ export function Holdings() {
         portfolio_analysis: [
           {
             id: "mock-1",
-            symbol: "Karnataka Bank",
+            symbol: "KTKBANK.NS",
             holding_context: {
               quantity: 100,
               avg_cost: 170.71,
@@ -151,7 +151,7 @@ export function Holdings() {
           },
           {
             id: "mock-2",
-            symbol: "Coal India",
+            symbol: "COALINDIA.NS",
             holding_context: {
               quantity: 200,
               avg_cost: 450,
@@ -162,7 +162,7 @@ export function Holdings() {
           },
           {
             id: "mock-3",
-            symbol: "Tata Steel",
+            symbol: "TATASTEEL.NS",
             holding_context: {
               quantity: 100,
               avg_cost: 250,

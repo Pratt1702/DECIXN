@@ -180,7 +180,7 @@ export function AddHoldingModal({ isOpen, onClose, onSuccess, initialData }: Add
                 ) : (
                   <div className="flex items-center justify-between bg-accent/5 border border-accent/20 rounded-lg px-4 py-2">
                     <div className="flex flex-col">
-                      <span className="text-sm font-black text-accent">{selectedStock.symbol.replace('.NS', '')}</span>
+                      <span className="text-sm font-black text-accent">{selectedStock.symbol.replace('.NS', '').replace('.BO', '')}</span>
                       <span className="text-[10px] text-text-muted truncate max-w-[200px]">{selectedStock.name}</span>
                     </div>
                     <button onClick={() => setSelectedStock(null)} className="text-text-muted hover:text-danger p-1">
@@ -195,7 +195,7 @@ export function AddHoldingModal({ isOpen, onClose, onSuccess, initialData }: Add
                <div className="space-y-2">
                 <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">Asset</label>
                 <div className="bg-white/[0.03] border border-white/10 rounded-lg px-4 py-2">
-                  <span className="text-sm font-black text-text-bold">{initialData.symbol}</span>
+                  <span className="text-sm font-black text-text-bold">{initialData.symbol.replace(".NS", "").replace(".BO", "")}</span>
                 </div>
                </div>
             )}

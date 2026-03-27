@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, Loader2, Save } from "lucide-react";
 import { searchStocks } from "../../services/api";
+import { usePortfolioStore } from "../../store/usePortfolioStore";
 
 interface AddHoldingModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function AddHoldingModal({ isOpen, onClose, onSuccess, initialData }: Add
   const [quantity, setQuantity] = useState<string>("");
   const [avgPrice, setAvgPrice] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
+  const { data } = usePortfolioStore();
 
   useEffect(() => {
     if (!isOpen) {
@@ -68,7 +70,14 @@ export function AddHoldingModal({ isOpen, onClose, onSuccess, initialData }: Add
     try {
       const SESSION_KEY = "uploaded_stock_holdings";
       const existingData = localStorage.getItem(SESSION_KEY);
-      let holdings: any[] = existingData ? JSON.parse(existingData) : [];
+      
+      // Promotion Logic: If no local data, but store has data (mock), use it as base
+      let holdings: any[] = [];
+      if (existingData) {
+        holdings = JSON.parse(existingData);
+      } else if (data?.portfolio_analysis) {
+        holdings = [...data.portfolio_analysis];
+      }
 
       const newHolding = {
         id: initialData?.id || crypto.randomUUID(),

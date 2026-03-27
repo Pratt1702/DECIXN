@@ -223,13 +223,22 @@ export function MFHoldings() {
     if (!window.confirm("Delete this fund?")) return;
     try {
       const existingData = localStorage.getItem(SESSION_KEY);
-      if (existingData && id) {
-        const holdings = JSON.parse(existingData);
+      
+      // Promotion Logic: If no local data, use mock/store data as base
+      let holdings: any[] = [];
+      if (existingData) {
+        holdings = JSON.parse(existingData);
+      } else if (data?.portfolio_analysis) {
+        holdings = [...data.portfolio_analysis];
+      }
+
+      if (id && (existingData || holdings.length > 0)) {
         // Filter out the item that matches the ID, ISIN, or Name
         const filtered = holdings.filter((h: any) => 
           h.id !== id && h.isin !== id && h.scheme_name !== id
         );
         localStorage.setItem(SESSION_KEY, JSON.stringify(filtered));
+        setIsManual(true); // Always switch to manual mode once storage is used
         loadData();
       }
     } catch (err) {

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { analyzeMFPortfolio, deleteHolding } from "../services/api";
+import { analyzeMFPortfolio } from "../services/api";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,7 +11,6 @@ import { MFHoldingsTable } from "../components/dashboard/MFHoldingsTable";
 import { AddMFHoldingModal } from "../components/dashboard/AddMFHoldingModal";
 
 const SESSION_KEY = "uploaded_mf_holdings";
-const TEST_USER_ID = "00000000-0000-0000-0000-000000000000";
 
 export function MFHoldings() {
   const [data, setData] = useState<any>(null);
@@ -215,10 +214,15 @@ export function MFHoldings() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this fund?")) return;
     try {
-      await deleteHolding(id);
-      loadData();
+      const existingData = localStorage.getItem(SESSION_KEY);
+      if (existingData) {
+        const holdings = JSON.parse(existingData);
+        const filtered = holdings.filter((h: any) => h.id !== id && (h.isin !== id && h.scheme_name !== id));
+        localStorage.setItem(SESSION_KEY, JSON.stringify(filtered));
+        loadData();
+      }
     } catch (err) {
-      console.error("Delete failed", err);
+      console.error("Local delete failed", err);
     }
   };
 
@@ -347,7 +351,6 @@ export function MFHoldings() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={loadData}
-        userId={TEST_USER_ID}
         initialData={editingHolding}
       />
     </motion.div>

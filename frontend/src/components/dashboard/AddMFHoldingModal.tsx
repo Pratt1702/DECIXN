@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, Loader2, Save } from "lucide-react";
-import { searchMF, upsertHolding } from "../../services/api";
+import { searchMF } from "../../services/api";
 
 interface AddMFHoldingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  userId: string;
   initialData?: any;
 }
 
-export function AddMFHoldingModal({ isOpen, onClose, onSuccess, userId, initialData }: AddMFHoldingModalProps) {
+export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: AddMFHoldingModalProps) {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -67,18 +66,40 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, userId, initialD
     if (!selectedFund || !quantity || !avgPrice) return;
     setIsSaving(true);
     try {
-      await upsertHolding({
-        user_id: userId,
-        symbol: selectedFund.scheme_name, // Store scheme name as symbol for display
-        asset_type: 'mf',
-        quantity: parseFloat(quantity),
-        avg_cost: parseFloat(avgPrice),
-        isin: selectedFund.scheme_code.toString() // Use scheme_code for lookup
-      });
+      const SESSION_KEY = "uploaded_mf_holdings";
+      const existingData = localStorage.getItem(SESSION_KEY);
+      let holdings: any[] = existingData ? JSON.parse(existingData) : [];
+
+      const newHolding = {
+        id: initialData?.id || crypto.randomUUID(),
+        scheme_name: selectedFund.scheme_name,
+        isin: selectedFund.scheme_code.toString(),
+        holding_context: {
+          quantity: parseFloat(quantity),
+          avg_cost: parseFloat(avgPrice),
+          current_value: initialData?.holding_context?.current_value || 0,
+          pnl_pct: initialData?.holding_context?.pnl_pct || 0,
+          current_pnl: initialData?.holding_context?.current_pnl || 0
+        }
+      };
+
+      if (initialData) {
+        // Edit mode
+        holdings = holdings.map(h => (h.id === initialData.id || (h.isin === initialData.isin && h.scheme_name === initialData.scheme_name)) ? newHolding : h);
+      } else {
+        // Add mode
+        holdings.push(newHolding);
+      }
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(holdings));
+      
+      // Delay for UX
+      await new Promise(r => setTimeout(r, 400));
+      
       onSuccess();
       onClose();
     } catch (e) {
-      console.error("Save failed", e);
+      console.error("Local save failed", e);
     } finally {
       setIsSaving(false);
     }

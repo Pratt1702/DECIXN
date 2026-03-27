@@ -208,27 +208,5 @@ export const getOpportunityRadar = async (symbols?: string) => {
   return response.data;
 };
 
-// --- PORTFOLIO CRUD ---
 
-export const getHoldings = async (userId: string) => {
-  const response = await apiClient.get(`/portfolio/holdings/${userId}`);
-  return response.data;
-};
-
-export const upsertHolding = async (holding: {
-  user_id: string;
-  symbol: string;
-  asset_type: 'stock' | 'mf';
-  quantity: number;
-  avg_cost: number;
-  isin?: string;
-}) => {
-  const response = await apiClient.post('/portfolio/holdings', holding);
-  return response.data;
-};
-
-export const deleteHolding = async (holdingId: string) => {
-  const response = await apiClient.delete(`/portfolio/holdings/${holdingId}`);
-  return response.data;
-};
 

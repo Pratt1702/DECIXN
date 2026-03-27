@@ -9,10 +9,8 @@ import { useNavigate } from "react-router-dom";
 
 import { usePortfolioStore } from "../store/usePortfolioStore";
 import { AddHoldingModal } from "../components/dashboard/AddHoldingModal";
-import { deleteHolding } from "../services/api";
 
 const SESSION_KEY = "uploaded_stock_holdings";
-const TEST_USER_ID = "00000000-0000-0000-0000-000000000000"; // Fallback for demo
 
 export function Holdings() {
   const navigate = useNavigate();
@@ -286,10 +284,16 @@ export function Holdings() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this holding?")) return;
     try {
-      await deleteHolding(id);
-      loadData();
+      const existingData = localStorage.getItem(SESSION_KEY);
+      if (existingData) {
+        const holdings = JSON.parse(existingData);
+        // Find by ID or Symbol
+        const filtered = holdings.filter((h: any) => h.id !== id && h.symbol !== id);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(filtered));
+        loadData();
+      }
     } catch (err) {
-      console.error("Delete failed", err);
+      console.error("Local delete failed", err);
     }
   };
 
@@ -470,7 +474,6 @@ export function Holdings() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={loadData}
-        userId={TEST_USER_ID}
         initialData={editingHolding}
       />
     </motion.div>

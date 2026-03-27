@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, Loader2, Save } from "lucide-react";
-import { searchStocks, upsertHolding } from "../../services/api";
+import { searchStocks } from "../../services/api";
 
 interface AddHoldingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  userId: string;
   initialData?: any; // For editing
 }
 
-export function AddHoldingModal({ isOpen, onClose, onSuccess, userId, initialData }: AddHoldingModalProps) {
+export function AddHoldingModal({ isOpen, onClose, onSuccess, initialData }: AddHoldingModalProps) {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -65,18 +64,41 @@ export function AddHoldingModal({ isOpen, onClose, onSuccess, userId, initialDat
   const handleSave = async () => {
     if (!selectedStock || !quantity || !avgPrice) return;
     setIsSaving(true);
+    
     try {
-      await upsertHolding({
-        user_id: userId,
+      const SESSION_KEY = "uploaded_stock_holdings";
+      const existingData = localStorage.getItem(SESSION_KEY);
+      let holdings: any[] = existingData ? JSON.parse(existingData) : [];
+
+      const newHolding = {
+        id: initialData?.id || crypto.randomUUID(),
         symbol: selectedStock.symbol,
-        asset_type: 'stock',
-        quantity: parseFloat(quantity),
-        avg_cost: parseFloat(avgPrice)
-      });
+        holding_context: {
+          quantity: parseFloat(quantity),
+          avg_cost: parseFloat(avgPrice),
+          current_value: initialData?.holding_context?.current_value || 0,
+          pnl_pct: initialData?.holding_context?.pnl_pct || 0,
+          current_pnl: initialData?.holding_context?.current_pnl || 0
+        }
+      };
+
+      if (initialData) {
+        // Edit mode: replace the existing holding
+        holdings = holdings.map(h => (h.id === initialData.id || h.symbol === initialData.symbol) ? newHolding : h);
+      } else {
+        // Add mode: push new holding
+        holdings.push(newHolding);
+      }
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(holdings));
+      
+      // Artificial delay for UX feel, though it's local now
+      await new Promise(r => setTimeout(r, 400));
+      
       onSuccess();
       onClose();
     } catch (e) {
-      console.error("Save failed", e);
+      console.error("Local save failed", e);
     } finally {
       setIsSaving(false);
     }

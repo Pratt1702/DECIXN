@@ -153,116 +153,35 @@ def read_root():
     return {"message": "Welcome to the Market Intelligence Engine API. Use /analyze/{ticker} to get analysis."}
 
 @app.get("/analyze/portfolio")
-async def analyze_portfolio(user_id: str = "anonymous"):
+async def analyze_portfolio():
     """
-    Analyzes the user's portfolio. 
-    Priority: 
-    1. Persistent holdings from Supabase (if user_id provided)
-    2. Fallback to Kite holdings CSV (holdings_kite.csv)
+    Analyzes the user's portfolio from the fallback CSV.
+    (Manual holdings are now managed local-only via frontend).
     """
     holdings_data = []
 
-    # 1. Fetch from Database if user is logged in
-    if user_id and len(user_id) > 20:
-        from services.supabase_client import supabase
-        try:
-            res = supabase.table("portfolios").select("*").eq("user_id", user_id).eq("asset_type", "stock").execute()
-            if res.data:
-                holdings_data = [
-                    {
-                        "symbol": h["symbol"],
-                        "quantity": h["quantity"],
-                        "avg_cost": h["avg_cost"],
-                        "pnl": 0.0
-                    }
-                    for h in res.data
-                ]
-        except Exception as e:
-            print(f"Failed to fetch holdings from DB: {e}")
-
-    # 2. Fallback to CSV if no DB data
-    if not holdings_data:
-        csv_path = os.path.join(os.path.dirname(__file__), "assets", "holdings_kite.csv")
-        if os.path.exists(csv_path):
-            with open(csv_path, mode='r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                next(reader, None)  # skip header
-                for row in reader:
-                    if not row or len(row) < 3: continue
-                    try:
-                        symbol = row[0].replace('"', '').replace("'", '').strip()
-                        qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
-                        avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
-                        if symbol and qty > 0:
-                            holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": 0.0})
-                    except Exception as e:
-                        print(f"Failed to parse CSV row {row}: {e}")
+    csv_path = os.path.join(os.path.dirname(__file__), "assets", "holdings_kite.csv")
+    if os.path.exists(csv_path):
+        with open(csv_path, mode='r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            next(reader, None)  # skip header
+            for row in reader:
+                if not row or len(row) < 3: continue
+                try:
+                    symbol = row[0].replace('"', '').replace("'", '').strip()
+                    qty = float(row[1].replace('"', '').replace(',', '').strip() or 0)
+                    avg_cost = float(row[2].replace('"', '').replace(',', '').strip() or 0)
+                    if symbol and qty > 0:
+                        holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": 0.0})
+                except Exception as e:
+                    print(f"Failed to parse CSV row {row}: {e}")
 
     if not holdings_data:
-        raise HTTPException(status_code=404, detail="No holdings found in DB or CSV fallback.")
+        raise HTTPException(status_code=404, detail="No fallback holdings found.")
 
     return await run_portfolio_analysis(holdings_data)
 
-# --- PORTFOLIO CRUD ---
 
-class HoldingUpsert(BaseModel):
-    user_id: str
-    symbol: str
-    asset_type: str # 'stock' or 'mf'
-    quantity: float
-    avg_cost: float
-    isin: str | None = None
-
-@app.get("/portfolio/holdings/{user_id}")
-async def get_user_holdings(user_id: str):
-    from services.supabase_client import supabase
-    try:
-        res = supabase.table("portfolios").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
-        return res.data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/portfolio/holdings")
-async def upsert_holding(payload: HoldingUpsert):
-    from services.supabase_client import supabase
-    try:
-        # Check if holding exists for this symbol and type
-        existing = supabase.table("portfolios")\
-            .select("id")\
-            .eq("user_id", payload.user_id)\
-            .eq("symbol", payload.symbol.upper())\
-            .eq("asset_type", payload.asset_type)\
-            .execute()
-        
-        data = {
-            "user_id": payload.user_id,
-            "symbol": payload.symbol.upper(),
-            "asset_type": payload.asset_type,
-            "quantity": payload.quantity,
-            "avg_cost": payload.avg_cost,
-            "isin": payload.isin
-        }
-
-        if existing.data:
-            # Update
-            res = supabase.table("portfolios").update(data).eq("id", existing.data[0]["id"]).execute()
-        else:
-            # Insert
-            res = supabase.table("portfolios").insert(data).execute()
-            
-        return {"success": True, "data": res.data[0]}
-    except Exception as e:
-        print(f"Upsert failure: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/portfolio/holdings/{holding_id}")
-async def delete_holding(holding_id: str):
-    from services.supabase_client import supabase
-    try:
-        supabase.table("portfolios").delete().eq("id", holding_id).execute()
-        return {"success": True}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze/portfolio")
 async def analyze_portfolio_custom(payload: StockPortfolioInput):

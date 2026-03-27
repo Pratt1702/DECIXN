@@ -445,6 +445,7 @@ export function Holdings() {
           </h2>
           <CSVUpload
             isManual={isManual}
+            acceptType="stocks"
             onDataParsed={(holdings) => {
               handleDataParsed(holdings);
             }}

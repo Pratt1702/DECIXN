@@ -50,7 +50,12 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
             ))
             
             for q in quotes:
-                if q.get("exchange") in ["BSE", "NSI"] or q.get("symbol", "").endswith((".BO", ".NS")) or q.get("quoteType") == "MUTUALFUND":
+                is_mf_type = q.get("quoteType") == "MUTUALFUND"
+                is_indian = q.get("exchange") in ["BSE", "NSI"] or q.get("symbol", "").endswith((".BO", ".NS"))
+                
+                # If we have an ISIN, we can be slightly more flexible, 
+                # but if searching by Name, we MUST see MUTUALFUND type
+                if is_indian and (is_mf_type or isin):
                     valid_quote = q
                     break
         
@@ -67,7 +72,22 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
                             break
                             
         if not valid_quote:
-            return {"success": False, "error": f"Invalid mapping: {lookup_target} not found on BSE/NSI"}
+            return {
+                "success": False, 
+                "error": f"Invalid mapping: {lookup_target} not found on BSE/NSI",
+                "id": holding_id,
+                "symbol": name_or_isin,
+                "isin": isin or lookup_target,
+                "holding_context": {
+                    "quantity": quantity,
+                    "avg_cost": avg_cost,
+                    "current_price": 0,
+                    "current_value": 0,
+                    "invested_value": avg_cost * quantity,
+                    "current_pnl": 0,
+                    "pnl_pct": 0
+                }
+            }
         
         ticker_symbol = valid_quote["symbol"]
         ticker = yf.Ticker(ticker_symbol)
@@ -77,7 +97,22 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
         # We use a 5-day window and take the last available NAV for robustness
         hist = ticker.history(period="5d")
         if hist.empty:
-            return {"success": False, "error": f"No price data found for ticker: {ticker_symbol} (ISIN: {lookup_target})"}
+            return {
+                "success": False, 
+                "error": f"No price data found for ticker: {ticker_symbol}",
+                "id": holding_id,
+                "symbol": name_or_isin,
+                "isin": isin or lookup_target,
+                "holding_context": {
+                    "quantity": quantity,
+                    "avg_cost": avg_cost,
+                    "current_price": 0,
+                    "current_value": 0,
+                    "invested_value": avg_cost * quantity,
+                    "current_pnl": 0,
+                    "pnl_pct": 0
+                }
+            }
             
         latest_nav = float(hist['Close'].iloc[-1])
         nav_date = hist.index[-1].strftime('%Y-%m-%d')
@@ -107,7 +142,22 @@ def analyze_single_mf_holding(name_or_isin: str, avg_cost: float, quantity: floa
         }
     except Exception as e:
         print(f"MF Holding Analysis Error: {e}")
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False, 
+            "error": str(e),
+            "id": holding_id,
+            "symbol": name_or_isin,
+            "isin": isin,
+            "holding_context": {
+                "quantity": quantity,
+                "avg_cost": avg_cost,
+                "current_price": 0,
+                "current_value": 0,
+                "invested_value": avg_cost * quantity,
+                "current_pnl": 0,
+                "pnl_pct": 0
+            }
+        }
 
 def run_mf_portfolio_analysis(holdings_data: list[dict]) -> dict:
     """
@@ -125,7 +175,8 @@ def run_mf_portfolio_analysis(holdings_data: list[dict]) -> dict:
     # Note: increased workers might hit yfinance rate limits if too many
     with ThreadPoolExecutor(max_workers=5) as executor:
         batch_results = list(executor.map(process_holding, holdings_data))
-        results = [r for r in batch_results if r and r.get("success")]
+        # Keep all results that aren't None (None means invalid input row)
+        results = [r for r in batch_results if r]
 
     if not results:
         return {
@@ -136,9 +187,24 @@ def run_mf_portfolio_analysis(holdings_data: list[dict]) -> dict:
                 "total_value_live": 0,
                 "total_pnl": 0,
                 "win_rate": "0%",
-                "insight": "No valid mutual fund data found via yfinance."
+                "insight": "No holdings to analyze."
             },
             "portfolio_analysis": []
+        }
+
+    successful_results = [r for r in results if r.get("success")]
+    if not successful_results:
+         return {
+            "portfolio_summary": {
+                "health": "N/A",
+                "risk_level": "Unknown",
+                "total_invested": 0,
+                "total_value_live": 0,
+                "total_pnl": 0,
+                "win_rate": "0%",
+                "insight": "All live data requests failed. Retrying later."
+            },
+            "portfolio_analysis": results # Still return the attempted ones
         }
 
     total_invested = sum(r['holding_context']['invested_value'] for r in results)

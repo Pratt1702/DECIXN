@@ -78,10 +78,15 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: A
       const newHolding = {
         id: initialData?.id || crypto.randomUUID(),
         scheme_name: selectedFund.scheme_name,
-        isin: selectedFund.scheme_code?.toString() || selectedFund.scheme_name,
+        isin: selectedFund.isin_div_payout || 
+              selectedFund.isin_reinvest || 
+              selectedFund.isin || 
+              selectedFund.scheme_code?.toString() || 
+              selectedFund.scheme_name,
         holding_context: {
           quantity: parseFloat(quantity),
           avg_cost: parseFloat(avgPrice),
+          isin: selectedFund.isin_div_payout || selectedFund.isin_reinvest || selectedFund.isin,
           current_value: initialData?.holding_context?.current_value || 0,
           pnl_pct: initialData?.holding_context?.pnl_pct || 0,
           current_pnl: initialData?.holding_context?.current_pnl || 0
@@ -159,17 +164,39 @@ export function AddMFHoldingModal({ isOpen, onClose, onSuccess, initialData }: A
                     {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-accent animate-spin" />}
                     
                     {suggestions.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-10 overflow-hidden divide-y divide-white/5">
-                        {suggestions.map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setSelectedFund(s)}
-                            className="w-full px-4 py-3 text-left hover:bg-white/5 flex flex-col transition-colors"
-                          >
-                            <span className="text-[13px] font-black text-text-bold tracking-tight italic">{s.scheme_name}</span>
-                            <span className="text-[9px] text-text-muted font-mono mt-0.5">{s.scheme_code}</span>
-                          </button>
-                        ))}
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-[280px] overflow-y-auto divide-y divide-white/5 custom-scrollbar">
+                        {suggestions.map((s, i) => {
+                          const isDirect = s.scheme_name.toLowerCase().includes('direct');
+                          
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => setSelectedFund(s)}
+                              className="w-full px-4 py-3 text-left hover:bg-accent/10 flex flex-col gap-1 transition-all group"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-[12px] font-bold text-text-bold leading-tight group-hover:text-accent transition-colors">
+                                  {s.scheme_name}
+                                </span>
+                                {isDirect && (
+                                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-black bg-success/20 text-success uppercase tracking-tighter border border-success/20">
+                                    Direct
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] text-text-muted font-mono bg-white/5 px-1.5 py-0.5 rounded">
+                                  {s.scheme_code}
+                                </span>
+                                {s.category && (
+                                  <span className="text-[9px] text-text-muted font-medium opacity-60 italic">
+                                    {s.category}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

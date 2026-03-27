@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 interface CSVUploadProps {
   onDataParsed: (data: any[]) => void;
   isManual?: boolean;
+  acceptType?: 'stocks' | 'mf';
 }
 
-export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
+export function CSVUpload({ onDataParsed, isManual, acceptType }: CSVUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -88,15 +89,30 @@ export function CSVUpload({ onDataParsed, isManual }: CSVUploadProps) {
           (h) => h.symbol !== "Unknown" && h.holding_context.quantity > 0
         );
 
-        if (mappedData.length === 0) {
-          const firstRow = results.data[0] as any;
-          if (firstRow) console.log("Detected headers:", Object.keys(firstRow));
-          setError("No valid holdings found.");
+        const validatedData = mappedData.filter(h => {
+          if (acceptType === 'mf') {
+            // MF must have an ISIN or a long scheme name (usually > 10 chars)
+            // If it's a short 3-6 char word and no ISIN, it's probably a stock
+            const isShortTicker = /^[A-Z]{1,6}$/.test(h.symbol);
+            if (isShortTicker && !h.isin) {
+              console.warn(`Skipping potential stock ${h.symbol} in MF upload`);
+              return false;
+            }
+          }
+          if (acceptType === 'stocks') {
+            // Stocks must have a symbol
+            if (!h.symbol || h.symbol.length > 15) return false;
+          }
+          return true;
+        });
+
+        if (validatedData.length === 0) {
+          setError(acceptType === 'mf' ? "No valid Mutual Funds found. (Is this a stock list?)" : "No valid stocks found.");
           return;
         }
 
         setSuccess(true);
-          const mappedDataWithIds = mappedData.map(h => ({
+          const mappedDataWithIds = validatedData.map(h => ({
             ...h,
             id: crypto.randomUUID()
           }));

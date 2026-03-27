@@ -223,9 +223,12 @@ export function MFHoldings() {
     if (!window.confirm("Delete this fund?")) return;
     try {
       const existingData = localStorage.getItem(SESSION_KEY);
-      if (existingData) {
+      if (existingData && id) {
         const holdings = JSON.parse(existingData);
-        const filtered = holdings.filter((h: any) => h.id !== id && (h.isin !== id && h.scheme_name !== id));
+        // Filter out the item that matches the ID, ISIN, or Name
+        const filtered = holdings.filter((h: any) => 
+          h.id !== id && h.isin !== id && h.scheme_name !== id
+        );
         localStorage.setItem(SESSION_KEY, JSON.stringify(filtered));
         loadData();
       }
@@ -281,7 +284,7 @@ export function MFHoldings() {
             </h1>
             {isManual ? (
               <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20">
-                Live Upload
+                Local Session
               </span>
             ) : (
               <span className="px-2 py-0.5 rounded-md bg-white/[0.03] text-[9px] font-black text-text-muted uppercase tracking-widest border border-white/10">
@@ -329,6 +332,7 @@ export function MFHoldings() {
           </h2>
           <CSVUpload
             isManual={isManual}
+            acceptType="mf"
             onDataParsed={(holdings) => {
               handleDataParsed(holdings);
             }}

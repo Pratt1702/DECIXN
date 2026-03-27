@@ -25,10 +25,10 @@ export function RiskCompass({ funds }: RiskCompassProps) {
   }));
 
   return (
-    <div className="bg-bg-surface border border-border-main rounded-[2rem] p-8 space-y-6 shadow-2xl">
+    <div className="bg-bg-surface border border-border-main rounded-xl p-6 space-y-6 shadow-2xl">
       <div className="space-y-1">
-        <h3 className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Efficiency Frontier</h3>
-        <h2 className="text-xl font-black text-text-bold uppercase italic tracking-tighter">Risk-Return Compass</h2>
+        <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Efficiency Frontier</h3>
+        <h2 className="text-xl font-black text-text-bold tracking-tighter">Risk-Return Compass</h2>
       </div>
 
       <div className="h-[300px] w-full">
@@ -42,7 +42,7 @@ export function RiskCompass({ funds }: RiskCompassProps) {
               unit="%" 
               stroke="#ffffff40" 
               fontSize={10}
-              label={{ value: 'Volatility (Risk)', position: 'insideBottom', offset: -10, fill: '#666', fontSize: 9, fontWeight: 900 }}
+              label={{ value: 'Volatility (Risk)', position: 'insideBottom', offset: -10, fill: '#666', fontSize: 9, fontWeight: 700 }}
             />
             <YAxis 
               type="number" 
@@ -51,7 +51,7 @@ export function RiskCompass({ funds }: RiskCompassProps) {
               unit="%" 
               stroke="#ffffff40" 
               fontSize={10}
-              label={{ value: 'Alpha (Return)', angle: -90, position: 'insideLeft', fill: '#666', fontSize: 9, fontWeight: 900 }}
+              label={{ value: 'Alpha (Return)', angle: -90, position: 'insideLeft', fill: '#666', fontSize: 9, fontWeight: 700 }}
             />
             <ZAxis type="number" dataKey="z" range={[100, 100]} />
             <Tooltip 
@@ -59,23 +59,23 @@ export function RiskCompass({ funds }: RiskCompassProps) {
               contentStyle={{ 
                 backgroundColor: '#121212', 
                 border: '1px solid #222', 
-                borderRadius: '12px',
+                borderRadius: '8px',
                 fontSize: '11px',
-                fontWeight: '900'
+                fontWeight: '700'
               }}
             />
             <Scatter name="Funds" data={data}>
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.y > 0 ? '#50ffa7' : '#e13451'} />
               ))}
-              <LabelList dataKey="name" position="top" fill="#ffffff" style={{ fontSize: '9px', fontWeight: '900' }} />
+              <LabelList dataKey="name" position="top" fill="#ffffff" style={{ fontSize: '9px', fontWeight: '700' }} />
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
       </div>
       
-      <div className="flex justify-between items-center pt-4 border-t border-white/5">
-         <p className="text-[9px] text-text-muted font-bold uppercase tracking-widest leading-relaxed max-w-[200px]">
+      <div className="pt-4 border-t border-white/5">
+         <p className="text-[9px] text-text-muted font-bold uppercase tracking-widest leading-relaxed">
             Top-Left quadrant represents optimal efficiency (High Alpha, Low Volatility).
          </p>
       </div>

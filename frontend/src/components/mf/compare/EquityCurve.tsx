@@ -20,19 +20,19 @@ export function EquityCurve({ data, funds }: EquityCurveProps) {
   const colors = ['#50ffa7', '#818cf8', '#fbbf24', '#f472b6', '#38bdf8'];
 
   return (
-    <div className="bg-bg-surface border border-border-main rounded-[2rem] p-8 space-y-6 shadow-2xl">
+    <div className="bg-bg-surface border border-border-main rounded-xl p-6 space-y-6 shadow-2xl">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h3 className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Growth Intelligence</h3>
-          <h2 className="text-xl font-black text-text-bold uppercase italic tracking-tighter">Equity Curve</h2>
+          <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Growth Intelligence</h3>
+          <h2 className="text-xl font-black text-text-bold tracking-tighter">Equity Curve</h2>
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-bold text-text-muted uppercase">Base Investment</p>
+          <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Base Investment</p>
           <p className="text-sm font-black text-text-bold">₹10,000</p>
         </div>
       </div>
 
-      <div className="h-[350px] w-full">
+      <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
@@ -60,10 +60,9 @@ export function EquityCurve({ data, funds }: EquityCurveProps) {
               contentStyle={{ 
                 backgroundColor: '#121212', 
                 border: '1px solid #222', 
-                borderRadius: '12px',
+                borderRadius: '8px',
                 fontSize: '11px',
-                fontWeight: '900',
-                textTransform: 'uppercase'
+                fontWeight: '700'
               }}
               labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
               itemStyle={{ padding: '2px 0' }}
@@ -78,7 +77,7 @@ export function EquityCurve({ data, funds }: EquityCurveProps) {
                 stroke={colors[i]}
                 fillOpacity={1}
                 fill={`url(#colorFund${i})`}
-                strokeWidth={3}
+                strokeWidth={2}
                 dot={false}
               />
             ))}
@@ -97,7 +96,7 @@ export function EquityCurve({ data, funds }: EquityCurveProps) {
             <Legend 
                verticalAlign="top" 
                align="right"
-               wrapperStyle={{ paddingBottom: '20px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase' }}
+               wrapperStyle={{ paddingBottom: '20px', fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}
             />
           </AreaChart>
         </ResponsiveContainer>

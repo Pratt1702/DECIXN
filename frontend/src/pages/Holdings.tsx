@@ -289,11 +289,20 @@ export function Holdings() {
     if (!window.confirm("Delete this holding?")) return;
     try {
       const existingData = localStorage.getItem(SESSION_KEY);
+      
+      // Promotion Logic: If no local data, use mock/store data as base
+      let holdings: any[] = [];
       if (existingData) {
-        const holdings = JSON.parse(existingData);
+        holdings = JSON.parse(existingData);
+      } else if (data?.portfolio_analysis) {
+        holdings = [...data.portfolio_analysis];
+      }
+
+      if (id && (existingData || holdings.length > 0)) {
         // Find by ID or Symbol
         const filtered = holdings.filter((h: any) => h.id !== id && h.symbol !== id);
         localStorage.setItem(SESSION_KEY, JSON.stringify(filtered));
+        setIsManual(true);
         loadData();
       }
     } catch (err) {

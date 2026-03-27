@@ -131,7 +131,7 @@ export function HoldingsTable({ holdings, onEdit, onDelete }: HoldingsTableProps
                               Edit
                             </button>
                             <button 
-                              onClick={(e) => { e.stopPropagation(); onDelete?.(h.id); setActiveMenu(null); }}
+                              onClick={(e) => { e.stopPropagation(); onDelete?.(h.id || h.symbol); setActiveMenu(null); }}
                               className="w-full px-4 py-2 text-left text-xs font-bold text-text-muted hover:text-danger hover:bg-white/5 flex items-center gap-2 transition-colors uppercase tracking-widest"
                             >
                               <Trash2 size={12} />

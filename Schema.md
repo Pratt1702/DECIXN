@@ -226,6 +226,20 @@ Historical price (NAV) data for mutual funds.
 | `nav` | `decimal` | `NOT NULL` | Net Asset Value on the given date. |
 | `nav_date` | `date` | `NOT NULL` | The date for which NAV is recorded. |
 
+### `portfolios`
+Manual and persistent user holdings for Stocks and Mutual Funds.
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `uuid` | `PK`, `DEFAULT gen_random_uuid()` | Unique holding identifier. |
+| `user_id` | `uuid` | `FK (profiles.id)`, `NOT NULL` | The owner of the holding. |
+| `symbol` | `text` | `NOT NULL` | Ticker (e.g., RELIANCE.NS) or Scheme Code. |
+| `asset_type` | `text` | `CHECK (asset_type IN ('stock', 'mf'))` | Type of asset. |
+| `quantity` | `double precision` | `NOT NULL` | Number of units held. |
+| `avg_cost` | `double precision` | `NOT NULL` | Average buy price per unit. |
+| `isin` | `text` | | International Securities Identification Number (for MFs). |
+| `created_at` | `timestamp` | `DEFAULT now()` | Record creation time. |
+
 ---
 
 > [!NOTE]

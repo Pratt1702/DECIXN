@@ -4,12 +4,15 @@ import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { HoldingsTable } from "../components/dashboard/HoldingsTable";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Trash2, Zap } from "lucide-react";
+import { Loader2, Trash2, Zap, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { usePortfolioStore } from "../store/usePortfolioStore";
+import { AddHoldingModal } from "../components/dashboard/AddHoldingModal";
+import { deleteHolding } from "../services/api";
 
 const SESSION_KEY = "uploaded_stock_holdings";
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000000"; // Fallback for demo
 
 export function Holdings() {
   const navigate = useNavigate();
@@ -26,6 +29,8 @@ export function Holdings() {
     current: 0,
     total: 0,
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingHolding, setEditingHolding] = useState<any>(null);
 
   const calculateSummary = (holdings: any[]) => {
     const totalInvested = holdings.reduce(
@@ -149,6 +154,7 @@ export function Holdings() {
         },
         portfolio_analysis: [
           {
+            id: "mock-1",
             symbol: "Karnataka Bank",
             holding_context: {
               quantity: 100,
@@ -159,6 +165,7 @@ export function Holdings() {
             },
           },
           {
+            id: "mock-2",
             symbol: "Coal India",
             holding_context: {
               quantity: 200,
@@ -169,6 +176,7 @@ export function Holdings() {
             },
           },
           {
+            id: "mock-3",
             symbol: "Tata Steel",
             holding_context: {
               quantity: 100,
@@ -281,6 +289,21 @@ export function Holdings() {
     setTimeout(() => {
       loadData();
     }, 100);
+  };
+
+  const handleEdit = (holding: any) => {
+    setEditingHolding(holding);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this holding?")) return;
+    try {
+      await deleteHolding(id);
+      loadData();
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
   };
 
   if (loading) {
@@ -434,9 +457,35 @@ export function Holdings() {
         </div>
 
         {data?.portfolio_analysis && (
-          <HoldingsTable holdings={data.portfolio_analysis} />
+          <HoldingsTable
+            holdings={data.portfolio_analysis}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            isManual={isManual}
+          />
         )}
+
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => {
+              setEditingHolding(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-8 py-3 rounded-xl bg-white/[0.03] text-text-bold hover:bg-white/[0.06] border border-white/10 transition-all font-black text-xs uppercase tracking-widest active:scale-95 shadow-lg hover:border-accent/30"
+          >
+            <Plus className="w-4 h-4 text-accent" />
+            Add Holding
+          </button>
+        </div>
       </div>
+
+      <AddHoldingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={loadData}
+        userId={TEST_USER_ID}
+        initialData={editingHolding}
+      />
     </motion.div>
   );
 }

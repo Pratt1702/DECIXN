@@ -28,7 +28,7 @@ const MOCK_PORTFOLIO = {
   ]
 };
 
-export const getPortfolio = async () => {
+export const getPortfolio = async (userId: string = "anonymous") => {
   // Priority 1: Check session storage for custom uploaded holdings
   const sessionHoldings = sessionStorage.getItem('uploaded_stock_holdings');
   if (sessionHoldings && sessionHoldings !== "undefined") {
@@ -67,7 +67,7 @@ export const getPortfolio = async () => {
   }
   
   try {
-    const response = await apiClient.get('/analyze/portfolio');
+    const response = await apiClient.get(`/analyze/portfolio?user_id=${userId}`);
     localStorage.setItem(cacheKey, JSON.stringify(response.data));
     localStorage.setItem(cacheTimeKey, Date.now().toString());
     return response.data;
@@ -205,6 +205,30 @@ export const getNews = async (limit: number = 20, offset: number = 0) => {
 export const getOpportunityRadar = async (symbols?: string) => {
   const url = symbols ? `/opportunity-radar?symbols=${symbols}` : '/opportunity-radar';
   const response = await apiClient.get(url);
+  return response.data;
+};
+
+// --- PORTFOLIO CRUD ---
+
+export const getHoldings = async (userId: string) => {
+  const response = await apiClient.get(`/portfolio/holdings/${userId}`);
+  return response.data;
+};
+
+export const upsertHolding = async (holding: {
+  user_id: string;
+  symbol: string;
+  asset_type: 'stock' | 'mf';
+  quantity: number;
+  avg_cost: number;
+  isin?: string;
+}) => {
+  const response = await apiClient.post('/portfolio/holdings', holding);
+  return response.data;
+};
+
+export const deleteHolding = async (holdingId: string) => {
+  const response = await apiClient.delete(`/portfolio/holdings/${holdingId}`);
   return response.data;
 };
 

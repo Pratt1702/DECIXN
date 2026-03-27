@@ -1,18 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
-import { analyzeMFPortfolio } from "../services/api";
+import { analyzeMFPortfolio, deleteHolding } from "../services/api";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
 import { CSVUpload } from "../components/dashboard/CSVUpload";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Loader2, Trash2, Plus } from "lucide-react";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 import { useMFProfileStore } from "../store/useMFProfileStore";
 import { MFProfileForm } from "../components/forms/MFProfileForm";
+import { MFHoldingsTable } from "../components/dashboard/MFHoldingsTable";
+import { AddMFHoldingModal } from "../components/dashboard/AddMFHoldingModal";
 
 const SESSION_KEY = "uploaded_mf_holdings";
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000000";
 
 export function MFHoldings() {
-  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const {
     setData: setStoreData,
@@ -28,6 +29,8 @@ export function MFHoldings() {
     current: 0,
     total: 0,
   });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingHolding, setEditingHolding] = useState<any>(null);
 
   const loadData = useCallback(async () => {
     const sessionData = sessionStorage.getItem(SESSION_KEY);
@@ -71,6 +74,7 @@ export function MFHoldings() {
         },
         portfolio_analysis: [
           {
+            id: "mf-mock-1",
             scheme_name: "Quant Small Cap Fund - Direct Plan",
             holding_context: {
               quantity: 245.8,
@@ -82,6 +86,7 @@ export function MFHoldings() {
             },
           },
           {
+             id: "mf-mock-2",
              scheme_name: "Parag Parikh Flexi Cap Fund - Direct Plan",
              holding_context: {
                quantity: 1540.2,
@@ -95,7 +100,6 @@ export function MFHoldings() {
         ],
       };
       
-      // Delay for effect
       setTimeout(() => {
         setData(mockResult);
         setStoreData(mockResult);
@@ -197,6 +201,21 @@ export function MFHoldings() {
     }, 100);
   };
 
+  const handleEdit = (holding: any) => {
+    setEditingHolding(holding);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this fund?")) return;
+    try {
+      await deleteHolding(id);
+      loadData();
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-32 flex flex-col justify-center items-center gap-6">
@@ -275,7 +294,6 @@ export function MFHoldings() {
         </div>
       </header>
 
-
       {data?.portfolio_summary && (
         <SummaryCards
           invested={data.portfolio_summary.total_invested}
@@ -299,82 +317,33 @@ export function MFHoldings() {
           />
         </div>
 
-        <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden shadow-xl shadow-black/10 transition-all hover:border-white/5">
-           <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/[0.03] bg-white/[0.02]">
-                  {[
-                    { label: "Scheme Name", field: "scheme_name" },
-                    { label: "Units", field: "quantity" },
-                    { label: "NAV", field: "current_price" },
-                    { label: "Returns", field: "pnl_pct" },
-                    { label: "Current Value", field: "current_value" },
-                  ].map((col) => (
-                    <th
-                      key={col.label}
-                      className={`px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-[0.15em] cursor-pointer hover:text-text-bold transition-colors ${
-                        col.field === "scheme_name" ? "text-left" : "text-right"
-                      }`}
-                      onClick={() => handleSort(col.field)}
-                    >
-                      <div className={`flex items-center gap-1.5 ${
-                        col.field === "scheme_name" ? "justify-start" : "justify-end"
-                      }`}>
-                        {col.label}
-                        {sortField === col.field && (
-                          <span className="text-accent">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedHoldings.map((h: any, i: number) => {
-                  const ctx = h.holding_context;
-                  const isin = h.isin || ctx.isin || h.scheme_code;
-                  const isPos = ctx.current_pnl >= 0;
-                  return (
-                    <tr 
-                      key={i} 
-                      className="border-b border-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer group" 
-                      onClick={() => navigate(`/mutual-funds/details/${isin}`)}
-                    >
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-black text-text-bold tracking-tight group-hover:text-white transition-colors">
-                            {h.scheme_name || h.symbol}
-                          </span>
-                          <span className="text-[10px] font-mono text-text-muted opacity-60 tracking-tighter uppercase">
-                            {isin || "N/A"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-right font-bold text-text-muted text-sm tabular-nums">
-                        {ctx.quantity.toFixed(3)}
-                      </td>
-                      <td className="px-6 py-5 text-right font-black text-text-bold text-sm tabular-nums">
-                        ₹{ctx.current_price?.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-5 text-right font-black tabular-nums">
-                         <div className={`flex items-center justify-end gap-1 text-sm ${isPos ? 'text-success' : 'text-danger'}`}>
-                            {isPos ? <ArrowUpRight size={14} className="stroke-[3]" /> : <ArrowDownRight size={14} className="stroke-[3]" />}
-                            {isPos ? '+' : ''}{ctx.pnl_pct.toFixed(2)}%
-                         </div>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                         <div className="font-black text-text-bold text-base tabular-nums">₹{ctx.current_value.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                         <div className="text-[9px] text-accent font-black uppercase tracking-[0.2em] mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            DEEP ANALYSIS
-                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-             </tbody>
-           </table>
+        <MFHoldingsTable 
+          holdings={sortedHoldings} 
+          onSort={handleSort}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => { setEditingHolding(null); setIsModalOpen(true); }}
+            className="flex items-center gap-2 px-8 py-3 rounded-xl bg-white/[0.03] text-text-bold hover:bg-white/[0.06] border border-white/10 transition-all font-black text-xs uppercase tracking-widest active:scale-95 shadow-lg hover:border-accent/30"
+          >
+            <Plus className="w-4 h-4 text-accent" />
+            Add Fund
+          </button>
         </div>
       </div>
+
+      <AddMFHoldingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={loadData}
+        userId={TEST_USER_ID}
+        initialData={editingHolding}
+      />
     </motion.div>
   );
 }

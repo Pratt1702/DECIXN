@@ -163,26 +163,21 @@ export function Insights() {
   }, []);
 
   const navigate = useNavigate();
-  const {
-    setData: setStoreData,
-    shouldRefresh,
-    data: cachedData,
-  } = usePortfolioStore();
+  const cachedData = usePortfolioStore((s) => s.data);
+  const shouldRefresh = usePortfolioStore((s) => s.shouldRefresh);
+  const setStoreData = usePortfolioStore((s) => s.setData);
+
+  const lastRadarSymbolsRef = useRef<string>("");
 
   useEffect(() => {
     async function fetchRadar() {
-      if (!data && !cachedData) {
-        // Fallback or early fetch if no data yet
-        try {
-          const res = await getOpportunityRadar();
-          setRadar(res);
-        } catch {}
-        return;
-      }
-
       const portfolio = data || cachedData;
-      const symbols = portfolio?.portfolio_analysis?.map((h: any) => h.symbol).join(',');
+      const symbols = portfolio?.portfolio_analysis?.map((h: any) => h.symbol).join(',') || "";
       
+      // Optimization: Avoid redundant radar fetch if symbols haven't changed
+      if (symbols === lastRadarSymbolsRef.current && (radar.length > 0 || radarLoading)) return;
+      lastRadarSymbolsRef.current = symbols;
+
       setRadarLoading(true);
       try {
         const res = await getOpportunityRadar(symbols);
@@ -272,6 +267,9 @@ export function Insights() {
           if (isMounted) {
             setData(cachedData);
             setLoading(false);
+            if (location.state?.analyze) {
+              navigate('.', { replace: true, state: { ...location.state, analyze: false } });
+            }
           }
           return;
         }
@@ -285,6 +283,9 @@ export function Insights() {
           if (isMounted) {
             setData(res);
             setStoreData(res, currentHash);
+            if (location.state?.analyze) {
+              navigate('.', { replace: true, state: { ...location.state, analyze: false } });
+            }
           }
         } else {
           // Standard fetch (index case or fallback)
@@ -292,6 +293,9 @@ export function Insights() {
           if (isMounted) {
             setData(res);
             setStoreData(res);
+            if (location.state?.analyze) {
+              navigate('.', { replace: true, state: { ...location.state, analyze: false } });
+            }
           }
         }
       } catch (err) {
@@ -312,6 +316,16 @@ export function Insights() {
   }, [shouldRefresh, cachedData, setStoreData, location.state]);
 
   const urgencyMap: any = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+
+  const newsCatalysts = useMemo(() => 
+    radar.filter((o: any) => o.type === 'NEWS_CATALYST'), 
+    [radar]
+  );
+
+  const dividendEvents = useMemo(() => 
+    radar.filter((o: any) => o.type === 'DIVIDEND_EVENT'), 
+    [radar]
+  );
 
   const filteredAndSortedInsights = useMemo(() => {
     if (!data?.portfolio_analysis) return [];
@@ -801,10 +815,10 @@ export function Insights() {
 
               <div className="space-y-4">
                 {/* Dividend Alerts for Holdings */}
-                {radar.some(o => o.type === 'DIVIDEND_EVENT') && (
+                {dividendEvents.length > 0 && (
                   <div className="space-y-2">
                     <span className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">Portfolio Dividends</span>
-                    {radar.filter(o => o.type === 'DIVIDEND_EVENT').map((opp, i) => (
+                    {dividendEvents.map((opp: any, i: number) => (
                       <div key={i} className="flex flex-col gap-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl hover:border-indigo-500/30 transition-all group">
                         <div className="flex justify-between items-start">
                           <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-indigo-500/10 text-indigo-400">
@@ -833,11 +847,17 @@ export function Insights() {
                 {/* News Catalysts */}
                 <div className="space-y-2">
                   <span className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">High Impact Catalysts</span>
-                  {radar.filter(o => o.type === 'NEWS_CATALYST').length > 0 ? (
-                    radar.filter(o => o.type === 'NEWS_CATALYST').map((opp, i) => (
+                  {newsCatalysts.length > 0 ? (
+                    newsCatalysts.map((opp: any, i: number) => (
                       <div key={i} className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:border-accent/20 transition-all group">
                         <div className="flex justify-between items-start">
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-accent/10 text-accent">
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
+                            opp.sentiment?.toLowerCase() === 'positive' || opp.sentiment?.toLowerCase() === 'bullish'
+                              ? 'bg-success/10 text-success' 
+                              : opp.sentiment?.toLowerCase() === 'negative' || opp.sentiment?.toLowerCase() === 'bearish'
+                                ? 'bg-danger/10 text-danger'
+                                : 'bg-accent/10 text-accent'
+                          }`}>
                             {opp.sentiment} catalyst
                           </span>
                           <span className="text-[8px] font-black text-text-muted uppercase tracking-widest">Impact {opp.impact}/5</span>
@@ -846,9 +866,17 @@ export function Insights() {
                           {opp.title}
                         </p>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-[10px] text-text-muted font-medium italic">
-                            {opp.stocks && opp.stocks.length > 0 ? `$${opp.stocks[0]}` : 'Sector Level'}
-                          </span>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {opp.stocks && opp.stocks.length > 0 ? (
+                              opp.stocks.map((s: string) => (
+                                <span key={s} className="text-[9px] text-accent/60 font-black px-1.5 py-0.5 bg-accent/5 rounded border border-accent/10">
+                                  ${s.replace(".NS", "").replace(".BO", "")}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-text-muted font-medium italic">Sector News</span>
+                            )}
+                          </div>
                           <ChevronRight 
                             size={12} 
                             className="text-text-muted cursor-pointer hover:text-accent group-hover:translate-x-1" 

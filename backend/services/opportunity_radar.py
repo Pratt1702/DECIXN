@@ -15,13 +15,25 @@ async def get_market_opportunities(symbols: list = None):
     try:
         # Get news from the last 72 hours with impact >= 4
         cutoff = (datetime.utcnow() - timedelta(days=3)).isoformat()
-        res = supabase.table("news") \
-            .select("*, news_stocks(symbol)") \
-            .gte("impact_strength", 4) \
-            .gte("published_at", cutoff) \
-            .order("published_at", desc=True) \
-            .limit(5) \
-            .execute()
+        if symbols:
+            res = supabase.table("news") \
+                .select("*, news_stocks!inner(symbol)") \
+                .in_("news_stocks.symbol", symbols) \
+                .gte("impact_strength", 4) \
+                .gte("published_at", cutoff) \
+                .order("impact_strength", desc=True) \
+                .order("published_at", desc=True) \
+                .limit(10) \
+                .execute()
+        else:
+            res = supabase.table("news") \
+                .select("*, news_stocks(symbol)") \
+                .gte("impact_strength", 4) \
+                .gte("published_at", cutoff) \
+                .order("impact_strength", desc=True) \
+                .order("published_at", desc=True) \
+                .limit(10) \
+                .execute()
             
         for item in res.data:
             stocks = [s["symbol"] for s in item.get("news_stocks", [])]

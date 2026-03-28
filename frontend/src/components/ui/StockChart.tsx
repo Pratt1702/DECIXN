@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import ReactApexChart from "react-apexcharts";
 import { Activity, BarChart2, TrendingUp, TrendingDown, Clock } from "lucide-react";
+import { API_BASE_URL } from "../../config/env";
 
 interface StockChartProps {
   ticker: string;
@@ -45,7 +46,7 @@ export function StockChart({ ticker }: StockChartProps) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:8000/analyze/${ticker}`);
+        const res = await fetch(`${API_BASE_URL}/analyze/${ticker}`);
         const json = await res.json();
         if (json.success) {
           setData(json.data);

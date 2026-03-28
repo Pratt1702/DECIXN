@@ -28,6 +28,7 @@ import { PortfolioSummary } from "../components/ui/PortfolioSummary";
 import { MentionSuggestions } from "../components/ui/MentionSuggestions";
 import { useWatchlistStore } from "../store/useWatchlistStore";
 import { Briefcase, List, Activity } from "lucide-react";
+import { API_BASE_URL } from "../config/env";
 
 interface Message {
   id: string;
@@ -148,7 +149,7 @@ export function Chat() {
           // setMentionType("stock"); // Removed for lint
           if (subQuery.length >= 2) {
             try {
-              const res = await fetch(`http://localhost:8000/search/${subQuery}`);
+              const res = await fetch(`${API_BASE_URL}/search/${subQuery}`);
               const data = await res.json();
               if (data.success) {
                 setSuggestions(data.results.map((r: any) => ({
@@ -232,7 +233,7 @@ export function Chat() {
   const fetchSessions = async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch(`http://localhost:8000/chat/sessions/${user.id}`);
+      const res = await fetch(`${API_BASE_URL}/chat/sessions/${user.id}`);
       const data = await res.json();
       if (Array.isArray(data)) setSessions(data);
     } catch (e) {
@@ -245,7 +246,7 @@ export function Chat() {
     try {
       setSessionId(sid);
       const res = await fetch(
-        `http://localhost:8000/chat/history/${user.id}?session_id=${sid}`,
+        `${API_BASE_URL}/chat/history/${user.id}?session_id=${sid}`,
       );
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -280,7 +281,7 @@ export function Chat() {
     const sid = deleteConfirmSessionId;
     
     try {
-      const res = await fetch(`http://localhost:8000/chat/sessions/${sid}`, {
+      const res = await fetch(`${API_BASE_URL}/chat/sessions/${sid}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -302,7 +303,7 @@ export function Chat() {
 
       // 1. Fetch Chat Status
       try {
-        const res = await fetch(`http://localhost:8000/chat/status/${id}`);
+        const res = await fetch(`${API_BASE_URL}/chat/status/${id}`);
         const data = await res.json();
         if (data.remaining_messages !== undefined) {
           setRemainingMessages(data.remaining_messages);
@@ -418,7 +419,7 @@ export function Chat() {
         parts: [{ text: m.content }],
       }));
 
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

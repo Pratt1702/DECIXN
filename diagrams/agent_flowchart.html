@@ -954,7 +954,7 @@
           <path
             d="M400 6 L480 38 L400 70 L320 38 Z"
             fill="var(--surface)"
-            stroke="rgba(244,114,182,0.6)"
+            stroke="var(--border2)"
             stroke-width="1.5"
           />
           <!-- PATH LEFT (Center 200) -->
@@ -992,7 +992,7 @@
             font-family: var(--mono);
             font-size: 10px;
             font-weight: 600;
-            color: var(--accent5);
+            color: var(--muted);
             text-align: center;
             pointer-events: none;
           "
@@ -1003,13 +1003,25 @@
         <!-- Labels -->
         <div
           class="h-label"
-          style="top: 22px; left: 240px; color: var(--muted); opacity: 0.8"
+          style="
+            top: 22px;
+            left: 240px;
+            color: #f83b38;
+            border-color: #f83b3887;
+            opacity: 0.8;
+          "
         >
           NO — direct
         </div>
         <div
           class="h-label"
-          style="top: 22px; right: 240px; color: var(--muted); opacity: 0.8"
+          style="
+            top: 22px;
+            right: 240px;
+            color: var(--accent3);
+            border-color: #34d39987;
+            opacity: 0.8;
+          "
         >
           YES — tools
         </div>
@@ -1022,7 +1034,7 @@
         <!-- LEFT ARM: No tool call — direct answer -->
         <div class="fork-branch" style="width: 400px; align-items: center">
           <div style="width: 360px; text-align: left">
-            <div class="node n-engine" style="width: 100%">
+            <div class="node n-data" style="width: 100%">
               <div class="node-title">
                 <div class="node-dot"></div>
                 Direct Text Response
@@ -1031,7 +1043,7 @@
                 Gemini returns a plain JSON narrative (off-topic, general
                 advice, clarifications).
                 <br /><br />
-                <span style="color: var(--accent5); font-weight: 500"
+                <span style="color: var(--accent6); font-weight: 500"
                   >ACTION: Drafting a friendly response for off-topic
                   inquiries.</span
                 >
@@ -1040,8 +1052,8 @@
                 <div
                   class="status-badge"
                   style="
-                    color: var(--accent5);
-                    border-color: rgba(244, 114, 182, 0.25);
+                    color: var(--accent6);
+                    border-color: rgba(114, 166, 244, 0.25);
                   "
                 >
                   type: general
@@ -1079,7 +1091,7 @@
         <!-- RIGHT ARM: Tool execution path -->
         <div class="fork-branch" style="width: 400px; align-items: center">
           <div style="width: 360px; text-align: left">
-            <div class="node n-api" style="width: 100%">
+            <div class="node n-data" style="width: 100%">
               <div class="node-title">
                 <div class="node-dot"></div>
                 Status Emit → Client
@@ -1087,7 +1099,7 @@
               <div class="node-desc">
                 Yields context-aware streaming status before dispatching tools.
                 <br /><br />
-                <span style="color: var(--accent2); font-weight: 500"
+                <span style="color: var(--accent6); font-weight: 500"
                   >TRANSPARENCY: Informing user what the agent is
                   checking.</span
                 >
@@ -1096,8 +1108,8 @@
                 <div
                   class="status-badge"
                   style="
-                    color: var(--accent2);
-                    border-color: rgba(167, 139, 250, 0.25);
+                    color: var(--accent6);
+                    border-color: rgba(114, 166, 244, 0.25);
                   "
                 >
                   "Analyzing stock…"
@@ -1105,8 +1117,8 @@
                 <div
                   class="status-badge"
                   style="
-                    color: var(--accent2);
-                    border-color: rgba(167, 139, 250, 0.25);
+                    color: var(--accent6);
+                    border-color: rgba(114, 166, 244, 0.25);
                   "
                 >
                   "Checking portfolio…"
@@ -1122,7 +1134,7 @@
               <div class="v-arrow-head"></div>
             </div>
 
-            <div class="node n-tool" style="width: 100%">
+            <div class="node n-data" style="width: 100%">
               <div class="node-title">
                 <div class="node-dot"></div>
                 _execute_tool() — Parallel Dispatch
@@ -1130,7 +1142,7 @@
               <div class="node-desc">
                 Iterates all tool requests.
                 <br /><br />
-                <span style="color: var(--accent4); font-weight: 500"
+                <span style="color: var(--accent6); font-weight: 500"
                   >EFFICIENCY: Multiple markets tools running in parallel
                   threads.</span
                 >
@@ -1208,9 +1220,11 @@
           <div class="tool-chip">
             <div class="tool-chip-name">AlphaSignalService</div>
             <div class="tool-chip-desc">
-              Scrapes <strong>Live NSE India</strong> for Insider Trades & Filings.
-              <br /><span style="color: var(--accent4); font-weight: 500"
-                >Direct Alpha: Capturing M&A, Dividends, and Promoter buying.</span
+              Scrapes <strong>Live NSE India</strong> for Insider Trades &
+              Filings. <br /><span
+                style="color: var(--accent4); font-weight: 500"
+                >Direct Alpha: Capturing M&A, Dividends, and Promoter
+                buying.</span
               >
             </div>
           </div>
@@ -1275,7 +1289,9 @@
             </div>
             <div class="ap-node">
               <div class="ap-node-name">enrich_content_node</div>
-              <div class="ap-node-sub">Parse News + **Live NSE Alpha Signals**</div>
+              <div class="ap-node-sub">
+                Parse News + **Live NSE Alpha Signals**
+              </div>
             </div>
             <div class="ap-arrow">
               <svg width="24" height="12" viewBox="0 0 24 12" fill="none">
@@ -1415,7 +1431,8 @@
           <div style="margin-top: 10px; font-size: 9.5px; color: var(--muted)">
             metadata includes:<br />
             <code style="font-size: 8.5px; color: var(--accent2)"
-              >tickers, charts, sources, summary, insight, sentiment, reasoning_steps</code
+              >tickers, charts, sources, summary, insight, sentiment,
+              reasoning_steps</code
             >
           </div>
         </div>
@@ -1521,7 +1538,7 @@
     <!-- FOOTER -->
     <div class="footer">
       <div class="footer-stack">
-        <div
+        <!-- <div
           class="stack-pill"
           style="color: var(--accent5); border-color: rgba(244, 114, 182, 0.25)"
         >
@@ -1557,7 +1574,7 @@
         >
           React + Vite
         </div>
-      </div>
+      </div> -->
       <div
         style="
           font-family: var(--mono);

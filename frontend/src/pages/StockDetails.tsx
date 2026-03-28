@@ -200,6 +200,7 @@ export function StockDetails() {
           news_insight: res.data.news_insight,
           yahoo_news: res.data.yahoo_news,
           dividend_calendar: res.data.dividend_calendar,
+          next_day_range: res.data.next_day_range,
         });
         try {
           const fRes = await getForecast(cleanTicker);
@@ -1080,6 +1081,99 @@ export function StockDetails() {
                 </ResponsiveContainer>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {data?.next_day_range && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#121212] border border-white/10 rounded-2xl p-6 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-10 bg-[#3b82f6] -mr-10 -mt-10" />
+            
+            <div className="flex items-center justify-between mb-5 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#3b82f6]/20 flex items-center justify-center border border-[#3b82f6]/20">
+                  <Activity className="w-4 h-4 text-[#3b82f6]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-text-bold tracking-tight">Next Day Expected Range</h3>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-[#a1a1aa] mt-0.5">Algorithmically computed trading bands</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest border ${data.next_day_range.bias === "Bullish" ? "bg-success/10 text-success border-success/20" : data.next_day_range.bias === "Bearish" ? "bg-danger/10 text-danger border-danger/20" : "bg-white/10 text-white/70 border-white/10"}`}>
+                  {data.next_day_range.bias} Vector
+                </span>
+                <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest border ${data.next_day_range.range_confidence === "High" ? "bg-success/10 text-success border-success/20" : data.next_day_range.range_confidence === "Low" ? "bg-danger/10 text-danger border-danger/20" : "bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]/20"}`}>
+                  {data.next_day_range.range_confidence} Conf
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-6 bg-[#1a1a1c] p-4 rounded-xl border border-white/5 relative z-10">
+                <div className="text-center">
+                    <p className="text-[10px] text-danger font-bold uppercase tracking-widest mb-1">Expected Low</p>
+                    <p className="text-xl md:text-2xl font-black text-danger">₹{data.next_day_range.range_low.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+                
+                <div className="flex-1 flex flex-col items-center px-6 md:px-12">
+                    <div className="w-full relative h-2 bg-[#2a2a2c] rounded-full overflow-hidden">
+                        {/* A gradient line from low to high */}
+                        <div className="absolute top-0 bottom-0 left-0 right-0 bg-gradient-to-r from-danger via-[#3b82f6] to-success opacity-70" />
+                        
+                        {/* Marker for current price relative to the range */}
+                        {(() => {
+                           const min = data.next_day_range.range_low;
+                           const max = data.next_day_range.range_high;
+                           const range = max - min;
+                           const current = data.price;
+                           const percent = range > 0 ? Math.min(100, Math.max(0, ((current - min) / range) * 100)) : 50;
+                           return (
+                               <div className="absolute top-[-2px] bottom-[-2px] w-1.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] z-20" style={{ left: `${percent}%`, transform: 'translateX(-50%)' }} />
+                           )
+                        })()}
+                    </div>
+                    <div className="flex items-center justify-between w-full mt-2">
+                        <span className="text-[10px] text-text-muted font-bold tracking-widest">
+                            Mean: ₹{data.next_day_range.expected_mean.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] text-[#f3f4f6] font-bold tracking-widest uppercase bg-white/10 px-1.5 py-0.5 rounded">
+                            Price: ₹{data.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="text-center">
+                    <p className="text-[10px] text-success font-bold uppercase tracking-widest mb-1">Expected High</p>
+                    <p className="text-xl md:text-2xl font-black text-success">₹{data.next_day_range.range_high.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+            </div>
+
+            {data.next_day_range.modifiers && (
+              <div className="grid grid-cols-3 gap-3 mt-4 relative z-10">
+                  <div className="bg-[#1a1a1c] border border-white/5 p-3 rounded-lg flex flex-col items-center justify-center gap-1">
+                      <span className="text-[9px] text-[#888] font-bold uppercase tracking-widest text-center">Volume Flow</span>
+                      <span className={`text-[11px] font-black uppercase tracking-widest text-center ${data.next_day_range.modifiers.volume_effect === 'expanded' ? 'text-accent' : data.next_day_range.modifiers.volume_effect === 'compressed' ? 'text-white/40' : 'text-white/70'}`}>
+                          {data.next_day_range.modifiers.volume_effect}
+                      </span>
+                  </div>
+                  <div className="bg-[#1a1a1c] border border-white/5 p-3 rounded-lg flex flex-col items-center justify-center gap-1">
+                      <span className="text-[9px] text-[#888] font-bold uppercase tracking-widest text-center">Momentum Tilt</span>
+                      <span className={`text-[11px] font-black uppercase tracking-widest text-center ${data.next_day_range.modifiers.macd_tilt === 'bullish' ? 'text-success' : data.next_day_range.modifiers.macd_tilt === 'bearish' ? 'text-danger' : 'text-white/70'}`}>
+                          {data.next_day_range.modifiers.macd_tilt}
+                      </span>
+                  </div>
+                  <div className="bg-[#1a1a1c] border border-white/5 p-3 rounded-lg flex flex-col items-center justify-center gap-1">
+                      <span className="text-[9px] text-[#888] font-bold uppercase tracking-widest text-center">Volatility Skew</span>
+                      <span className={`text-[11px] font-black uppercase tracking-widest text-center ${data.next_day_range.modifiers.rsi_skew === 'skewed_higher' ? 'text-success' : data.next_day_range.modifiers.rsi_skew === 'skewed_lower' ? 'text-danger' : 'text-white/70'}`}>
+                          {data.next_day_range.modifiers.rsi_skew.replace('_', ' ')}
+                      </span>
+                  </div>
+              </div>
+            )}
           </motion.div>
         )}
         <YearlyRangeBar data={data} />

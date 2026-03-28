@@ -1,4 +1,6 @@
-def make_decision(signals, news=None):
+from prediction_model.next_day_range import generate_next_day_range
+
+def make_decision(signals, news=None, df=None):
     """
     4. Advanced intelligence engine with normalized scoring and data-backed heuristics.
     Now integrated with News Catalyst Engine.
@@ -139,6 +141,10 @@ def make_decision(signals, news=None):
     else:
         priority = "LOW"
         
+    next_day_range = None
+    if df is not None:
+        next_day_range = generate_next_day_range(df, score)
+        
     decision = "WATCH"
     # Timeframe Determination
     trade_type = "Positional Trend"
@@ -174,7 +180,7 @@ def make_decision(signals, news=None):
         # SELL Urgency Override (High priority regardless of score)
         priority = "HIGH"
     
-    return decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight
+    return decision, reasons, score, action, priority, risk_level, pattern, trade_type, severity, watch_desc, news_insight, next_day_range
 
 
 def make_holding_decision(signals, avg_cost, pnl, fifty_two_week_low=None, fifty_two_week_high=None, benchmark_comparison=None):

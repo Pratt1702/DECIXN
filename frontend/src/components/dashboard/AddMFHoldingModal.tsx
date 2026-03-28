@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, Loader2, Save } from "lucide-react";
-import { searchMF, getMFDetails } from "../../services/api";
+import { searchMF } from "../../services/api";
 import { useMFPortfolioStore } from "../../store/useMFPortfolioStore";
 
 interface AddMFHoldingModalProps {

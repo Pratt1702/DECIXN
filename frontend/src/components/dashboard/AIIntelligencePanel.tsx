@@ -1,4 +1,4 @@
-import { Info, Newspaper, Globe, ExternalLink, Calendar } from "lucide-react";
+import { Info, Newspaper, Calendar, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Native CSS Group-Hover Tooltip
@@ -148,6 +148,42 @@ export function AIIntelligencePanel({ data }: { data: any }) {
               </ul>
             </div>
 
+            {data?.next_day_range && (
+              <div>
+                <h3 className="font-bold text-text-bold mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-indigo-400" />
+                    Tomorrow's Expected Range
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${data.next_day_range.bias === "Bullish" ? "bg-success/10 text-success border-success/20" : data.next_day_range.bias === "Bearish" ? "bg-danger/10 text-danger border-danger/20" : "bg-white/10 text-white/70 border-white/10"}`}>
+                    {data.next_day_range.bias} Vector
+                  </span>
+                </h3>
+                
+                <div className="pt-1 flex flex-col gap-2">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-muted font-bold uppercase text-[10px] tracking-widest">Expected Low:</span>
+                      <span className="font-black text-danger">₹{data.next_day_range.range_low.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-muted font-bold uppercase text-[10px] tracking-widest">Expected High:</span>
+                      <span className="font-black text-success">₹{data.next_day_range.range_high.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                  
+                  {data.next_day_range.modifiers && (
+                    <div className="text-[10px] font-bold text-text-muted flex gap-3 uppercase tracking-tighter opacity-80">
+                      <span>• {data.next_day_range.modifiers.volume_effect} volume</span>
+                      <span>• {data.next_day_range.modifiers.macd_tilt} momentum</span>
+                      <span>• {data.next_day_range.modifiers.rsi_skew.replace('_', ' ')} volatility</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div>
               <h3 className="font-bold text-text-bold mb-3 flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -163,7 +199,7 @@ export function AIIntelligencePanel({ data }: { data: any }) {
               {loading ? (
                 <div className="h-20 w-full bg-white/5 animate-pulse rounded-xl" />
               ) : (
-                <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
+                <div className="space-y-4 pt-1">
                   <div>
                     <div className="flex items-center justify-between mb-1">
                        <p className="text-xl font-black text-white tracking-tight leading-none uppercase">
@@ -239,41 +275,6 @@ export function AIIntelligencePanel({ data }: { data: any }) {
                 </div>
               </div>
             )}
-
-            {/* Enhanced Ticker News */}
-            {(data?.news?.length > 0 || data?.yahoo_news?.length > 0 || data?.sector_news?.length > 0) && (
-              <div>
-                <h3 className="font-bold text-text-bold mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-4 bg-blue-500/40 rounded-full" />
-                  Broad Market Context
-                </h3>
-                <div className="space-y-3">
-                  {[...(data.news || []), ...(data.sector_news || []), ...(data.yahoo_news || [])].slice(0, 5).map((n: any, i: number) => (
-                    <a 
-                      key={i}
-                      href={n.link || n.url}
-                      target="_blank"
-                      rel="noopener noreferrer" 
-                      className="group/news flex flex-col gap-1 p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:bg-white/[0.05] hover:border-white/10 transition-all block"
-                    >
-                      <div className="flex justify-between items-start gap-3">
-                        <span className="text-sm font-bold text-text-bold leading-tight group-hover/news:text-accent transition-colors">
-                          {n.title}
-                        </span>
-                        <ExternalLink size={12} className="text-text-muted opacity-0 group-hover/news:opacity-100 transition-opacity shrink-0 mt-1" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Globe size={10} className="text-text-muted" />
-                        <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                          {n.publisher || 'Yahoo Finance'}
-                        </span>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
           </div>
         )}
       </div>

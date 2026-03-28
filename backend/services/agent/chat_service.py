@@ -145,7 +145,9 @@ class ChatEngine:
                 
                 supabase.table("chat_history").insert(insert_data).execute()
             except Exception as e:
-                print(f"DB Error (User Message): {e}")
+                # Sanitize error for console
+                safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+                print(f"DB Error (User Message): {safe_e}")
 
         yield {"status": "Thinking..."}
         
@@ -169,7 +171,7 @@ class ChatEngine:
 
         prompt = f"User Message: {user_message}"
         if enriched_context:
-            print(f"DEBUG [ChatEngine]: Enriched Context length: {len(enriched_context)}")
+            # print(f"DEBUG [ChatEngine]: Enriched Context length: {len(enriched_context)}")
             prompt += f"\n\n[CONTEXT]\n{enriched_context}"
         
         contents.append({"role": "user", "parts": [{"text": prompt}]})
@@ -204,9 +206,9 @@ class ChatEngine:
                 if part.function_call:
                     fn_name = part.function_call.name
                     args = part.function_call.args
-                    print(f"DEBUG [ChatEngine]: Executing tool: {fn_name} with args: {args}")
+                    # print(f"DEBUG [ChatEngine]: Executing tool: {fn_name} with args: {args}")
                     result = await self._execute_tool(fn_name, args, portfolio_context)
-                    print(f"DEBUG [ChatEngine]: Tool result: {str(result)[:200]}...")
+                    # print(f"DEBUG [ChatEngine]: Tool result: {str(result)[:200]}...")
                     
                     tool_results.append({
                         "function_response": {
@@ -263,24 +265,25 @@ class ChatEngine:
             # 2. Run the new Agentic Engine for "Why Now?" and Context
             # Extract portfolio context for this specific ticker if available
             ticker_clean = ticker.upper().replace(".NS", "").replace(".BO", "")
-            print(f"DEBUG [_execute_tool]: analyze_ticker for {ticker_clean}")
+            # print(f"DEBUG [_execute_tool]: analyze_ticker for {ticker_clean}")
             holding_ctx = {}
             if portfolio_context:
                 import re
                 # Flexible pattern: look for ticker anywhere in the symbol part (before the colon)
-                pattern = fr"- .*?{ticker_clean}(?:\.[A-Z]+)?.*?:\s*([\d\.]+)\s*shares\s*@\s*avg\s*₹?([\d\.]+)"
-                print(f"DEBUG [_execute_tool]: Matching pattern: {pattern}")
+                pattern = fr"- .*?{ticker_clean}(?:\.[A-Z]+)?.*?:\s*([\d\.]+)\s*shares\s*@\s*avg\s*INR?([\d\.]+)"
+                # print(f"DEBUG [_execute_tool]: Matching pattern: {pattern}")
                 holding_match = re.search(pattern, portfolio_context, re.IGNORECASE)
                 if holding_match:
-                    print(f"DEBUG [_execute_tool]: MATCH FOUND: Qty={holding_match.group(1)}, Avg={holding_match.group(2)}")
+                    # print(f"DEBUG [_execute_tool]: MATCH FOUND: Qty={holding_match.group(1)}, Avg={holding_match.group(2)}")
                     holding_ctx = {
                         "quantity": float(holding_match.group(1)),
                         "avg_cost": float(holding_match.group(2))
                     }
                 else:
-                    print(f"DEBUG [_execute_tool]: NO MATCH found for ticker {ticker_clean}")
+                    # print(f"DEBUG [_execute_tool]: NO MATCH found for ticker {ticker_clean}")
                     # Log a snippet of the context to see what symbols are actually there
-                    print(f"DEBUG [_execute_tool]: Context Symbols Sample: {[line[:50] for line in portfolio_context.splitlines() if ':' in line][:5]}")
+                    # print(f"DEBUG [_execute_tool]: Context Symbols Sample: {[line[:50] for line in portfolio_context.splitlines() if ':' in line][:5]}")
+                    pass
             
             agent_res = await run_agent_intelligence(ticker, holding_ctx)
             

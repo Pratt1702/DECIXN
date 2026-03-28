@@ -20,7 +20,10 @@ async def run_portfolio_analysis(holdings_data: list[dict]) -> dict:
             if not symbol or qty <= 0: return None
             return await analyze_single_holding(symbol, avg_cost, qty, pnl, holding_id=holding_id)
         except Exception as e:
-            print(f"DEBUG: Critical failure on holding {h}: {e}")
+            # Sanitize for console output
+            safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+            safe_h = str(h).encode('ascii', 'ignore').decode('ascii')
+            print(f"DEBUG: Critical failure on holding {safe_h}: {safe_e}")
             return None
 
     tasks = [process_holding(h) for h in holdings_data]

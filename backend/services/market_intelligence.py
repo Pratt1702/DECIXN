@@ -38,7 +38,7 @@ def format_output(symbol, signals, decision, reasons, score, action):
     clean_symbol = symbol.replace('.NS', '')
     output_lines = []
     output_lines.append(f"---")
-    output_lines.append(f"{clean_symbol} (₹{signals['Price']:.2f})")
+    output_lines.append(f"{clean_symbol} (INR {signals['Price']:.2f})")
     output_lines.append(f"Trend: {signals['Trend']}")
     
     output_lines.append(f"Decision: {decision} (Confidence: {score}/100)")

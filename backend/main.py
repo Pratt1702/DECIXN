@@ -175,7 +175,9 @@ async def analyze_portfolio():
                     if symbol and qty > 0:
                         holdings_data.append({"symbol": symbol, "quantity": qty, "avg_cost": avg_cost, "pnl": 0.0})
                 except Exception as e:
-                    print(f"Failed to parse CSV row {row}: {e}")
+                    safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+                    safe_row = str(row).encode('ascii', 'ignore').decode('ascii')
+                    print(f"Failed to parse CSV row {safe_row}: {safe_e}")
 
     if not holdings_data:
         raise HTTPException(status_code=404, detail="No fallback holdings found.")
@@ -248,7 +250,8 @@ async def get_all_news(limit: int = 20, offset: int = 0):
             .execute()
         return res.data
     except Exception as e:
-        print(f"News Fetch Error: {e}")
+        safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"News Fetch Error: {safe_e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/opportunity-radar")
@@ -341,7 +344,8 @@ def get_batch_quotes(payload: BatchQuotesRequest):
                 "sparkline": sparkline
             })
         except Exception as e:
-            print(f"Error fetching quote for {original}: {e}")
+            safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+            print(f"Error fetching quote for {original}: {safe_e}")
             continue
 
     return {"success": True, "results": stock_data}
@@ -409,7 +413,8 @@ async def analyze_mf_insights(request: MFInsightsRequest):
         insights = mf_analytics_service.get_portfolio_insights(request.holdings, request.profile)
         return {"success": True, "insights": insights}
     except Exception as e:
-        print(f"MF Insights Error: {e}")
+        safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"MF Insights Error: {safe_e}")
         return {"success": False, "error": str(e)}
 
 @app.get("/mf/compare")
@@ -422,7 +427,8 @@ async def compare_mf(ids: str):
         result = await mf_analytics_service.compare_mutual_funds(scheme_codes)
         return result
     except Exception as e:
-        print(f"MF Compare Error: {e}")
+        safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"MF Compare Error: {safe_e}")
         return {"success": False, "error": str(e)}
 
 @app.get("/chat/status/{user_id}")
@@ -473,7 +479,8 @@ async def chat_with_foxy(payload: ChatRequest):
                 
                 yield json.dumps(chunk) + "\n"
         except Exception as e:
-            print(f"STREAM ERROR: {e}")
+            safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+            print(f"STREAM ERROR: {safe_e}")
             yield json.dumps({
                 "type": "general",
                 "narrative": f"I encountered an error: {str(e)}",

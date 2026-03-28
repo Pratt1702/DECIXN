@@ -171,7 +171,14 @@ To initialize the database schema, functions, and RLS policies:
 5. Click **Run**.
 6. (Optional) Run the Mutual Fund sync once via API `POST /mf/sync?only_update=false` to populate the initial catalog.
 
-### 4. Execution
+### 4. Testing Credentials
+
+For quick evaluation, you can use the following test account:
+
+- **Email**: `testaccount@gmail.com`
+- **Password**: `test123`
+
+### 5. Execution
 
 ```bash
 # Start both Frontend and Backend concurrently

@@ -1,115 +1,197 @@
-# 🚀 DECIXN: ET Markets GenAI Hackathon - Market Intelligence Engine
+# 🚀 DECIXN — The Intelligence Layer for Retail Investors
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/decixn-et-gen-ai-hackathon/deploy-status)](https://decixn-et-gen-ai-hackathon.netlify.app/)
-[![Backend Status](https://img.shields.io/badge/Backend-Render-blue)](https://thegangetgenaihackathon.onrender.com)
-[![Project](https://img.shields.io/badge/Platform-FinTech%20AI-green?style=flat-square)](#)
+<div align="center">
+  <img src="https://img.shields.io/badge/Track-ET_Markets_GenAI_Track_6-FF9900?style=for-the-badge&logo=google-gemini&logoColor=white" />
+  <img src="https://img.shields.io/badge/Stack-React_FastAPI_Supabase-4f8ef7?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Engine-Foxy_v1_Agentic-34d399?style=for-the-badge" />
+</div>
 
-An AI-driven technical analysis and market intelligence platform for Indian retail investors. This platform ingests raw technical data and user portfolios (via CSV) and translates them into plain-English, highly actionable trading decisions.
+<p align="center">
+  <b>DECIXN is a full-stack decision intelligence system designed for the modern Indian retail investor.</b><br/>
+  While India has 14+ crore demat accounts, most investors operate blindly — reacting to tips, missing filings, and making decisions based on gut feel. <br/>
+  <b>DECIXN tells you what to do with the data.</b>
+</p>
 
 ---
 
-## 🔗 Live Demo & Deployment
+## 🔗 Live Demo & Connectivity
 
-> [!IMPORTANT]
-> **Official Frontend**: [decixn-et-gen-ai-hackathon.netlify.app](https://decixn-et-gen-ai-hackathon.netlify.app/)
-> **Official Backend**: [thegangetgenaihackathon.onrender.com](https://thegangetgenaihackathon.onrender.com)
+| Platform            | URL                                                                                       |
+| :------------------ | :---------------------------------------------------------------------------------------- |
+| **🌐 Web Frontend** | [decixn-et-gen-ai-hackathon.netlify.app](https://decixn-et-gen-ai-hackathon.netlify.app/) |
+| **⚙️ Backend API**  | [thegangetgenaihackathon.onrender.com](https://thegangetgenaihackathon.onrender.com)      |
+| **📖 Swagger Docs** | [Backend Endpoint/docs](https://thegangetgenaihackathon.onrender.com/docs)                |
 
 > [!WARNING]
-> **Cold Start Notice**: The backend is hosted on a free-tier Render instance. If the site has not been accessed recently, the first request may take **1-2 minutes** to wake up the server. Please be patient while the engine initializes.
+> **Cold Start Alert**: The backend is hosted on Render's free tier. The first request may take **1–2 minutes** to wake up.
 
 ---
 
-## 🏛️ Architecture & Deep Logic
+## 🏗️ System Architecture
 
-For a deep dive into the platform's inner workings, refer to our technical documentation:
+DECIXN is built as an orchestrated ecosystem of specialized engines.
 
-*   **[Technical Schema](Schema.md)**: Database structure and data flow.
-*   **[Feature list](features_list.md)**: Comprehensive breakdown of every atomic feature.
-*   **[Developer Wiki](DEVELOPER_WIKI.md)**: Extension guides and technical stack details.
-*   **[Chatbot Flow Guide](chatbot_flow_guide.md)**: Logic behind the "Foxy" AI agent.
+```mermaid
+graph TD
+    User([User / Data Sources])
+    Ingestion[Ingestion Layer: ET News, yfinance, NSE India API]
+    SignalEng[Signal Detection Engine: Technicals + Signals]
+    Enrichment[Context Enrichment: Portfolio + News]
+    Agent[Agent Orchestrator: Multi-step, Tool-calling LLM - Foxy v1]
+    Decision[Decision Engine: Weighted Verdicts + Narrative]
+    Frontend[Frontend: Dashboard + Chat Interface]
+
+    User --> Ingestion
+    Ingestion --> SignalEng
+    SignalEng --> Enrichment
+    Enrichment --> Agent
+    Agent --> Decision
+    Decision --> Frontend
+```
 
 ---
 
-## ✨ Features & Why They Are Used
+## 🤖 Agentic Lifecycle (Foxy v1)
 
-The Market Intelligence Engine is designed to solve the complexity of technical analysis by providing institutional-grade indicators in an intuitive dashboard.
+Foxy follows a strict **Detect → Enrich → Act** pipeline to ensure signal quality over simple summarization.
 
-### 1. **Live Custom CSV Portfolio AI**
-*   **What it does:** Users can securely upload their broker's holding CSVs (e.g., Kite). The engine instantly parses the data and pushes it through the backend AI algorithm.
-*   **Why it's used:** Most platforms only show current P&L. By feeding live holdings to the AI, users get real-time decisions (Buy, Hold, Reduce, Sell) tailored specifically to the assets they actually own.
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Foxy Agent (Orchestrator)
+    participant L as Gemini 2.5 Flash
+    participant T as Tool Dispatcher (Expert Tools)
 
-### 2. **Capital Efficiency Tracking (Working vs. Trapped Capital)**
-*   **What it does:** Scans the whole portfolio to determine what percentage of capital is "Working" (invested in bullish, uptrending stocks) vs. "Trapped" (stuck in bearish, depreciating assets).
-*   **Why it's used:** Investors frequently hold onto severe losers out of hope (the sunk cost fallacy). Knowing that 60% of their money is "Trapped" forces actionable reflection.
-
-### 3. **Smart Concentration Risk & Nudges**
-*   **What it does:** Tracks position sizing. If a single asset exceeds 25% of the portfolio's weight, the AI automatically emits a concentration risk Nudge.
-*   **Why it's used:** Prevents catastrophic losses for retail investors who lack portfolio diversification strategies.
-
-### 4. **AI-Driven Technical Heuristics (Pattern Recognition)**
-*   **What it does:** Computes complex indicators (MACD, RSI, ATR, Moving Average Slopes) and translates them into AI heuristic patterns (e.g., "Mean Reversion", "Bullish Pullback", "High-Conviction Breakout").
-*   **Why it's used:** Looking at RSI=25 doesn't mean much to a beginner. The system evaluates a confluence of 15+ indicators to output a normalized 1-100 Confidence Score and a simple "STRONG BUY" or "SELL" recommendation, removing guesswork.
-
-### 5. **Nifty 50 Relative Strength Benchmarking**
-*   **What it does:** Autonomously downloads the NSE index data (`^NSEI`) and measures custom holding performance against the broader market index.
-*   **Why it's used:** Absolute returns are deceptive in a bull market. Pinpointing stocks that are mathematically underperforming the Nifty 50 highlights the weakest links in an investor's strategy.
+    U->>A: Queries "Should I buy NHPC?"
+    A->>L: 1. System Prompt + User Query + Tool Definitions
+    L-->>A: 2. Function Call: Eg: analyze_ticker(symbol='NHPC')
+    A->>T: 3. Execute: Tool Calls
+    T-->>A: 4. Returns: Technicals, Signals, News, Filings, Portfolio, Holdings, etc
+    A->>L: 5. Synthesis: Here is the raw data, generate narrative
+    L-->>A: 6. Returns: Formatted JSON (Narrative + Metadata)
+    A-->>U: 7. Displays Source-Cited Narrative + Interactive Charts
+```
 
 ---
 
-## ⚙️ Setup & Installation
+---
 
-Get the application running locally in a few simple steps. The repository is split into a React frontend and a FastAPI Python backend.
+## 🧭 Navigation & API Intelligence Cell
 
-### 1. Prerequisites
-- **Node.js** (v18.0.0 or higher)
-- **Python** (v3.12.0 or higher)
+To provide transparency into the platform's multi-layered intelligence, every route and endpoint is documented below.
 
-### 2. Clone the Repository
+### 📱 Full Frontend Page Matrix
+
+| Category | Route | Intelligence Description |
+| :--- | :--- | :--- |
+| **📈 Stocks** | `/stocks/holdings` | Portfolio health, trend-following, and capital classification. |
+| | `/stocks/explore` | Real-time indices, market movers, and sector performance. |
+| | `/stocks/insights` | Technical diagnostics and anomaly detection signals. |
+| | `/stocks/news` | AI-scored catalyst feed with sentiment weights. |
+| | `/stocks/watchlist` | High-frequency quote tracking with mini-sparklines. |
+| | `/stocks/alerts` | Risk threshold & price-action management. |
+| | `/stocks/details/:ticker` | Deep investigative view for specific Indian equities. |
+| | `/terminal/:ticker` | Logic-dense HUD with interactive Technical Terminal & Predictive Bands. |
+| **🏦 MFs** | `/mutual-funds/holdings` | Mutual Fund specific portfolio health & asset distribution. |
+| | `/mutual-funds/insights` | Fund-specific risk metrics (Beta, Sharpe, Expense Ratios). |
+| | `/mutual-funds/compare` | Multi-fund side-by-side comparison portal. |
+| | `/mutual-funds/details/:id` | NAV history, AMC info, and risk-profile investigation. |
+| **🤖 AI & Sync** | `/chat` | **Foxy v1** — Agentic Financial Co-pilot Interface. |
+| | `/notifications` | Live Alert Inbox for triggered risk thresholds. |
+| | `/info/portfolio` | Security & context reference for user asset data. |
+| | `/login` | Secure authentication portal (Supabase). |
+
+### ⚡ Comprehensive API Endpoints
+
+| Cell | Endpoint | Logic Provided |
+| :--- | :--- | :--- |
+| **Stocks** | `GET /analyze/{ticker}` | Full multi-turn Technical/Signal engine report. |
+| | `GET /market/overview` | Core market benchmarks and volatility movers. |
+| | `GET /analyze/forecast/{t}` | ATR-weighted volatility & price range prediction. |
+| | `GET /opportunity-radar` | Corporate actions, dividends, and insider/block deals. |
+| | `POST /quotes/batch` | Async batch quotes with sparkline generation. |
+| | `GET /search/{query}` | Real-time Indian equity autocomplete engine. |
+| **MFs** | `GET /mf/search` | Mutual Fund scheme search & ISIN mapping. |
+| | `POST /mf/analyze/portfolio` | Risk-weighted MF health check & exit-load audit. |
+| | `GET /mf/details/{id}` | Cumulative fund history & scheme-level intel. |
+| | `POST /mf/analyze/insights` | Deep-tier portfolio overlap & performance analytics. |
+| | `GET /mf/compare` | Parallel fund benchmark comparison. |
+| **Agent** | `POST /chat` | Streaming, stateful, tool-calling Agent Interface. |
+| | `GET /chat/status/{id}` | Token limit & request rate status monitoring. |
+| | `GET /chat/sessions/{id}` | Session-ID catalog for multi-threaded history. |
+| | `GET /chat/history/{id}` | Recursive session message retrieval. |
+| | `DELETE /chat/sessions/{id}`| Thread termination & data cleanup. |
+| **Risk** | `POST /alerts` | Threshold creation (Technical/Price/Volume). |
+| | `GET /alerts/{id}` | Active risk-monitoring registry. |
+| | `PATCH /alerts/{id}` | Real-time toggle for monitoring active state. |
+| | `GET /notifications/{id}` | Trigger audit log & alert history. |
+| | `POST /alerts/run` | Manual trigger for the Alert Evaluation Engine. |
+
+---
+
+## ⚙️ Engineering Setup & Deployment
+
+### 1. One-Step Installation
+
 ```bash
-git clone https://github.com/Pratt1702/ETGenAIHackathon.git
-cd ETGenAIHackathon
+# Clone the unified DECIXN repository
+git clone https://github.com/Pratt1702/DECIXN.git && cd DECIXN
+
+# Install Frontend & Backend Dependencies
+npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt && cd ..
 ```
 
-### 3. Install Dependencies
+> [!TIP]
+> **Sample Data for Testing**: Use the files in the `test_data/` directory (specifically `stocks/` and `mfs/` subfolders) for immediate portfolio uploads. If using custom CSVs, ensure you follow the structure defined in the **[Portfolio Format Reference](file:///info/portfolio)** link within the app.
 
-**Root & Frontend:**
+### 2. Required Environment Variables (.env)
+
+You will need keys for **Supabase** (Auth/DB) and **Google Gemini** (LLM).
+
+**Frontend** `./frontend/.env`:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_GEMINI_KEY`
+
+**Backend** `./backend/.env`:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY`
+
+### 3. Supabase Database Setup
+
+To initialize the database schema, functions, and RLS policies:
+
+1. Open your **Supabase Project Dashboard**.
+2. Navigate to the **SQL Editor** in the left sidebar.
+3. Create a **New Query**.
+4. Copy the entire contents of **[supabase_schema.sql](supabase_schema.sql)** and paste them into the editor.
+5. Click **Run**.
+6. (Optional) Run the Mutual Fund sync once via API `POST /mf/sync?only_update=false` to populate the initial catalog.
+
+### 4. Execution
+
 ```bash
-# Install root concurrent scripts
-npm install
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
-```
-
-**Backend:**
-```bash
-# Install Python backend dependencies
-cd backend
-pip install -r requirements.txt
-cd ..
-```
-
-### 4. Environment Configuration
-Create a `.env` file in the `frontend` and `backend` directories using the provided examples (if available) or contact the team for development keys (Gemini API, Supabase).
-
-### 5. Run the Platform 🚀
-From the root directory, simply run:
-```bash
+# Start both Frontend and Backend concurrently
 npm run dev
 ```
-*(This command boots both the frontend React server and the `uvicorn` FastAPI backend simultaneously.)*
 
 ---
 
-## 🌍 Impact
+## 🎯 Alignment & Impact
 
-Retail participation in the Indian equity markets surrounds an incredible boom, yet the majority of newcomers lose money due to emotional trading, lack of risk management, and missing context on technical data.
+DECIXN directly solves the **"Blind Investor" problem** outlined in the ET GenAI Track 6:
 
-This project delivers **Massive Impact** by:
-1.  **Democratizing Institutional Tools:** Making complex quantitative models accessible to retail traders through plain-English summaries.
-2.  **Mitigating Behavioral Biases:** By automatically categorizing capital as "Trapped" and identifying "Concentration Risk", the engine acts as an objective, emotionless advisor that safeguards capital.
-3.  **Elevating Financial Literacy:** Users don't just see a "BUY" button. They see the exact *Reasoning* (e.g., "Heavy Volume: 1.5x average", "Overbought RSI: 75") and learn the mechanics of the market through high-quality contextual exposure.
+- **Signal over News**: Moves beyond "summaries" to detect real insider activity and corporate filings.
+- **Portfolio-Aware**: Every insight is contextualized to your specific holdings (Zerodha/Groww CSV).
+- **Behavioral Rescue**: Explicitly flags "Trapped Capital" in bearish assets to reduce emotional loss-holding.
+- **Engineering Depth**: Replaces standard RAG with a custom sequential reasoning agent (Foxy).
 
-*Built for the ET Markets GenAI Hackathon - Empowering the next generation of Indian retail investors.*
+> [!TIP]
+> **Explore the Full Matrix**: See the [capability matrix](features_list.md) for a deep dive into the 30+ atomic features that power DECIXN.
+
+---
+
+_Built for the ET Markets GenAI Hackathon._

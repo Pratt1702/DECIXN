@@ -21,7 +21,7 @@ from collections import defaultdict
 from services.mutual_funds.mf_search_service import search_mf_fuzzy as mf_search
 from services.mutual_funds.mf_portfolio_service import run_mf_portfolio_analysis
 from services.mutual_funds.mf_data_service import get_mf_latest_details
-from services.mutual_funds import mf_analytics_service
+from services.mutual_funds.mf_db_sync import MFDBSync
 from pydantic import BaseModel
 from services.alerts.alert_service import AlertService
 
@@ -85,10 +85,21 @@ async def alerts_check_loop():
             print(f"[ERROR] Alert loop error: {e}")
         await asyncio.sleep(120) # 2 minutes
 
+async def mf_sync_task():
+    try:
+        print("[MF] Starting background Mutual Fund sync (Update-Only)...")
+        sync = MFDBSync()
+        # only_update=True ensures we only refresh existing schemes without bulk-inserting 10k+ new ones
+        result = sync.sync_all(only_update=True)
+        print(f"[MF] Sync Complete: {result.get('schemes_processed', 0)} schemes processed.")
+    except Exception as e:
+        print(f"[MF ERROR] Startup sync failed: {e}")
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(news_ingestion_loop())
     asyncio.create_task(alerts_check_loop())
+    asyncio.create_task(mf_sync_task())
 
 app.add_middleware(
     CORSMiddleware,
@@ -428,6 +439,22 @@ async def compare_mf(ids: str):
         return result
     except Exception as e:
         safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"MF Compare Error: {safe_e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/mf/sync")
+async def sync_mf_data(only_update: bool = True):
+    """
+    Manually triggers the Mutual Fund sync engine.
+    - only_update=True: Refresher for existing schemes (safer).
+    - only_update=False: Full AMFI catalog population (slow).
+    """
+    try:
+        sync = MFDBSync()
+        result = sync.sync_all(only_update=only_update)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
         print(f"MF Compare Error: {safe_e}")
         return {"success": False, "error": str(e)}
 

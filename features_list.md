@@ -56,7 +56,38 @@
 
 ---
 
-## 🚀 6. Future Roadmap (Hackathon Vision)
+## 🚀 6. System Architecture Layers
+
+### 📡 A. Signal Intelligence Layer
+- **Real-time Technicals**: RSI, MACD, and multi-period EMA tracking.
+- **Pattern Recognition**: Automated detection of breakouts, reversals, and volume spikes.
+- **Predictive Bands**: ATR-based "Tomorrow's Range" volatility forecasting.
+- **Corporate Pulse**: Integration of insider trading and bulk/block deal feeds.
+
+### 💼 B. Portfolio Intelligence Layer
+- **Unified Ingestion**: Intelligent regex-based mapping for generic broker CSVs.
+- **Asset Classification**: Proprietary "Working vs. Trapped Capital" trend-following logic.
+- **Mutual Fund Health**: Dynamic overlap analysis, expense ratio impact, and risk-adjusted returns.
+- **Personalized Urgency**: Scoring holdings by risk severity to prioritize user attention.
+
+### 🤖 C. Agentic Intelligence Layer (Foxy)
+- **Multi-Step Reasoning**: Sequential "Detect → Enrich → Act" logic without human intervention.
+- **Parallel Tooling**: Simultaneous execution of market scanners, portfolio calculators, and news scrapers.
+- **Transparency**: Detailed chain-of-thought metadata and source-linked citations for every decision.
+
+### 🚨 D. Alert & Monitoring Layer
+- **Dynamic Watchlists**: Automated daily summary reports for tracked tickers.
+- **Signal-Based Toasts**: Real-time browser notifications for technical or fundamental triggers.
+- **Threshold Triggers**: User-defined price/volume/indicator alerts processed by the background engine.
+
+### 🎯 E. Decision Intelligence Layer
+- **Weighted Verdicts**: Bayesian-inspired consensus between conflicting technical and fundamental signals.
+- **Tactical suggestions**: Specific Entry, Exit, and Stop-Loss levels generated per pattern.
+- **Mental Guardrails**: Objective trend-following narrative to reduce emotional bias in retail trading.
+
+---
+
+## ⚡ 7. Future Roadmap (Hackathon Vision)
 *   **Auto-Rebalancing Engine**: 1-click optimization suggestions based on dynamically calculated sector exposure.
 *   **Options Sentiment Tracker**: Integrating **PCR (Put-Call Ratio)** and **IV Skew** for professional-grade risk hedging advice.
 *   **Global Expansion**: Support for US Markets and International Index benchmarking.

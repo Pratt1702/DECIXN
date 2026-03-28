@@ -24,6 +24,7 @@ from services.mutual_funds.mf_data_service import get_mf_latest_details
 from services.mutual_funds.mf_db_sync import MFDBSync
 from pydantic import BaseModel
 from services.alerts.alert_service import AlertService
+import services.mutual_funds.mf_analytics_service as mf_analytics_service
 
 class MFInsightsRequest(BaseModel):
     holdings: list[dict]
@@ -454,9 +455,9 @@ async def sync_mf_data(only_update: bool = True):
         result = sync.sync_all(only_update=only_update)
         return result
     except Exception as e:
+        safe_e = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"MF Sync Error: {safe_e}")
         raise HTTPException(status_code=500, detail=str(e))
-        print(f"MF Compare Error: {safe_e}")
-        return {"success": False, "error": str(e)}
 
 @app.get("/chat/status/{user_id}")
 async def get_chat_status(user_id: str):

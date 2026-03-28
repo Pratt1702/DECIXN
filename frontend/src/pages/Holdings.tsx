@@ -126,65 +126,33 @@ export function Holdings() {
       setStoreData(res);
       setIsManual(false);
     } catch (err) {
-      console.error("Failed to fetch, using mock data for demo", err);
-      const mockResult = {
-        portfolio_summary: {
-          health: "Weak",
-          risk_level: "High",
-          total_invested: 230071,
-          total_value_live: 204832,
-          total_pnl: -25239,
-          win_rate: "20%",
-          insight: "Majority of holdings are currently sitting at a loss.",
+      console.log("Using Test Mode holdings for demo...");
+      const defaultStocks = [
+        {
+          symbol: "KTKBANK.NS",
+          holding_context: { quantity: 100, avg_cost: 170.71 }
         },
-        portfolio_analysis: [
-          {
-            id: "mock-1",
-            symbol: "KTKBANK.NS",
-            holding_context: {
-              quantity: 100,
-              avg_cost: 170.71,
-              current_value: 23132,
-              pnl_pct: 35.5,
-              current_pnl: 6061,
-            },
-          },
-          {
-            id: "mock-2",
-            symbol: "COALINDIA.NS",
-            holding_context: {
-              quantity: 200,
-              avg_cost: 450,
-              current_value: 79000,
-              pnl_pct: -12.22,
-              current_pnl: -11000,
-            },
-          },
-          {
-            id: "mock-3",
-            symbol: "TATASTEEL.NS",
-            holding_context: {
-              quantity: 100,
-              avg_cost: 250,
-              current_value: 15000,
-              pnl_pct: -40.0,
-              current_pnl: -10000,
-            },
-          },
-        ],
-      };
-      setData(mockResult);
-      setStoreData(mockResult);
+        {
+          symbol: "COALINDIA.NS",
+          holding_context: { quantity: 200, avg_cost: 450.00 }
+        },
+        {
+          symbol: "TATASTEEL.NS",
+          holding_context: { quantity: 100, avg_cost: 150.00 }
+        }
+      ];
+      handleDataParsed(defaultStocks, true);
+      setIsManual(false);
     } finally {
       setLoading(false);
     }
-  }, [shouldRefresh, cachedData, setStoreData]);
+  }, [shouldRefresh, setStoreData]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const handleDataParsed = async (newHoldings: any[]) => {
+  const handleDataParsed = async (newHoldings: any[], isDemo = false) => {
     let interval: NodeJS.Timeout | null = null;
     try {
       setLoading(true);
@@ -230,18 +198,18 @@ export function Holdings() {
       const savedData = JSON.stringify(res.portfolio_analysis);
       const currentHash = `stock-v6-${savedData.length}-${dataCheck}`;
       
-      localStorage.setItem(
-        SESSION_KEY,
-        savedData
-      );
-      localStorage.setItem(
-        "stock_portfolio_summary",
-        JSON.stringify(res.portfolio_summary),
-      );
+      if (!isDemo) {
+        localStorage.setItem(SESSION_KEY, savedData);
+        localStorage.setItem(
+          "stock_portfolio_summary",
+          JSON.stringify(res.portfolio_summary),
+        );
+      }
 
       setData(res);
       setStoreData(res, currentHash);
-      setIsManual(true);
+      if (!isDemo) setIsManual(true);
+      else setIsManual(false);
     } catch (err) {
       console.error("Failed to fetch custom portfolio analysis", err);
       if (interval) clearInterval(interval);
@@ -260,19 +228,15 @@ export function Holdings() {
   };
 
   const clearManualData = () => {
-    // 1. Clear storage data
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem("portfolio_summary");
     localStorage.removeItem("stock_portfolio_summary");
-
-    // 2. Clear Zustand store (persistent)
-    clearData();
-
-    // 3. Clear API cache specifically
     localStorage.removeItem("decixn_stock_portfolio");
     localStorage.removeItem("decixn_stock_portfolio_time");
 
-    // 4. Force a fresh data load
+    setStoreData(null, "reset-" + Date.now()); // Force hash mismatch
+    clearData();
+
     setData(null);
     setLoading(true);
     setTimeout(() => {
@@ -388,7 +352,7 @@ export function Holdings() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 onClick={clearManualData}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 text-danger" />
                 Revert to Test Data

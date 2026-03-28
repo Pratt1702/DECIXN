@@ -37,9 +37,15 @@ export function MFHoldings() {
     if (sessionData && sessionData !== "undefined") {
       try {
         const parsed = JSON.parse(sessionData);
-        const dataCheck = parsed.reduce((acc: number, h: any) => 
-          acc + (h.holding_context?.quantity || 0) * (h.holding_context?.avg_cost || 0), 0
-        ).toFixed(2);
+        const dataCheck = parsed
+          .reduce(
+            (acc: number, h: any) =>
+              acc +
+              (h.holding_context?.quantity || 0) *
+                (h.holding_context?.avg_cost || 0),
+            0,
+          )
+          .toFixed(2);
         const currentHash = `mf-v6-${sessionData.length}-${dataCheck}`;
 
         if (shouldRefresh(currentHash)) {
@@ -62,58 +68,31 @@ export function MFHoldings() {
       }
     }
 
-    // Default: Mock data for MF if nothing uploaded
-    const mockResult = {
-        portfolio_summary: {
-          health: "Strong",
-          risk_level: "Medium",
-          total_invested: 180000,
-          total_value_live: 212750,
-          total_pnl: 32750,
-          win_rate: "100%",
-          insight: "Pooled capital showing steady compounding.",
-          working_capital_pct: 100,
-          trapped_capital_pct: 0
-        },
-        portfolio_analysis: [
-          {
-            id: "mf-mock-1",
-            scheme_name: "Quant Small Cap Fund - Direct Plan",
-            isin: "INF709K01GZ1",
-            holding_context: {
-              quantity: 245.8,
-              avg_cost: 203.41,
-              current_price: 254.07,
-              current_value: 62450,
-              current_pnl: 12450,
-              pnl_pct: 24.9,
-              isin: "INF709K01GZ1"
-            },
-          },
-          {
-             id: "mf-mock-2",
-             scheme_name: "Parag Parikh Flexi Cap Fund - Direct Plan",
-             isin: "INF200K01MT1",
-             holding_context: {
-               quantity: 1540.2,
-               avg_cost: 64.92,
-               current_price: 76.74,
-               current_value: 118200,
-               current_pnl: 18200,
-               pnl_pct: 18.2,
-               isin: "INF200K01MT1"
-             },
-          }
-        ],
-      };
-      
-      setTimeout(() => {
-        setData(mockResult);
-        setStoreData(mockResult);
-        setLoading(false);
-      }, 500);
-
-  }, [shouldRefresh, cachedData, setStoreData]);
+    // Default: Dynamic Demo Portfolio for MF if nothing uploaded
+    console.log("Using Test Mode funds for demo...");
+    const defaultMFs = [
+      {
+        isin: "INF179K01830",
+        symbol: "HDFC Balanced Advantage Fund",
+        quantity: 56.34,
+        avg_cost: 480,
+      },
+      {
+        isin: "INF204K01J83",
+        symbol: "Nippon India Small Cap Fund",
+        quantity: 179.5,
+        avg_cost: 139.28,
+      },
+      {
+        isin: "INF247L01411",
+        symbol: "Motilal Oswal Midcap Fund",
+        quantity: 210.0,
+        avg_cost: 90.24,
+      },
+    ];
+    handleDataParsed(defaultMFs, true);
+    setIsManual(false);
+  }, [shouldRefresh, setStoreData]);
 
   useEffect(() => {
     loadData();
@@ -130,24 +109,36 @@ export function MFHoldings() {
     }
   };
 
-  const sortedHoldings = data?.portfolio_analysis ? [...data.portfolio_analysis].sort((a, b) => {
-    let valA, valB;
-    if (sortField === "scheme_name") {
-      valA = a.scheme_name || a.symbol || "";
-      valB = b.scheme_name || b.symbol || "";
-      return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    }
-    if (sortField === "isin") {
-      valA = a.isin || a.holding_context?.isin || "";
-      valB = b.isin || b.holding_context?.isin || "";
-      return sortOrder === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    }
-    valA = a.holding_context[sortField] ?? 0;
-    valB = b.holding_context[sortField] ?? 0;
-    return sortOrder === "desc" ? (valA < valB ? 1 : -1) : valA > valB ? 1 : -1;
-  }) : [];
+  const sortedHoldings = data?.portfolio_analysis
+    ? [...data.portfolio_analysis].sort((a, b) => {
+        let valA, valB;
+        if (sortField === "scheme_name") {
+          valA = a.scheme_name || a.symbol || "";
+          valB = b.scheme_name || b.symbol || "";
+          return sortOrder === "asc"
+            ? valA.localeCompare(valB)
+            : valB.localeCompare(valA);
+        }
+        if (sortField === "isin") {
+          valA = a.isin || a.holding_context?.isin || "";
+          valB = b.isin || b.holding_context?.isin || "";
+          return sortOrder === "asc"
+            ? valA.localeCompare(valB)
+            : valB.localeCompare(valA);
+        }
+        valA = a.holding_context[sortField] ?? 0;
+        valB = b.holding_context[sortField] ?? 0;
+        return sortOrder === "desc"
+          ? valA < valB
+            ? 1
+            : -1
+          : valA > valB
+            ? 1
+            : -1;
+      })
+    : [];
 
-  const handleDataParsed = async (newHoldings: any[]) => {
+  const handleDataParsed = async (newHoldings: any[], isDemo = false) => {
     let interval: NodeJS.Timeout | null = null;
     try {
       setLoading(true);
@@ -184,17 +175,25 @@ export function MFHoldings() {
       await animationPromise;
 
       // Unify hash calculation from the BACKEND RESULTS
-      const dataCheck = res.portfolio_analysis.reduce((acc: number, h: any) => 
-        acc + (h.holding_context?.quantity || 0) * (h.holding_context?.avg_cost || 0), 0
-      ).toFixed(2);
+      const dataCheck = res.portfolio_analysis
+        .reduce(
+          (acc: number, h: any) =>
+            acc +
+            (h.holding_context?.quantity || 0) *
+              (h.holding_context?.avg_cost || 0),
+          0,
+        )
+        .toFixed(2);
       const savedData = JSON.stringify(res.portfolio_analysis);
       const currentHash = `mf-v6-${savedData.length}-${dataCheck}`;
 
-      localStorage.setItem(SESSION_KEY, savedData);
-
+      if (!isDemo) {
+        localStorage.setItem(SESSION_KEY, savedData);
+      }
       setData(res);
       setStoreData(res, currentHash);
-      setIsManual(true);
+      if (!isDemo) setIsManual(true);
+      else setIsManual(false);
     } catch (err) {
       console.error("Failed to analyze MF portfolio", err);
       if (interval) clearInterval(interval);
@@ -206,6 +205,7 @@ export function MFHoldings() {
 
   const clearManualData = () => {
     localStorage.removeItem(SESSION_KEY);
+    setStoreData(null, "reset-" + Date.now()); // Force hash mismatch
     clearData();
     setData(null);
     setLoading(true);
@@ -223,7 +223,7 @@ export function MFHoldings() {
     if (!window.confirm("Delete this fund?")) return;
     try {
       const existingData = localStorage.getItem(SESSION_KEY);
-      
+
       // Promotion Logic: If no local data, use mock/store data as base
       let holdings: any[] = [];
       if (existingData) {
@@ -234,8 +234,8 @@ export function MFHoldings() {
 
       if (id && (existingData || holdings.length > 0)) {
         // Filter out the item that matches the ID, ISIN, or Name
-        const filtered = holdings.filter((h: any) => 
-          h.id !== id && h.isin !== id && h.scheme_name !== id
+        const filtered = holdings.filter(
+          (h: any) => h.id !== id && h.isin !== id && h.scheme_name !== id,
         );
         localStorage.setItem(SESSION_KEY, JSON.stringify(filtered));
         setIsManual(true); // Always switch to manual mode once storage is used
@@ -251,20 +251,28 @@ export function MFHoldings() {
       <div className="py-32 flex flex-col justify-center items-center gap-6">
         <div className="relative">
           <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
-          <Loader2 className="w-12 h-12 animate-spin text-accent absolute top-0 left-0" style={{ animationDuration: "3s" }} />
+          <Loader2
+            className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+            style={{ animationDuration: "3s" }}
+          />
         </div>
         <div className="text-center space-y-2">
           <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
-            MF Engine Synchronizing
+            AI Engine Synchronizing
           </p>
           <p className="text-text-muted text-sm font-medium tracking-wide">
             {progress.total > 0
-              ? `Scanning Scheme ${Math.floor(progress.current)} of ${progress.total}...`
-              : "Fetching live NAV data..."}
+              ? `Processing Asset ${Math.floor(progress.current)} of ${progress.total}...`
+              : "Fetching live market intelligence..."}
           </p>
           {progress.total > 0 && (
             <div className="w-48 h-1 bg-white/5 rounded-full mx-auto mt-4 overflow-hidden">
-                <div className="h-full bg-accent transition-all duration-500" style={{ width: `${(progress.current / progress.total) * 100}%` }} />
+              <div
+                className="h-full bg-accent transition-all duration-500"
+                style={{
+                  width: `${(progress.current / progress.total) * 100}%`,
+                }}
+              />
             </div>
           )}
         </div>
@@ -281,7 +289,7 @@ export function MFHoldings() {
     >
       <AnimatePresence>
         {showProfileForm && (
-            <MFProfileForm onComplete={() => setShowProfileForm(false)} />
+          <MFProfileForm onComplete={() => setShowProfileForm(false)} />
         )}
       </AnimatePresence>
 
@@ -302,7 +310,7 @@ export function MFHoldings() {
             )}
           </div>
           <p className="text-text-muted text-sm font-medium">
-             Long-term wealth allocation & pooled asset oversight.
+            Long-term wealth allocation & pooled asset oversight.
           </p>
         </div>
 
@@ -314,7 +322,7 @@ export function MFHoldings() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 onClick={clearManualData}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-bg-surface text-text-bold border border-border-main hover:border-danger/30 transition-all font-bold text-sm cursor-pointer"
               >
                 <Trash2 className="w-4 h-4 text-danger" />
                 Reset
@@ -348,8 +356,8 @@ export function MFHoldings() {
           />
         </div>
 
-        <MFHoldingsTable 
-          holdings={sortedHoldings} 
+        <MFHoldingsTable
+          holdings={sortedHoldings}
           onSort={handleSort}
           sortField={sortField}
           sortOrder={sortOrder}
@@ -359,7 +367,10 @@ export function MFHoldings() {
 
         <div className="flex justify-center pt-2">
           <button
-            onClick={() => { setEditingHolding(null); setIsModalOpen(true); }}
+            onClick={() => {
+              setEditingHolding(null);
+              setIsModalOpen(true);
+            }}
             className="flex items-center gap-2 px-8 py-3 rounded-xl bg-white/[0.03] text-text-bold hover:bg-white/[0.06] border border-white/10 transition-all font-black text-xs uppercase tracking-widest active:scale-95 shadow-lg hover:border-accent/30"
           >
             <Plus className="w-4 h-4 text-accent" />

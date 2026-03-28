@@ -1,0 +1,6 @@
+
+# This fixed the Refresh/404 issues
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

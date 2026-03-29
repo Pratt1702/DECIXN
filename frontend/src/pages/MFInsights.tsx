@@ -1,9 +1,24 @@
+import { useState, useEffect } from "react";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 import { useMFProfileStore } from "../store/useMFProfileStore";
 import { useMFInsightsStore } from "../store/useMFInsightsStore";
 import { motion } from "framer-motion";
 import { analyzeMFInsights } from "../services/api";
 import { useLocation, useNavigate } from "react-router-dom";
+import { 
+  type LucideIcon, 
+  Info, 
+  Loader2, 
+  AlertTriangle, 
+  Zap, 
+  Target, 
+  Fingerprint, 
+  Layers, 
+  TrendingUp, 
+  ArrowUpRight, 
+  RefreshCw 
+} from "lucide-react";
+
 
 const MetricCard = ({ title, value, insight, Icon, colorClass, prefix = "" }: { title: string, value: string | number, insight: string, Icon: LucideIcon, colorClass: string, prefix?: string }) => (
   <div className="bg-bg-surface border border-white/[0.03] rounded-2xl p-6 space-y-4 hover:border-white/10 transition-all group overflow-hidden relative">
@@ -24,7 +39,7 @@ const MetricCard = ({ title, value, insight, Icon, colorClass, prefix = "" }: { 
 export function MFInsights() {
   const { data: portfolioData } = useMFPortfolioStore();
   const { profile } = useMFProfileStore();
-  const { insights: cachedInsights, setInsights, getValidInsights } = useMFInsightsStore();
+  const { setInsights, getValidInsights } = useMFInsightsStore();
   const [insights, setInsightsState] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<{ current: number; total: number }>({

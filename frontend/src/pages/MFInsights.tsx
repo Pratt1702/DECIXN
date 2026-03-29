@@ -1,14 +1,9 @@
-import { useEffect, useState } from "react";
-import { 
-  Zap, TrendingUp, Info, 
-  Target, ArrowUpRight,
-  Layers, RefreshCw, Fingerprint, AlertTriangle
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
 import { useMFProfileStore } from "../store/useMFProfileStore";
+import { useMFInsightsStore } from "../store/useMFInsightsStore";
 import { motion } from "framer-motion";
 import { analyzeMFInsights } from "../services/api";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const MetricCard = ({ title, value, insight, Icon, colorClass, prefix = "" }: { title: string, value: string | number, insight: string, Icon: LucideIcon, colorClass: string, prefix?: string }) => (
   <div className="bg-bg-surface border border-white/[0.03] rounded-2xl p-6 space-y-4 hover:border-white/10 transition-all group overflow-hidden relative">
@@ -29,30 +24,109 @@ const MetricCard = ({ title, value, insight, Icon, colorClass, prefix = "" }: { 
 export function MFInsights() {
   const { data: portfolioData } = useMFPortfolioStore();
   const { profile } = useMFProfileStore();
-  const [insights, setInsights] = useState<any>(null);
+  const { insights: cachedInsights, setInsights, getValidInsights } = useMFInsightsStore();
+  const [insights, setInsightsState] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<{ current: number; total: number }>({
+    current: 0,
+    total: 0,
+  });
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    let interval: any = null;
+    let isMounted = true;
+
     async function fetchInsights() {
       if (!portfolioData?.portfolio_analysis) {
         setLoading(false);
         return;
       }
+
+      const currentHash = portfolioData.sourceHash || "default";
+      const validCache = getValidInsights(currentHash);
+      const isAnalyzing = location.state?.analyze;
+
+      // Animation logic (Same as Stock Insights for satisfying UX)
+      let animatedCurrent = 0;
+      let animationTarget = 0;
+      let animationCompleteResolve: () => void;
+      const animationPromise = new Promise<void>((resolve) => {
+        animationCompleteResolve = resolve;
+      });
+
+      const startAnimation = (total: number, isFast: boolean = false) => {
+        animationTarget = total;
+        if (total === 0) {
+          animationCompleteResolve();
+          return;
+        }
+        const step = isFast ? Math.ceil(total / 10) : 1;
+        const speed = isFast ? 100 : 800;
+
+        interval = setInterval(() => {
+          animatedCurrent += step;
+          setProgress({
+            current: Math.min(animatedCurrent, animationTarget),
+            total: animationTarget,
+          });
+          if (animatedCurrent >= animationTarget) {
+            clearInterval(interval);
+            animationCompleteResolve();
+          }
+        }, speed);
+      };
+
       try {
+        // Scenario 1: Valid Cache + Navigation (Smooth UX)
+        if (validCache && !isAnalyzing) {
+          setInsightsState(validCache);
+          setLoading(false);
+          return;
+        }
+
+        // Scenario 2: Valid Cache + Explicit re-analyze (Satisfying UX)
+        if (validCache && isAnalyzing) {
+          setLoading(true);
+          startAnimation(portfolioData.portfolio_analysis.length, true);
+          await animationPromise;
+          if (isMounted) {
+            setInsightsState(validCache);
+            setLoading(false);
+            navigate(".", { replace: true, state: { ...location.state, analyze: false } });
+          }
+          return;
+        }
+
+        // Scenario 3: Cache Miss / Initial Load
         setLoading(true);
-        // We pass profile data to backend or use it to augment local results
-        const res = await analyzeMFInsights(portfolioData.portfolio_analysis, profile);
-        if (res.success) {
-          setInsights(res.insights);
+        startAnimation(portfolioData.portfolio_analysis.length, false);
+        const dataPromise = analyzeMFInsights(portfolioData.portfolio_analysis, profile);
+        const [res] = await Promise.all([dataPromise, animationPromise]);
+
+        if (res.success && isMounted) {
+          setInsightsState(res.insights);
+          setInsights(res.insights, currentHash);
+          if (isAnalyzing) {
+            navigate(".", { replace: true, state: { ...location.state, analyze: false } });
+          }
         }
       } catch (err) {
         console.error("Failed to fetch MF insights", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
+        if (interval) clearInterval(interval);
       }
     }
+    
     fetchInsights();
-  }, [portfolioData]);
+
+    return () => {
+      isMounted = false;
+      if (interval) clearInterval(interval);
+    };
+  }, [portfolioData, profile, location.state]);
 
 
   if (!portfolioData) {
@@ -70,9 +144,24 @@ export function MFInsights() {
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto py-12 px-4">
-        <div className="flex flex-col items-center justify-center py-32 gap-6">
-          <RefreshCw className="w-12 h-12 text-accent animate-spin opacity-20" />
-          <p className="text-text-muted text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Analyzing Allocation DNA</p>
+        <div className="py-32 flex flex-col justify-center items-center gap-6">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+            <Loader2
+              className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+              style={{ animationDuration: "3s" }}
+            />
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+              Calculating MF Insights
+            </p>
+            <p className="text-text-muted text-xs font-black uppercase tracking-widest">
+              {progress.total > 0
+                ? `Analyzing Fund ${progress.current} of ${progress.total}`
+                : "Analyzing Allocation DNA..."}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -167,6 +256,7 @@ export function MFInsights() {
         <div className="lg:col-span-5 bg-bg-surface border border-white/[0.03] rounded-2xl p-8 space-y-10 sticky top-24 shadow-2xl shadow-black/20">
             <div className="text-center space-y-6">
                 <h3 className="font-black text-[10px] uppercase tracking-[0.3em] text-text-muted">Total Health Score</h3>
+            <div className="flex justify-center">
                 <div className="relative inline-flex items-center justify-center">
                     <svg className="w-56 h-56 transform -rotate-90">
                         <circle cx="112" cy="112" r="90" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/[0.02]" />
@@ -184,6 +274,7 @@ export function MFInsights() {
                         <span className="text-[10px] font-black uppercase text-text-muted tracking-widest">{insights?.health_score?.label}</span>
                     </div>
                 </div>
+            </div>
             </div>
 
             <div className="space-y-6 px-4">

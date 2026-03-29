@@ -388,7 +388,7 @@ export function Insights() {
         </div>
         <div className="text-center space-y-2">
           <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
-            Heavy Analysis In Progress
+            Fetching Stock Insights
           </p>
           <p className="text-text-muted text-sm font-medium tracking-wide">
             {progress.total > 0

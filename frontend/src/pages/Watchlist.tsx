@@ -168,8 +168,22 @@ export function Watchlist() {
       </header>
 
       {storeLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="w-8 h-8 text-accent animate-spin" />
+        <div className="flex flex-col items-center justify-center py-40 gap-6 w-full">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+            <Loader2
+              className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+              style={{ animationDuration: "3s" }}
+            />
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+              Curating Watchlists
+            </p>
+            <p className="text-text-muted text-sm font-medium tracking-wide">
+              Curating User Lists...
+            </p>
+          </div>
         </div>
       ) : watchlists.length === 0 ? (
         <div className="bg-bg-surface border border-border-main rounded-xl p-10 text-center flex flex-col items-center gap-4">
@@ -383,7 +397,18 @@ export function Watchlist() {
                 {quotesLoading ? (
                   <tr>
                     <td colSpan={6} className="py-20 text-center">
-                      <Loader2 className="w-6 h-6 text-text-muted animate-spin mx-auto" />
+                      <div className="flex flex-col items-center justify-center gap-4">
+                        <div className="relative">
+                          <Loader2 className="w-8 h-8 animate-spin text-accent opacity-20" />
+                          <Loader2
+                            className="w-8 h-8 animate-spin text-accent absolute top-0 left-0"
+                            style={{ animationDuration: "3s" }}
+                          />
+                        </div>
+                        <p className="text-[10px] font-black text-text-muted uppercase tracking-widest animate-pulse">
+                          Syncing Quotes...
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : filteredData.length > 0 ? (

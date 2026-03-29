@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useNotificationStore } from "../store/useNotificationStore";
-import { Bell, CheckCircle, ExternalLink, Clock } from "lucide-react";
+import { Bell, CheckCircle, ExternalLink, Clock, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -51,11 +51,22 @@ export function Notifications() {
       </header>
 
       {loading && notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-          <span className="text-xs font-black text-text-muted uppercase tracking-widest">
-            Scanning Network...
-          </span>
+        <div className="flex flex-col items-center justify-center py-40 gap-6">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+            <Loader2
+              className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+              style={{ animationDuration: "3s" }}
+            />
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+              Scanning Notifications
+            </p>
+            <p className="text-text-muted text-sm font-medium tracking-wide">
+              Scanning Intelligence Network...
+            </p>
+          </div>
         </div>
       ) : notifications.length === 0 ? (
         <div className="text-center py-24 bg-white/[0.02] border border-white/5 rounded-[2rem] border-dashed">

@@ -14,13 +14,14 @@ import {
   TrendingDown,
   Sparkles,
   ZapOff,
-  ShieldCheck,
+  ShieldCheck
 } from "lucide-react";
 import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { EquityCurve } from "../components/mf/compare/EquityCurve";
 import { RiskCompass } from "../components/mf/compare/RiskCompass";
 import { IntelligenceBanners } from "../components/mf/compare/IntelligenceBanners";
 import { SipCalculator } from "../components/mf/compare/SipCalculator";
+import { useMFCompareStore } from "../store/useMFCompareStore";
 
 interface ComparisonData {
   scheme_code: string;
@@ -44,10 +45,15 @@ interface ComparisonData {
   when_to_avoid: string;
 }
 
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={`bg-white/5 animate-pulse rounded-xl ${className}`} />
+);
+
 export function MFCompare() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { setComparison, getComparison } = useMFCompareStore();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [comparison, setComparison] = useState<ComparisonData[]>([]);
+  const [comparison, setComparisonState] = useState<ComparisonData[]>([]);
   const [equityCurve, setEquityCurve] = useState<any[]>([]);
   const [clones, setClones] = useState<any[]>([]);
   const [regret, setRegret] = useState<any>(null);
@@ -73,22 +79,42 @@ export function MFCompare() {
   useEffect(() => {
     async function fetchComparison() {
       if (selectedIds.length === 0) {
-        setComparison([]);
+        setComparisonState([]);
         setEquityCurve([]);
         setClones([]);
         setRegret(null);
+        setConfidenceScore(0);
         return;
       }
 
-      setLoading(true);
+      const cached = getComparison(selectedIds);
+      if (cached) {
+        setComparisonState(cached.comparison);
+        setEquityCurve(cached.equityCurve);
+        setClones(cached.clones);
+        setRegret(cached.regret);
+        setConfidenceScore(cached.confidence);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       try {
         const res = await getMFComparison(selectedIds);
         if (res.success) {
-          setComparison(res.comparison);
+          const resultData = {
+            comparison: res.comparison,
+            equityCurve: res.equity_curve,
+            clones: res.clones,
+            regret: res.regret,
+            confidence: res.confidence_score
+          };
+          setComparisonState(res.comparison);
           setEquityCurve(res.equity_curve);
           setClones(res.clones);
           setRegret(res.regret);
           setConfidenceScore(res.confidence_score);
+          setComparison(selectedIds, resultData);
         }
       } catch (err) {
         console.error("Failed to fetch comparison:", err);
@@ -239,6 +265,17 @@ export function MFCompare() {
                     Initialize
                   </p>
                 </button>
+              ) : loading && !fund ? (
+                <div className="w-full h-full p-5 flex flex-col justify-between">
+                   <div className="space-y-3">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-10 w-full" />
+                   </div>
+                   <div className="flex justify-between items-end">
+                      <Skeleton className="h-4 w-12" />
+                      <Skeleton className="h-8 w-16" />
+                   </div>
+                </div>
               ) : (
                 <div className="w-full h-full p-5 flex flex-col justify-between relative z-10">
                   <div className="flex justify-between items-start gap-2">
@@ -284,23 +321,14 @@ export function MFCompare() {
       </div>
 
       <div className="px-6 space-y-16">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 space-y-6 bg-bg-surface border border-border-main rounded-xl">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full border-2 border-accent/10 border-t-accent animate-spin" />
-              <Sparkles
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-accent"
-                size={20}
-              />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-[10px] font-black text-text-bold uppercase tracking-[0.3em] animate-pulse">
-                Computing Diffusion
-              </p>
-              <p className="text-[9px] text-text-muted font-bold uppercase tracking-widest opacity-60">
-                Syncing multi-dimensional return vectors...
-              </p>
-            </div>
+        {loading && comparison.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 gap-6 bg-bg-surface border border-border-main rounded-xl">
+             <div className="h-10 w-64 bg-white/5 animate-pulse rounded-full" />
+             <div className="h-4 w-48 bg-white/5 animate-pulse rounded-full" />
+             <div className="grid grid-cols-2 gap-4 w-full max-w-lg mt-8">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+             </div>
           </div>
         ) : selectedIds.length >= 2 ? (
           <div className="space-y-16">
@@ -348,6 +376,11 @@ export function MFCompare() {
                           </div>
                         </th>
                       ))}
+                      {loading && selectedIds.length > comparison.length && (
+                        <th className="p-6 min-w-[200px] border-l border-white/5">
+                           <Skeleton className="h-10 w-full" />
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">

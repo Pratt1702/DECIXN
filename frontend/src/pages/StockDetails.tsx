@@ -16,9 +16,6 @@ import {
   ExternalLink,
   TrendingUp,
   Building2,
-  CheckCircle2,
-  XCircle,
-  MinusCircle,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -131,7 +128,7 @@ function DualSignalHeader({ data, quarterlyFundamentals, loading }: { data: any;
 
   const gradeColor = (g: string) => {
     if (g === "A") return "text-emerald-400 border-emerald-400/30 bg-emerald-400/10";
-    if (g === "B") return "text-sky-400 border-sky-400/30 bg-sky-400/10";
+    if (g === "B") return "text-emerald-400 border-emerald-400/30 bg-emerald-400/10";
     if (g === "C") return "text-amber-400 border-amber-400/30 bg-amber-400/10";
     return "text-red-400 border-red-400/30 bg-red-400/10";
   };
@@ -140,8 +137,7 @@ function DualSignalHeader({ data, quarterlyFundamentals, loading }: { data: any;
     if (!v) return "text-white/40";
     const u = v.toUpperCase();
     if (u.includes("STRONG") || u === "FUNDAMENTALLY STRONG") return "text-emerald-400";
-    if (u === "SOLID") return "text-sky-400";
-    if (u === "POSITIVE") return "text-emerald-400";
+    if (u === "SOLID" || u === "POSITIVE") return "text-emerald-400";
     if (u === "NEGATIVE") return "text-red-400";
     if (u === "WEAK") return "text-red-400";
     return "text-amber-400";
@@ -355,239 +351,7 @@ function FundamentalsSection({ quarterlyFundamentals, data }: { quarterlyFundame
         </div>
       )}
 
-      {/* ── Medium-Term Quarterly Panel ── */}
-      {mt?.available && !smallCap && (
-        <div className="mt-2 text-left">
-          <div className="flex items-center gap-1.5 mb-2">
-            <TrendingUp size={12} className="text-text-muted" />
-            <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Medium-Term · Quarterly Results</span>
-          </div>
-          <div className={`bg-bg-surface border border-border-main rounded-xl overflow-hidden border-l-[3px] ${
-            mt.verdict === "POSITIVE" ? "border-l-success" : mt.verdict === "NEGATIVE" ? "border-l-danger" : "border-l-amber-500"
-          }`}>
-            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-              <div className="flex items-center gap-4">
-                <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-widest ${
-                  mt.verdict === "POSITIVE" ? "text-success border-success/30 bg-success/10" :
-                  mt.verdict === "NEGATIVE" ? "text-danger border-danger/30 bg-danger/10" :
-                  "text-amber-500 border-amber-500/30 bg-amber-500/10"
-                }`}>
-                  {mt.verdict}
-                </span>
-                {mt.upcoming_earnings && (
-                  <span className="text-[9px] font-black text-amber-500 border border-amber-500/20 bg-amber-500/5 px-2 py-0.5 rounded-md uppercase tracking-widest">
-                    Earnings In {mt.upcoming_earnings.days_away}d
-                  </span>
-                )}
-              </div>
-            </div>
 
-            {/* EPS Beat/Miss Table */}
-            {mt.quarterly_earnings?.length > 0 && (
-              <div className="px-5 py-4">
-                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">EPS — Actual vs Estimate</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/5">
-                        <th className="text-left pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Quarter</th>
-                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Estimate</th>
-                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Actual</th>
-                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Surprise</th>
-                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Result</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {mt.quarterly_earnings.map((q: any, i: number) => (
-                        <tr key={i} className="hover:bg-white/[0.04] transition-colors font-bold">
-                          <td className="py-2.5 font-black text-text-bold text-sm">{q.quarter}</td>
-                          <td className="py-2.5 text-right font-bold text-text-muted text-sm">
-                            {q.eps_estimate != null ? `₹${q.eps_estimate.toFixed(2)}` : "—"}
-                          </td>
-                          <td className="py-2.5 text-right font-black text-text-bold text-sm">
-                            ₹{q.eps_actual?.toFixed(2) ?? "—"}
-                          </td>
-                          <td className={`py-2.5 text-right font-black text-sm ${q.surprise_pct != null ? (q.surprise_pct > 0 ? "text-success" : "text-danger") : "text-text-muted"}`}>
-                            {q.surprise_pct != null ? `${q.surprise_pct > 0 ? "+" : ""}${q.surprise_pct}%` : "—"}
-                          </td>
-                          <td className="py-2.5 text-right">
-                            {q.beat === true ? (
-                              <span className="inline-flex items-center gap-1 text-success font-black text-[11px]">
-                                <CheckCircle2 size={10} /> BEAT
-                              </span>
-                            ) : q.beat === false ? (
-                              <span className="inline-flex items-center gap-1 text-danger font-black text-[11px]">
-                                <XCircle size={10} /> MISS
-                              </span>
-                            ) : (
-                              <span className="text-text-muted/20">
-                                <MinusCircle size={10} className="inline" />
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Summary row */}
-                <div className="flex flex-wrap gap-4 mt-4 pt-3.5 border-t border-white/5">
-                  {mt.earnings_beat_rate != null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Beat Rate</span>
-                      <span className={`text-sm font-black ${mt.earnings_beat_rate >= 75 ? "text-success" : mt.earnings_beat_rate >= 50 ? "text-amber-500" : "text-danger"}`}>
-                        {mt.earnings_beat_rate}%
-                      </span>
-                    </div>
-                  )}
-                  {mt.earnings_momentum && mt.earnings_momentum !== "Unknown" && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">EPS Momentum</span>
-                      <span className={`text-sm font-black ${mt.earnings_momentum === "Accelerating" ? "text-success" : mt.earnings_momentum === "Decelerating" ? "text-danger" : "text-amber-500"}`}>
-                        {mt.earnings_momentum === "Accelerating" ? "↑ Accelerating" : mt.earnings_momentum === "Decelerating" ? "↓ Decelerating" : "→ Stable"}
-                      </span>
-                    </div>
-                  )}
-                  {mt.debt_equity != null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">D/E (Current)</span>
-                      <span className={`text-sm font-black ${mt.debt_equity < 0.5 ? "text-success" : mt.debt_equity > 2 ? "text-danger" : "text-text-bold"}`}>
-                        {mt.debt_equity}x
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Quarterly Revenue Bars */}
-            {mt.quarterly_revenue?.length > 0 && (
-              <div className="px-5 pb-5 border-t border-white/5 pt-4">
-                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Quarterly Revenue (₹ Cr)</p>
-                <div className="flex items-end gap-2 h-20">
-                  {[...mt.quarterly_revenue].reverse().map((q: any, i: number) => {
-                    const maxRev = Math.max(...mt.quarterly_revenue.map((x: any) => x.revenue_cr || 0));
-                    const pct = maxRev > 0 && q.revenue_cr ? (q.revenue_cr / maxRev) * 100 : 10;
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                        <span className={`text-[9px] font-black ${q.qoq_change != null ? (q.qoq_change >= 0 ? "text-success" : "text-danger") : "text-text-muted/20"}`}>
-                          {q.qoq_change != null ? `${q.qoq_change > 0 ? "+" : ""}${q.qoq_change}%` : ""}
-                        </span>
-                        <div className="w-full flex justify-center">
-                          <div
-                            className={`w-full rounded-t-sm transition-all duration-500 ${q.qoq_change != null && q.qoq_change >= 0 ? "bg-success/30" : "bg-danger/25"}`}
-                            style={{ height: `${Math.max(pct * 0.48, 4)}px` }}
-                          />
-                        </div>
-                        <span className="text-[9px] text-text-muted font-bold tracking-tighter text-center w-full truncate">{q.quarter}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Medium-term signal bullets */}
-            {mt.signals?.length > 0 && (
-              <div className="px-5 pb-5 border-t border-white/5 pt-4 bg-white/[0.01]">
-                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Key Observations</p>
-                <div className="flex flex-col gap-2 text-left">
-                  {mt.signals.slice(0, 4).map((s: string, i: number) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <div className="w-1 h-1 rounded-full bg-text-muted/20 mt-1.5 shrink-0" />
-                      <p className="text-[11px] text-text-muted font-medium leading-relaxed">{s}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Long-Term Scorecard ── */}
-      {lt?.available && !smallCap && (
-        <div className="mt-2 text-left">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Building2 size={12} className="text-text-muted" />
-            <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Long-Term Scorecard · 1–3 Years</span>
-          </div>
-          <div className={`bg-bg-surface border border-border-main rounded-xl overflow-hidden border-l-[3px] ${
-            lt.grade === "A" || lt.grade === "B" ? "border-l-success" : lt.grade === "C" ? "border-l-amber-500" : "border-l-danger"
-          }`}>
-            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-widest ${
-                lt.grade === "A" ? "text-success border-success/30 bg-success/10" :
-                lt.grade === "B" ? "text-sky-400 border-sky-400/30 bg-sky-400/10" :
-                lt.grade === "C" ? "text-amber-500 border-amber-500/30 bg-amber-500/10" :
-                "text-danger border-danger/30 bg-danger/10"
-              }`}>
-                Grade {lt.grade} · {lt.verdict}
-              </span>
-            </div>
-
-            {/* Annual Revenue Trend */}
-            {lt.annual_revenue?.length > 0 && (
-              <div className="px-5 pt-4 pb-2">
-                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Annual Revenue (₹ Cr)</p>
-                <div className="flex items-end gap-2 h-16">
-                  {[...lt.annual_revenue].reverse().map((y: any, i: number) => {
-                    const maxRev = Math.max(...lt.annual_revenue.map((x: any) => x.revenue_cr || 0));
-                    const pct = maxRev > 0 && y.revenue_cr ? (y.revenue_cr / maxRev) * 100 : 10;
-                    const isNewest = i === lt.annual_revenue.length - 1;
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                        <div className="w-full flex justify-center">
-                          <div
-                            className={`w-full rounded-t-sm transition-all duration-500 ${isNewest ? "bg-amber-400/40" : "bg-white/10"}`}
-                            style={{ height: `${Math.max(pct * 0.4, 4)}px` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-text-muted font-bold">{y.year}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {lt.revenue_cagr_3y != null && (
-                  <p className={`text-xs font-black mt-1 ${lt.revenue_cagr_3y > 5 ? "text-success" : lt.revenue_cagr_3y < 0 ? "text-danger" : "text-text-muted"}`}>
-                    3Y CAGR: {lt.revenue_cagr_3y > 0 ? "+" : ""}{lt.revenue_cagr_3y}%
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Key metrics grid */}
-            <div className="grid grid-cols-4 gap-0 border-t border-white/5 mt-2">
-              {[
-                { label: "ROE", val: lt.roe != null ? `${lt.roe}%` : "—", good: lt.roe != null && lt.roe > 15 },
-                { label: "Margin", val: lt.profit_margin != null ? `${lt.profit_margin}%` : "—", good: lt.profit_margin != null && lt.profit_margin > 10 },
-                { label: "FCF", val: lt.fcf_positive != null ? (lt.fcf_positive ? "Pos" : "Neg") : "—", good: lt.fcf_positive === true },
-                { label: "PEG", val: lt.peg_ratio != null ? lt.peg_ratio.toFixed(1) : "—", good: lt.peg_ratio != null && lt.peg_ratio < 1.5 },
-              ].map(({ label, val, good }) => (
-                <div key={label} className="px-4 py-3 border-r border-white/5 last:border-0 flex flex-col gap-0.5 bg-white/[0.03]">
-                  <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">{label}</span>
-                  <span className={`text-sm font-black ${good ? "text-success" : "text-text-bold"}`}>{val}</span>
-                </div>
-              ))}
-            </div>
-
-            {lt.signals?.length > 0 && (
-              <div className="px-5 py-4 border-t border-white/5 bg-white/[0.01]">
-                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Fundamental Signals</p>
-                <div className="flex flex-col gap-2 text-left">
-                  {lt.signals.slice(0, 4).map((s: string, i: number) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <div className="w-1 h-1 rounded-full bg-amber-500/40 mt-1.5 shrink-0" />
-                      <p className="text-[11px] text-text-muted font-medium leading-relaxed">{s}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -948,8 +712,7 @@ export function StockDetails() {
             </div>
           )}
 
-          {/* Dual Signal Header: Short-Term vs Long-Term */}
-          <DualSignalHeader data={data} quarterlyFundamentals={quarterlyFundamentals} loading={loading} />
+          {/* Move call out of here */}
         </div>
       </header>
 
@@ -1364,6 +1127,9 @@ export function StockDetails() {
           </div>
         </div>
       )}
+
+      {/* Dual Signal Header: Short-Term vs Long-Term */}
+      <DualSignalHeader data={data} quarterlyFundamentals={quarterlyFundamentals} loading={loading} />
 
       <div className="pt-2 flex flex-col gap-6">
         {forecast && (

@@ -7,7 +7,8 @@ import {
   ExternalLink, 
   Search,
   Target,
-  Globe
+  Globe,
+  Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -41,9 +42,22 @@ export default function News() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-40 gap-4">
-        <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
-        <p className="text-text-muted font-black tracking-tighter uppercase italic">Syncing Catalyst Engine...</p>
+      <div className="flex flex-col items-center justify-center py-40 gap-6">
+        <div className="relative">
+          <Loader2 className="w-12 h-12 animate-spin text-accent opacity-20" />
+          <Loader2
+            className="w-12 h-12 animate-spin text-accent absolute top-0 left-0"
+            style={{ animationDuration: "3s" }}
+          />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-text-bold text-lg font-black tracking-tighter uppercase italic">
+            Syncing Catalyst Feed
+          </p>
+          <p className="text-text-muted text-sm font-medium tracking-wide">
+            Syncing Catalyst Feed...
+          </p>
+        </div>
       </div>
     );
   }

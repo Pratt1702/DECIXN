@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+import asyncio
 from services.market_intelligence import analyze_single_ticker, analyze_single_holding, get_market_overview
 import csv
 import os
@@ -25,6 +26,7 @@ from services.mutual_funds.mf_db_sync import MFDBSync
 from pydantic import BaseModel
 from services.alerts.alert_service import AlertService
 import services.mutual_funds.mf_analytics_service as mf_analytics_service
+from services.quarterly_fundamentals import get_fundamentals_intelligence
 
 class MFInsightsRequest(BaseModel):
     holdings: list[dict]
@@ -650,6 +652,36 @@ async def run_alerts_manually():
     """
     await AlertService.process_all_alerts()
     return {"success": True, "message": "Alert processing completed."}
+
+@app.get("/fundamentals/{ticker}")
+async def get_stock_fundamentals(ticker: str):
+    """
+    Standalone endpoint returning medium-term (quarterly) and long-term (annual)
+    fundamental intelligence for a stock — without running the full technical analysis.
+    """
+    try:
+        symbol = ticker.strip().upper().replace(" ", "")
+        if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
+            symbol += ".NS"
+        
+        ticker_obj = yf.Ticker(symbol)
+        
+        # Parallelize info fetch
+        info = await asyncio.to_thread(lambda: ticker_obj.info) or {}
+
+        # Await the async fundamentals intelligence
+        quarterly_fundamentals = await get_fundamentals_intelligence(ticker_obj, info)
+        
+        return {
+            "success": True,
+            "symbol": ticker.upper().replace(".NS", "").replace(".BO", ""),
+            "quarterly_fundamentals": quarterly_fundamentals
+        }
+    except Exception as e:
+        safe_e = str(e).encode("ascii", "ignore").decode("ascii")
+        print(f"[FUNDAMENTALS] Error for {ticker}: {safe_e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     # uvicorn main:app --reload

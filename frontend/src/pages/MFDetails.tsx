@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMFDetails } from "../services/api";
 import { useMFPortfolioStore } from "../store/useMFPortfolioStore";
+import { useMFDetailsStore } from "../store/useMFDetailsStore";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -84,11 +85,17 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={`bg-white/5 animate-pulse rounded-xl ${className}`} />
+);
+
 export function MFDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { setDetails, getDetails } = useMFDetailsStore();
+  const initialCache = id ? getDetails(id) : null;
+  const [data, setData] = useState<any>(initialCache);
+  const [loading, setLoading] = useState(!initialCache);
   const [period, setPeriod] = useState("1Y");
   const [holding, setHolding] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,10 +104,19 @@ export function MFDetails() {
   useEffect(() => {
     async function fetchMF() {
       if (!id) return;
-      setLoading(true);
+      
+      const cached = getDetails(id);
+      if (cached) {
+        setData(cached);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       try {
         const res = await getMFDetails(id);
         setData(res);
+        setDetails(id, res);
         
         // Match with user portfolio
         if (portfolioData?.portfolio_analysis) {
@@ -111,7 +127,7 @@ export function MFDetails() {
         }
       } catch (err) {
         console.error("Failed to fetch MF details:", err);
-        setData({ error: true });
+        if (!data) setData({ error: true });
       } finally {
         setLoading(false);
       }
@@ -135,16 +151,7 @@ export function MFDetails() {
     }
   }, [loading, data]);
 
-  if (loading) {
-     return (
-        <div className="py-32 flex flex-col items-center justify-center gap-4">
-            <Activity className="w-10 h-10 animate-spin text-accent" />
-            <p className="text-text-muted text-sm font-black uppercase tracking-widest">Digesting Fund Data...</p>
-        </div>
-     );
-  }
-
-  if (data?.error || !data) {
+  if (data?.error && !loading) {
     return (
       <div className="py-32 text-center space-y-4">
         <AlertTriangle className="w-12 h-12 text-danger mx-auto" />
@@ -243,58 +250,78 @@ export function MFDetails() {
       <header className="animate-mf space-y-4">
         <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl md:text-3xl font-black text-text-bold tracking-tighter leading-tight">
-                    {data.scheme_name}
-                </h1>
-                <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20 self-center">
-                    {data.stats?.category || "Equity"}
-                </span>
+                {loading && !data ? (
+                  <Skeleton className="h-10 w-64" />
+                ) : (
+                  <>
+                    <h1 className="text-2xl md:text-3xl font-black text-text-bold tracking-tighter leading-tight">
+                        {data?.scheme_name}
+                    </h1>
+                    <span className="px-2 py-0.5 rounded-md bg-accent/10 text-[9px] font-black text-accent uppercase tracking-widest border border-accent/20 self-center">
+                        {data?.stats?.category || "Equity"}
+                    </span>
+                  </>
+                )}
             </div>
             <div className="flex items-center gap-4 text-[10px] text-text-muted font-bold uppercase tracking-widest">
-                <span>ISIN: {id}</span>
-                <span className="w-1 h-1 rounded-full bg-white/10" />
-                <span>{data.ticker}</span>
+                {loading && !data ? (
+                  <Skeleton className="h-4 w-32" />
+                ) : (
+                  <>
+                    <span>ISIN: {id}</span>
+                    <span className="w-1 h-1 rounded-full bg-white/10" />
+                    <span>{data?.ticker}</span>
+                  </>
+                )}
             </div>
         </div>
 
         <div className="pt-4 space-y-1">
-           <AnimatedNumber value={latestNav} prefix="₹" decimals={2} className="text-4xl font-black text-text-bold tracking-tight" />
-            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 font-black text-sm md:text-base ${isPos ? 'text-success' : 'text-danger'}`}>
-                <div className="flex items-center gap-1.5 border-r border-white/10 pr-4">
-                    <span className="text-[10px] text-text-muted uppercase tracking-widest">Total</span>
-                    <div className="flex items-center">
-                        <AnimatedNumber value={navChange} showPlusSign decimals={2} prefix="₹" />
-                        <span className="ml-1">(<AnimatedNumber value={navChangePct} showPlusSign decimals={2} suffix="%" />)</span>
+           {loading && !data ? (
+             <Skeleton className="h-12 w-48" />
+           ) : (
+             <>
+               <AnimatedNumber value={latestNav} prefix="₹" decimals={2} className="text-4xl font-black text-text-bold tracking-tight" />
+                <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 font-black text-sm md:text-base ${isPos ? 'text-success' : 'text-danger'}`}>
+                    <div className="flex items-center gap-1.5 border-r border-white/10 pr-4">
+                        <span className="text-[10px] text-text-muted uppercase tracking-widest">Total</span>
+                        <div className="flex items-center">
+                            <AnimatedNumber value={navChange} showPlusSign decimals={2} prefix="₹" />
+                            <span className="ml-1">(<AnimatedNumber value={navChangePct} showPlusSign decimals={2} suffix="%" />)</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-text-muted uppercase tracking-widest">Annualized</span>
+                        <div className="flex items-center italic">
+                            <AnimatedNumber value={annualizedReturn} showPlusSign decimals={2} suffix="%" />
+                        </div>
+                    </div>
+                    <div className="w-full md:w-auto flex items-center gap-2 mt-1 md:mt-0">
+                        <div className="w-1 h-1 rounded-full bg-white/20 hidden md:block" />
+                        <span className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em] bg-white/5 px-2 py-0.5 rounded border border-white/5">{period}</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-text-muted uppercase tracking-widest">Annualized</span>
-                    <div className="flex items-center italic">
-                        <AnimatedNumber value={annualizedReturn} showPlusSign decimals={2} suffix="%" />
-                    </div>
-                </div>
-                <div className="w-full md:w-auto flex items-center gap-2 mt-1 md:mt-0">
-                    <div className="w-1 h-1 rounded-full bg-white/20 hidden md:block" />
-                    <span className="text-[9px] text-text-muted font-black uppercase tracking-[0.2em] bg-white/5 px-2 py-0.5 rounded border border-white/5">{period}</span>
-                </div>
-            </div>
+             </>
+           )}
         </div>
 
         {/* Horizontal Stats Bar (Stock Style) */}
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-6 border-y border-white/5 py-6">
             <div className="flex items-center gap-2 border-r border-white/10 pr-8">
                 <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Expense</span>
-                <span className="text-sm font-black text-text-bold italic">{(data.stats?.expense_ratio * 100).toFixed(2)}%</span>
+                {loading && !data ? <Skeleton className="h-4 w-12" /> : <span className="text-sm font-black text-text-bold italic">{(data?.stats?.expense_ratio * 100).toFixed(2)}%</span>}
             </div>
             <div className="flex items-center gap-2 border-r border-white/10 pr-8">
                 <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">AUM</span>
-                <span className="text-sm font-black text-text-bold italic">₹{(data.stats?.aum / 10000000).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr</span>
+                {loading && !data ? <Skeleton className="h-4 w-20" /> : <span className="text-sm font-black text-text-bold italic">₹{(data?.stats?.aum / 10000000).toLocaleString("en-IN", { maximumFractionDigits: 0 })} Cr</span>}
             </div>
             <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Alpha</span>
-                <span className={`text-sm font-black ${metrics.alpha >= 0 ? 'text-success' : 'text-danger'}`}>
-                    {metrics.alpha >= 0 ? '+' : ''}{metrics.alpha?.toFixed(2)}%
-                </span>
+                {loading && !data ? <Skeleton className="h-4 w-12" /> : (
+                  <span className={`text-sm font-black ${metrics.alpha >= 0 ? 'text-success' : 'text-danger'}`}>
+                      {metrics.alpha >= 0 ? '+' : ''}{metrics.alpha?.toFixed(2)}%
+                  </span>
+                )}
             </div>
         </div>
       </header>
@@ -340,49 +367,55 @@ export function MFDetails() {
         </div>
 
         <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                    <YAxis domain={['dataMin', 'dataMax']} hide />
-                    <Tooltip 
-                        content={<CustomTooltip />} 
-                        cursor={{
-                            stroke: "#2e303a",
-                            strokeWidth: 1,
-                            strokeDasharray: "4 4",
-                        }}
-                    />
-                    {chartData.length > 0 && (
-                        <ReferenceLine 
-                            y={0} 
-                            stroke="#4b5563" 
-                            strokeDasharray="3 3" 
-                        />
-                    )}
-                    <Line 
-                        type="monotone" 
-                        dataKey="benchmarkNav" 
-                        stroke="#ffffff20" 
-                        strokeWidth={1}
-                        strokeDasharray="5 5"
-                        dot={false}
-                        isAnimationActive={true}
-                    />
-                    <Line 
-                        type="monotone" 
-                        dataKey="nav" 
-                        stroke={strokeColor} 
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{
-                            r: 5,
-                            fill: strokeColor,
-                            stroke: "#121212",
-                            strokeWidth: 2,
-                        }}
-                        isAnimationActive={true}
-                    />
-                </LineChart>
-            </ResponsiveContainer>
+            {loading && !data ? (
+              <div className="h-full w-full bg-white/5 animate-pulse rounded-xl flex items-center justify-center">
+                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Synthesizing Chart...</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                      <YAxis domain={['dataMin', 'dataMax']} hide />
+                      <Tooltip 
+                          content={<CustomTooltip />} 
+                          cursor={{
+                              stroke: "#2e303a",
+                              strokeWidth: 1,
+                              strokeDasharray: "4 4",
+                          }}
+                      />
+                      {chartData.length > 0 && (
+                          <ReferenceLine 
+                              y={0} 
+                              stroke="#4b5563" 
+                              strokeDasharray="3 3" 
+                          />
+                      )}
+                      <Line 
+                          type="monotone" 
+                          dataKey="benchmarkNav" 
+                          stroke="#ffffff20" 
+                          strokeWidth={1}
+                          strokeDasharray="5 5"
+                          dot={false}
+                          isAnimationActive={true}
+                      />
+                      <Line 
+                          type="monotone" 
+                          dataKey="nav" 
+                          stroke={strokeColor} 
+                          strokeWidth={2.5}
+                          dot={false}
+                          activeDot={{
+                              r: 5,
+                              fill: strokeColor,
+                              stroke: "#121212",
+                              strokeWidth: 2,
+                          }}
+                          isAnimationActive={true}
+                      />
+                  </LineChart>
+              </ResponsiveContainer>
+            )}
         </div>
 
         <div className="flex items-center justify-between gap-4 mt-8 border-t border-white/5 pt-6">

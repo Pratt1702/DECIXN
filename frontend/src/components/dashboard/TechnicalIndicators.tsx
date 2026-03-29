@@ -1,29 +1,8 @@
-import { Info } from "lucide-react";
+import { InfoTooltip } from "../ui/Tooltip";
 import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { AnimatedNumber } from "../ui/AnimatedNumber";
-
-// Native CSS Group-Hover Tooltip
-const InfoTooltip = ({
-  content,
-  align,
-}: {
-  content: string;
-  align?: "center" | "left";
-}) => (
-  <div className="group relative flex items-center">
-    <Info className="w-5 h-5 text-text-muted cursor-help hover:text-info transition-colors" />
-    <div
-      className={`pointer-events-none absolute bottom-full mb-3 w-72 rounded-lg border border-[#333] bg-[#1a1a1a] p-3.5 text-[13px] leading-relaxed font-normal text-[#d1d5db] opacity-0 shadow-2xl transition-all duration-200 group-hover:opacity-100 group-hover:-translate-y-1 z-50 ${align === "left" ? "-left-0" : "left-1/2 -translate-x-1/2"}`}
-    >
-      {content}
-      <div
-        className={`absolute -bottom-1.5 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-[#333] ${align === "left" ? "left-4" : "left-1/2 -translate-x-1/2"}`}
-      ></div>
-    </div>
-  </div>
-);
 
 export function YearlyRangeBar({ data }: { data: any }) {
   const barRef = useRef<HTMLDivElement>(null);
@@ -58,7 +37,7 @@ export function YearlyRangeBar({ data }: { data: any }) {
     <div className="">
       <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
         52-Week Range{" "}
-        <InfoTooltip content="Yearly price trajectory." align="left" />
+        <InfoTooltip content="Yearly price trajectory relative to 52-week extremes." align="left" />
       </h2>
       <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 rounded-xl px-6 py-5">
         <div className="flex justify-between text-[10px] text-text-muted uppercase tracking-[0.15em] font-bold mb-3 tabular-nums">
@@ -132,7 +111,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
   const alphaStatus = data?.benchmark_comparison?.status || "NEUTRAL";
 
   return (
-    <div className="space-y-8 mb-12">
+    <div className="space-y-8">
       {/* Groww Style Headers */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 mb-[64px]">
         {/* Support and Resistance */}
@@ -305,7 +284,7 @@ export function TechnicalIndicators({ data }: { data: any }) {
         <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
           Moving averages{" "}
           <InfoTooltip
-            content="SMA: Simple, EMA: Exponential trajectory profile."
+            content="SMA: Simple, EMA: Exponential trajectory profile tracking multiple timeframes."
             align="left"
           />
         </h2>
@@ -361,107 +340,6 @@ export function TechnicalIndicators({ data }: { data: any }) {
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Fundamentals & Delivery Volume */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
-          <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
-            Fundamentals{" "}
-            <InfoTooltip
-              content="Core macro-financial metrics profile."
-              align="left"
-            />
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 p-5 rounded-xl">
-              <p className="text-[10px] text-text-muted uppercase tracking-[0.15em] font-black mb-2">
-                Market Cap
-              </p>
-              <p className="text-2xl font-bold text-text-bold">
-                {loading ? (
-                  <span className="animate-pulse text-white/10">---</span>
-                ) : (
-                  `₹${(data.fundamentals?.market_cap / 10000000 || 0).toFixed(0)}Cr`
-                )}
-              </p>
-            </div>
-            <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
-              <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">
-                P/E Ratio
-              </p>
-              <p className="text-2xl font-bold text-text-bold">
-                {loading ? (
-                  <span className="animate-pulse text-white/10">---</span>
-                ) : (
-                  data.fundamentals?.pe_ratio?.toFixed(2) || "N/A"
-                )}
-              </p>
-            </div>
-            <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
-              <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">
-                Industry P/E
-              </p>
-              <p className="text-2xl font-bold text-text-bold">
-                {loading ? (
-                  <span className="animate-pulse text-white/10">---</span>
-                ) : data.fundamentals?.industry_pe ? (
-                  data.fundamentals.industry_pe.toFixed(2)
-                ) : (
-                  "N/A"
-                )}
-              </p>
-            </div>
-            <div className="bg-[#121212]/40 backdrop-blur-xl border border-white/5 hover:border-accent/20 transition-all duration-500 p-5 rounded-2xl shadow-lg">
-              <p className="text-xs text-text-muted uppercase tracking-wider mb-2 font-medium">
-                Dividend Yield
-              </p>
-              <p className="text-2xl font-bold text-text-bold">
-                {loading ? (
-                  <span className="animate-pulse text-white/10">---</span>
-                ) : (
-                  `${data.fundamentals?.dividend_yield?.toFixed(2) || "0.00"}%`
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
-            Delivery volume %{" "}
-            <InfoTooltip
-              content="Scale of equity actively delivered to demat accounts."
-              align="left"
-            />
-          </h2>
-          <div className="bg-bg-surface border border-border-main hover:border-[#333] transition-all duration-200 p-6 rounded-xl flex flex-col justify-between h-[232px]">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center text-sm font-medium">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 bg-info rounded-full" />{" "}
-                  <span className="text-[#f3f4f6]">Total traded volume</span>
-                </div>
-                <span className="font-bold text-text-bold text-base">
-                  7,72,07,941
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm font-medium">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 bg-secondary rounded-full" />{" "}
-                  <span className="text-[#f3f4f6]">Delivery volume</span>
-                </div>
-                <span className="font-bold text-text-bold text-base">
-                  3,85,05,388
-                </span>
-              </div>
-            </div>
-            <div className="border-t border-border-main border-dashed pt-4 mt-4 flex justify-between items-center text-sm font-medium">
-              <span className="text-text-muted">Delivery percentage</span>
-              <span className="font-bold text-text-bold text-lg">49.87%</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

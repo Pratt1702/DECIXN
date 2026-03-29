@@ -210,5 +210,11 @@ export const getOpportunityRadar = async (symbols?: string) => {
   return response.data;
 };
 
+export const getStockFundamentals = async (ticker: string) => {
+  const response = await apiClient.get(`/fundamentals/${ticker}`);
+  return response.data;
+};
+
+
 
 

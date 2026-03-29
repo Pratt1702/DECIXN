@@ -52,8 +52,7 @@ def parse_et_time(time_str: str):
 # -------------------------------
 
 async def insert_news(item, analysis):
-
-    res = supabase.table("news").insert({
+    query = supabase.table("news").insert({
         "title": item["title"],
         "source": item["source"],
         "url": item["url"],
@@ -64,8 +63,8 @@ async def insert_news(item, analysis):
         "event_type": analysis.get("event_type", "other"),
         "impact_strength": analysis.get("impact_strength", 1),
         "raw_json": analysis
-    }).execute()
-
+    })
+    res = await asyncio.to_thread(query.execute)
     return res.data[0]["id"]
 
 
@@ -74,7 +73,6 @@ async def insert_news(item, analysis):
 # -------------------------------
 
 async def insert_stocks(news_id, stocks):
-
     rows = [
         {
             "news_id": news_id,
@@ -86,7 +84,8 @@ async def insert_stocks(news_id, stocks):
     ]
 
     if rows:
-        supabase.table("news_stocks").insert(rows).execute()
+        query = supabase.table("news_stocks").insert(rows)
+        await asyncio.to_thread(query.execute)
 
 
 # -------------------------------
@@ -94,7 +93,6 @@ async def insert_stocks(news_id, stocks):
 # -------------------------------
 
 async def insert_sectors(news_id, sectors):
-
     rows = [
         {
             "news_id": news_id,
@@ -105,61 +103,21 @@ async def insert_sectors(news_id, sectors):
     ]
 
     if rows:
-        supabase.table("news_sectors").insert(rows).execute()
-
-# Simulated Pulse item
-TEST_ITEM = {
-    "title": "Gold prices fall despite geopolitical tensions",
-    "source": "Unit Test",
-    "url": "https://example.com/test"
-}
-
-# Simulated Gemini output (use your real output later)
-TEST_ANALYSIS = {
-    "summary": "Gold prices declined due to strong USD.",
-    "sentiment": "negative",
-    "impact_summary": [
-        "Stronger USD pressures commodities",
-        "Potential FII outflows from EMs"
-    ],
-    "stocks": ["TITAN", "MUTHOOTFIN"],
-    "sectors": ["Consumer Discretionary", "Financial Services"]
-}
-
-
-async def main():
-
-    news_id = await insert_news(TEST_ITEM, TEST_ANALYSIS)
-
-    await insert_stocks(news_id, TEST_ANALYSIS["stocks"])
-    await insert_sectors(news_id, TEST_ANALYSIS["sectors"])
-
-    print("Inserted successfully. News ID:", news_id)
+        query = supabase.table("news_sectors").insert(rows)
+        await asyncio.to_thread(query.execute)
 
 async def news_exists(url: str, title: str) -> bool:
     """Check if an article already exists by URL or Title."""
     try:
         # Check by URL first
-        res_url = (
-            supabase
-            .table("news")
-            .select("id")
-            .eq("url", url)
-            .limit(1)
-            .execute()
-        )
+        q_url = supabase.table("news").select("id").eq("url", url).limit(1)
+        res_url = await asyncio.to_thread(q_url.execute)
         if res_url.data:
             return True
 
-        # Then check by Title (to catch duplicates with different URLs)
-        res_title = (
-            supabase
-            .table("news")
-            .select("id")
-            .eq("title", title)
-            .limit(1)
-            .execute()
-        )
+        # Then check by Title
+        q_title = supabase.table("news").select("id").eq("title", title).limit(1)
+        res_title = await asyncio.to_thread(q_title.execute)
         return bool(res_title.data)
     except Exception as e:
         print(f"Error checking news existence: {e}")

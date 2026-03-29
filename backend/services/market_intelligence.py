@@ -1,4 +1,5 @@
 import requests
+import asyncio
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -12,6 +13,7 @@ from services.signal_generator import generate_signals
 from services.decision_engine import make_decision, make_holding_decision
 from services.news.catalyst_engine import get_relevant_news, get_news_by_category
 from services.fundamental_service import get_dividend_data, get_ticker_news
+from services.quarterly_fundamentals import get_fundamentals_intelligence
 
 warnings.filterwarnings('ignore')
 
@@ -217,29 +219,40 @@ async def analyze_single_ticker(symbol: str) -> dict:
         } for d, o, h, l, p, v in zip(df.index, df['Open'], df['High'], df['Low'], df['Close'], df['Volume'])]
         
         try:
-            # --- YAHOO METADATA INTEGRATION ---
-            yahoo_meta = fetch_ticker_metadata(symbol)
+            # --- YAHOO METADATA INTEGRATION (ASYNC & PARALLEL) ---
+            ticker_obj = yf.Ticker(symbol)
+            
+            # Fetch all slow Yahoo components in parallel
+            yahoo_meta_task = asyncio.to_thread(fetch_ticker_metadata, symbol)
+            dividend_task = asyncio.to_thread(get_dividend_data, ticker_obj)
+            news_task = asyncio.to_thread(get_ticker_news, ticker_obj)
+            info_task = asyncio.to_thread(lambda: ticker_obj.info)
+            
+            yahoo_meta, dividend_info, enhanced_news, info = await asyncio.gather(
+                yahoo_meta_task, dividend_task, news_task, info_task
+            )
+            
+            # Ensure info is a dict (yfinance can return None)
+            info = info or {}
             yahoo_news = yahoo_meta.get("news", [])
             dividend_cal = yahoo_meta.get("calendar", {})
-            info = yahoo_meta.get("info", {})
 
-            # New: Enhanced Dividend and News Data
-            ticker_obj = yf.Ticker(symbol)
-            dividend_info = get_dividend_data(ticker_obj)
-            enhanced_news = get_ticker_news(ticker_obj)
-            
-            # Fetch sector-specific news from DB
+            # Fetch sector-specific news from DB (already async)
             sector = info.get("sector")
             sector_news = []
             if sector:
                 sector_news = await get_news_by_category(sector=sector, limit=3)
-        except:
-            yahoo_news = []
-            dividend_cal = {}
-            info = {}
-            dividend_info = {}
-            enhanced_news = []
-            sector_news = []
+            
+            # Quarterly Fundamentals Intelligence (now async)
+            try:
+                quarterly_fundamentals = await get_fundamentals_intelligence(ticker_obj, info)
+            except Exception as qf_e:
+                print(f"[QF] Intelligence error: {qf_e}")
+                quarterly_fundamentals = {"data_quality": "NO_DATA", "message": "Data unavailable.", "medium_term": {"available": False}, "long_term": {"available": False}, "comprehensive_table": {}}
+        except Exception as e:
+            print(f"[MARKET_INTEL] Metadata fetch error: {e}")
+            yahoo_news, dividend_cal, info, dividend_info, enhanced_news, sector_news = [], {}, {}, {}, [], []
+            quarterly_fundamentals = {"data_quality": "NO_DATA", "message": "Data unavailable.", "medium_term": {"available": False}, "long_term": {"available": False}, "comprehensive_table": {}}
             
         company_name = info.get("longName", info.get("shortName", symbol.replace('.NS', '').replace('.BO', '')))
             
@@ -308,6 +321,7 @@ async def analyze_single_ticker(symbol: str) -> dict:
                 "chart_data": chart_data,
                 "charts": get_multi_period_charts(symbol),
                 "fundamentals": fundamentals,
+                "quarterly_fundamentals": quarterly_fundamentals,
                 "pivots": pivots,
                 "moving_averages": moving_averages,
                 "benchmark_comparison": benchmark_comparison,

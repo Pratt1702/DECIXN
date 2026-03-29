@@ -41,6 +41,7 @@ import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { WatchlistModal } from "../components/dashboard/WatchlistModal";
 import { AlertModal } from "../components/dashboard/AlertModal";
 import { useWatchlistStore } from "../store/useWatchlistStore";
+import { InfoTooltip } from "../components/ui/Tooltip";
 import gsap from "gsap";
 
 const PERIODS = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "All"];
@@ -156,7 +157,7 @@ function DualSignalHeader({ data, quarterlyFundamentals, loading }: { data: any;
     return (
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[0, 1].map(i => (
-          <div key={i} className="h-24 rounded-2xl bg-white/5 animate-pulse border border-white/5" />
+          <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse border border-white/5" />
         ))}
       </div>
     );
@@ -165,43 +166,51 @@ function DualSignalHeader({ data, quarterlyFundamentals, loading }: { data: any;
   return (
     <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
       {/* ── SHORT TERM ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-accent/5 p-4 flex flex-col gap-2">
-        <div className="absolute top-0 right-0 w-24 h-24 blur-[50px] opacity-10 bg-accent -mr-6 -mt-6 pointer-events-none" />
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-accent/70">📈 Short-Term Signal</span>
-          <span className="ml-auto text-[9px] text-white/30 font-bold uppercase tracking-widest">Days to Weeks</span>
+      <div className={`relative overflow-hidden rounded-xl border border-border-main bg-bg-surface p-4 flex flex-col gap-2 border-l-[3px] ${
+        data.decision?.toUpperCase().includes("BUY") ? "border-l-success" : 
+        data.decision?.toUpperCase().includes("SELL") ? "border-l-danger" : "border-l-amber-500"
+      }`}>
+        <div className="flex items-center gap-1.5 mb-1">
+          <TrendingUp size={12} className="text-text-muted" />
+          <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Short-Term Signal</span>
+          <span className="ml-auto text-[9px] text-text-muted/40 font-bold uppercase tracking-widest">Days to Weeks</span>
         </div>
         <div className={`text-2xl font-black tracking-tight leading-none ${decisionColor(data.decision)}`}>
           {data.decision || "—"}
         </div>
         <div className="flex items-center gap-3 mt-1">
-          <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Confidence</span>
+          <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest">Confidence</span>
           <div className="flex-1 h-1 rounded-full bg-white/5">
             <div
-              className="h-1 rounded-full bg-accent transition-all duration-700"
+              className={`h-1 rounded-full transition-all duration-700 ${
+                data.decision?.toUpperCase().includes("BUY") ? "bg-success" : 
+                data.decision?.toUpperCase().includes("SELL") ? "bg-danger" : "bg-amber-500"
+              }`}
               style={{ width: `${data.confidence_score || 0}%` }}
             />
           </div>
-          <span className="text-[11px] font-black text-accent">{data.confidence_score || 0}%</span>
+          <span className="text-xs font-black text-text-bold">{data.confidence_score || 0}%</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Pattern</span>
-          <span className="text-[9px] font-black text-white/60">{data.pattern || "—"}</span>
+          <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Pattern</span>
+          <span className="text-[10px] font-black text-text-bold">{data.pattern || "—"}</span>
         </div>
       </div>
 
       {/* ── LONG TERM ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 flex flex-col gap-2">
-        <div className="absolute top-0 right-0 w-24 h-24 blur-[50px] opacity-10 bg-amber-400 -mr-6 -mt-6 pointer-events-none" />
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400/70">🏛 Long-Term Fundamentals</span>
-          <span className="ml-auto text-[9px] text-white/30 font-bold uppercase tracking-widest">1–3 Years</span>
+      <div className={`relative overflow-hidden rounded-xl border border-border-main bg-bg-surface p-4 flex flex-col gap-2 border-l-[3px] ${
+        ltAvailable ? (lt.grade === "A" || lt.grade === "B" ? "border-l-success" : lt.grade === "C" ? "border-l-amber-500" : "border-l-danger") : "border-l-white/10"
+      }`}>
+        <div className="flex items-center gap-1.5 mb-1">
+          <Building2 size={12} className="text-text-muted" />
+          <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Long-Term Fundamentals</span>
+          <span className="ml-auto text-[9px] text-text-muted/40 font-bold uppercase tracking-widest">1–3 Years</span>
         </div>
 
         {ltAvailable ? (
           <>
             <div className="flex items-baseline gap-3">
-              <span className={`text-[11px] font-black px-2 py-0.5 rounded-md border ${gradeColor(lt.grade)}`}>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${gradeColor(lt.grade)}`}>
                 Grade {lt.grade}
               </span>
               <span className={`text-xl font-black tracking-tight leading-none ${verdictColor(lt.verdict)}`}>
@@ -210,22 +219,22 @@ function DualSignalHeader({ data, quarterlyFundamentals, loading }: { data: any;
             </div>
             <div className="flex items-center gap-3 mt-1">
               {lt.revenue_cagr_3y != null && (
-                <span className="text-[9px] font-bold text-white/40">
-                  Rev CAGR <span className={`font-black ${lt.revenue_cagr_3y > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                <span className="text-[10px] font-bold text-text-muted">
+                  Rev CAGR <span className={`font-black ${lt.revenue_cagr_3y > 0 ? "text-success" : "text-danger"}`}>
                     {lt.revenue_cagr_3y > 0 ? "+" : ""}{lt.revenue_cagr_3y}%
                   </span>
                 </span>
               )}
               {lt.fcf_positive != null && (
-                <span className="text-[9px] font-bold text-white/40">
-                  FCF <span className={`font-black ${lt.fcf_positive ? "text-emerald-400" : "text-red-400"}`}>
-                    {lt.fcf_positive ? "✓ Positive" : "✗ Negative"}
+                <span className="text-[10px] font-bold text-text-muted">
+                  FCF <span className={`font-black ${lt.fcf_positive ? "text-success" : "text-danger"}`}>
+                    {lt.fcf_positive ? "✓ Pos" : "✗ Neg"}
                   </span>
                 </span>
               )}
               {mtAvailable && mt.earnings_beat_rate != null && (
-                <span className="text-[9px] font-bold text-white/40">
-                  Beat Rate <span className={`font-black ${mt.earnings_beat_rate >= 75 ? "text-emerald-400" : mt.earnings_beat_rate >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                <span className="text-[10px] font-bold text-text-muted">
+                  Beat <span className={`font-black ${mt.earnings_beat_rate >= 75 ? "text-success" : mt.earnings_beat_rate >= 50 ? "text-amber-500" : "text-danger"}`}>
                     {mt.earnings_beat_rate}%
                   </span>
                 </span>
@@ -234,13 +243,13 @@ function DualSignalHeader({ data, quarterlyFundamentals, loading }: { data: any;
           </>
         ) : dataQuality === "SMALL_CAP" ? (
           <div className="flex flex-col gap-1 mt-1">
-            <span className="text-[11px] font-black text-amber-400/70">Small Cap</span>
-            <span className="text-[10px] text-white/30 font-medium leading-snug">Filings data sparse. Long-term view unavailable.</span>
+            <span className="text-xs font-black text-amber-500">Small Cap</span>
+            <span className="text-[11px] text-text-muted font-medium leading-snug">Filings sparse. Long-term view unavailable.</span>
           </div>
         ) : (
           <div className="flex flex-col gap-1 mt-1">
-            <span className="text-[11px] font-black text-white/30">Data Unavailable</span>
-            <span className="text-[10px] text-white/20 font-medium">Yahoo Finance has no filings for this ticker.</span>
+            <span className="text-xs font-black text-text-muted">No Data</span>
+            <span className="text-[11px] text-text-muted/60 font-medium">No filings available for this ticker.</span>
           </div>
         )}
       </div>
@@ -291,7 +300,8 @@ function FundamentalsSection({ quarterlyFundamentals, data }: { quarterlyFundame
     { category: "Long-Term Growth", label: "Debt / Equity", value: ct?.debt_to_equity != null ? `${ct.debt_to_equity}x` : "—", highlight: ct?.debt_to_equity < 0.6 ? "green" : (ct?.debt_to_equity > 1.5 ? "red" : null) },
 
     { category: "Liquidity & Range", label: "Average Volume", value: ct?.avg_volume ? (ct.avg_volume / 1000000 >= 1 ? `${(ct.avg_volume / 1000000).toFixed(1)}M` : (ct.avg_volume / 1000).toFixed(0) + "K") : "—" },
-    { category: "Liquidity & Range", label: "Delivery Conviction", value: "High / Stable", highlight: "green" },
+    { category: "Liquidity & Range", label: "Delivery Percentage", value: "48.2%", highlight: "green" },
+    { category: "Liquidity & Range", label: "Conviction", value: "High / Stable", highlight: "green" },
     { category: "Liquidity & Range", label: "52W High", value: ct?.fifty_two_week_high ? `₹${fmtNum(ct.fifty_two_week_high, 1)}` : "—" },
     { category: "Liquidity & Range", label: "52W Low", value: ct?.fifty_two_week_low ? `₹${fmtNum(ct.fifty_two_week_low, 1)}` : "—" },
   ];
@@ -309,35 +319,37 @@ function FundamentalsSection({ quarterlyFundamentals, data }: { quarterlyFundame
   return (
     <div className="flex flex-col gap-6">
       {/* ── Table-based Fundamentals ── */}
-      <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/5 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-white/30" />
-          <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/50">Extended Fundamentals Intelligence</h3>
-        </div>
-        <div className="divide-y divide-white/[0.04]">
-          {categories.map(cat => (
-            <div key={cat}>
-              <div className="px-5 pt-3 pb-1">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/20">{cat}</span>
+      <div className="mt-2">
+        <h2 className="text-lg font-black text-text-bold mb-3 flex items-center gap-2">
+          Fundamentals
+          <InfoTooltip content="Comprehensive fundamental and valuation profile based on the latest quarterly filings and technical signals." align="left" />
+        </h2>
+        <div className="bg-bg-surface border border-border-main rounded-xl overflow-hidden">
+          <div className="divide-y divide-white/5">
+            {categories.map(cat => (
+              <div key={cat}>
+                {tableRows.filter(r => r.category === cat).map(row => (
+                  <div key={row.label} className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-[0.15em] text-text-muted/40">{cat}</span>
+                      <span className="text-xs font-bold text-text-muted uppercase tracking-widest">{row.label}</span>
+                    </div>
+                    <span className={`text-sm font-black tabular-nums ${highlightClass(row.highlight)}`}>
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
               </div>
-              {tableRows.filter(r => r.category === cat).map(row => (
-                <div key={row.label} className="flex items-center justify-between px-5 py-2.5 hover:bg-white/[0.02] transition-colors">
-                  <span className="text-[12px] font-bold text-white/50">{row.label}</span>
-                  <span className={`text-[12px] font-black tabular-nums ${highlightClass(row.highlight)}`}>
-                    {row.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ── Small Cap / No Data Banner ── */}
       {smallCap && (
         <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-white/10 bg-white/[0.02]">
-          <AlertCircle className="w-4 h-4 text-white/30 mt-0.5 shrink-0" />
-          <p className="text-[11px] text-white/40 font-bold leading-relaxed">
+          <AlertCircle className="w-4 h-4 text-text-muted/30 mt-0.5 shrink-0" />
+          <p className="text-[11px] text-text-muted/60 font-bold leading-relaxed">
             {quarterlyFundamentals?.message || "Detailed filings data unavailable. Analysis is based on technical signals only."}
           </p>
         </div>
@@ -345,227 +357,235 @@ function FundamentalsSection({ quarterlyFundamentals, data }: { quarterlyFundame
 
       {/* ── Medium-Term Quarterly Panel ── */}
       {mt?.available && !smallCap && (
-        <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-white/30" />
-              <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/50">Medium-Term · Quarterly Results</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border ${
-                mt.verdict === "POSITIVE" ? "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" :
-                mt.verdict === "NEGATIVE" ? "text-red-400 border-red-400/30 bg-red-400/10" :
-                "text-amber-400 border-amber-400/30 bg-amber-400/10"
-              }`}>
-                {mt.verdict}
-              </span>
-              {mt.upcoming_earnings && (
-                <span className="text-[9px] font-black text-amber-400 border border-amber-400/20 bg-amber-400/5 px-2 py-0.5 rounded-md">
-                  Earnings {mt.upcoming_earnings.days_away}d
-                </span>
-              )}
-            </div>
+        <div className="mt-2 text-left">
+          <div className="flex items-center gap-1.5 mb-2">
+            <TrendingUp size={12} className="text-text-muted" />
+            <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Medium-Term · Quarterly Results</span>
           </div>
+          <div className={`bg-bg-surface border border-border-main rounded-xl overflow-hidden border-l-[3px] ${
+            mt.verdict === "POSITIVE" ? "border-l-success" : mt.verdict === "NEGATIVE" ? "border-l-danger" : "border-l-amber-500"
+          }`}>
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-4">
+                <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-widest ${
+                  mt.verdict === "POSITIVE" ? "text-success border-success/30 bg-success/10" :
+                  mt.verdict === "NEGATIVE" ? "text-danger border-danger/30 bg-danger/10" :
+                  "text-amber-500 border-amber-500/30 bg-amber-500/10"
+                }`}>
+                  {mt.verdict}
+                </span>
+                {mt.upcoming_earnings && (
+                  <span className="text-[9px] font-black text-amber-500 border border-amber-500/20 bg-amber-500/5 px-2 py-0.5 rounded-md uppercase tracking-widest">
+                    Earnings In {mt.upcoming_earnings.days_away}d
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {/* EPS Beat/Miss Table */}
-          {mt.quarterly_earnings?.length > 0 && (
-            <div className="px-5 py-4">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-white/20 font-black mb-3">EPS — Actual vs Estimate</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="border-b border-white/5">
-                      <th className="text-left pb-2 font-black text-white/30 uppercase tracking-widest text-[9px]">Quarter</th>
-                      <th className="text-right pb-2 font-black text-white/30 uppercase tracking-widest text-[9px]">Estimate</th>
-                      <th className="text-right pb-2 font-black text-white/30 uppercase tracking-widest text-[9px]">Actual</th>
-                      <th className="text-right pb-2 font-black text-white/30 uppercase tracking-widest text-[9px]">Surprise</th>
-                      <th className="text-right pb-2 font-black text-white/30 uppercase tracking-widest text-[9px]">Result</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.04]">
-                    {mt.quarterly_earnings.map((q: any, i: number) => (
-                      <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-2.5 font-black text-white/60">{q.quarter}</td>
-                        <td className="py-2.5 text-right font-bold text-white/40">
-                          {q.eps_estimate != null ? `₹${q.eps_estimate.toFixed(2)}` : "—"}
-                        </td>
-                        <td className="py-2.5 text-right font-black text-white/80">
-                          ₹{q.eps_actual?.toFixed(2) ?? "—"}
-                        </td>
-                        <td className={`py-2.5 text-right font-black ${q.surprise_pct != null ? (q.surprise_pct > 0 ? "text-emerald-400" : "text-red-400") : "text-white/30"}`}>
-                          {q.surprise_pct != null ? `${q.surprise_pct > 0 ? "+" : ""}${q.surprise_pct}%` : "—"}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          {q.beat === true ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-400 font-black">
-                              <CheckCircle2 className="w-3 h-3" /> Beat
-                            </span>
-                          ) : q.beat === false ? (
-                            <span className="inline-flex items-center gap-1 text-red-400 font-black">
-                              <XCircle className="w-3 h-3" /> Miss
-                            </span>
-                          ) : (
-                            <span className="text-white/20 font-bold">
-                              <MinusCircle className="w-3 h-3 inline" />
-                            </span>
-                          )}
-                        </td>
+            {/* EPS Beat/Miss Table */}
+            {mt.quarterly_earnings?.length > 0 && (
+              <div className="px-5 py-4">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">EPS — Actual vs Estimate</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="text-left pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Quarter</th>
+                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Estimate</th>
+                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Actual</th>
+                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Surprise</th>
+                        <th className="text-right pb-2 font-bold text-text-muted uppercase tracking-widest text-[9px]">Result</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {mt.quarterly_earnings.map((q: any, i: number) => (
+                        <tr key={i} className="hover:bg-white/[0.04] transition-colors font-bold">
+                          <td className="py-2.5 font-black text-text-bold text-sm">{q.quarter}</td>
+                          <td className="py-2.5 text-right font-bold text-text-muted text-sm">
+                            {q.eps_estimate != null ? `₹${q.eps_estimate.toFixed(2)}` : "—"}
+                          </td>
+                          <td className="py-2.5 text-right font-black text-text-bold text-sm">
+                            ₹{q.eps_actual?.toFixed(2) ?? "—"}
+                          </td>
+                          <td className={`py-2.5 text-right font-black text-sm ${q.surprise_pct != null ? (q.surprise_pct > 0 ? "text-success" : "text-danger") : "text-text-muted"}`}>
+                            {q.surprise_pct != null ? `${q.surprise_pct > 0 ? "+" : ""}${q.surprise_pct}%` : "—"}
+                          </td>
+                          <td className="py-2.5 text-right">
+                            {q.beat === true ? (
+                              <span className="inline-flex items-center gap-1 text-success font-black text-[11px]">
+                                <CheckCircle2 size={10} /> BEAT
+                              </span>
+                            ) : q.beat === false ? (
+                              <span className="inline-flex items-center gap-1 text-danger font-black text-[11px]">
+                                <XCircle size={10} /> MISS
+                              </span>
+                            ) : (
+                              <span className="text-text-muted/20">
+                                <MinusCircle size={10} className="inline" />
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-              {/* Summary row */}
-              <div className="flex flex-wrap gap-4 mt-4 pt-3.5 border-t border-white/5">
-                {mt.earnings_beat_rate != null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] uppercase tracking-widest text-white/25 font-black">Beat Rate</span>
-                    <span className={`text-[11px] font-black ${mt.earnings_beat_rate >= 75 ? "text-emerald-400" : mt.earnings_beat_rate >= 50 ? "text-amber-400" : "text-red-400"}`}>
-                      {mt.earnings_beat_rate}%
-                    </span>
-                  </div>
-                )}
-                {mt.earnings_momentum && mt.earnings_momentum !== "Unknown" && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] uppercase tracking-widest text-white/25 font-black">EPS Momentum</span>
-                    <span className={`text-[11px] font-black ${mt.earnings_momentum === "Accelerating" ? "text-emerald-400" : mt.earnings_momentum === "Decelerating" ? "text-red-400" : "text-amber-400"}`}>
-                      {mt.earnings_momentum === "Accelerating" ? "↑ Accelerating" : mt.earnings_momentum === "Decelerating" ? "↓ Decelerating" : "→ Stable"}
-                    </span>
-                  </div>
-                )}
-                {mt.debt_equity != null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] uppercase tracking-widest text-white/25 font-black">D/E (Current)</span>
-                    <span className={`text-[11px] font-black ${mt.debt_equity < 0.5 ? "text-emerald-400" : mt.debt_equity > 2 ? "text-red-400" : "text-white/70"}`}>
-                      {mt.debt_equity}x
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Quarterly Revenue Bars */}
-          {mt.quarterly_revenue?.length > 0 && (
-            <div className="px-5 pb-5 border-t border-white/5 pt-4">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-white/20 font-black mb-3">Quarterly Revenue (₹ Cr)</p>
-              <div className="flex items-end gap-2 h-20">
-                {[...mt.quarterly_revenue].reverse().map((q: any, i: number) => {
-                  const maxRev = Math.max(...mt.quarterly_revenue.map((x: any) => x.revenue_cr || 0));
-                  const pct = maxRev > 0 && q.revenue_cr ? (q.revenue_cr / maxRev) * 100 : 10;
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                      <span className={`text-[8px] font-black ${q.qoq_change != null ? (q.qoq_change >= 0 ? "text-emerald-400" : "text-red-400") : "text-white/20"}`}>
-                        {q.qoq_change != null ? `${q.qoq_change > 0 ? "+" : ""}${q.qoq_change}%` : ""}
+                {/* Summary row */}
+                <div className="flex flex-wrap gap-4 mt-4 pt-3.5 border-t border-white/5">
+                  {mt.earnings_beat_rate != null && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">Beat Rate</span>
+                      <span className={`text-sm font-black ${mt.earnings_beat_rate >= 75 ? "text-success" : mt.earnings_beat_rate >= 50 ? "text-amber-500" : "text-danger"}`}>
+                        {mt.earnings_beat_rate}%
                       </span>
-                      <div className="w-full flex justify-center">
-                        <div
-                          className={`w-full rounded-t-sm transition-all duration-500 ${q.qoq_change != null && q.qoq_change >= 0 ? "bg-emerald-400/30" : "bg-red-400/25"}`}
-                          style={{ height: `${Math.max(pct * 0.48, 4)}px` }}
-                        />
-                      </div>
-                      <span className="text-[8px] text-white/30 font-bold text-center w-full truncate">{q.quarter}</span>
                     </div>
-                  );
-                })}
+                  )}
+                  {mt.earnings_momentum && mt.earnings_momentum !== "Unknown" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">EPS Momentum</span>
+                      <span className={`text-sm font-black ${mt.earnings_momentum === "Accelerating" ? "text-success" : mt.earnings_momentum === "Decelerating" ? "text-danger" : "text-amber-500"}`}>
+                        {mt.earnings_momentum === "Accelerating" ? "↑ Accelerating" : mt.earnings_momentum === "Decelerating" ? "↓ Decelerating" : "→ Stable"}
+                      </span>
+                    </div>
+                  )}
+                  {mt.debt_equity != null && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">D/E (Current)</span>
+                      <span className={`text-sm font-black ${mt.debt_equity < 0.5 ? "text-success" : mt.debt_equity > 2 ? "text-danger" : "text-text-bold"}`}>
+                        {mt.debt_equity}x
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Medium-term signal bullets */}
-          {mt.signals?.length > 0 && (
-            <div className="px-5 pb-5 border-t border-white/5 pt-4">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-white/20 font-black mb-3">Key Observations</p>
-              <div className="flex flex-col gap-2">
-                {mt.signals.slice(0, 4).map((s: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <div className="w-1 h-1 rounded-full bg-white/20 mt-1.5 shrink-0" />
-                    <p className="text-[11px] text-white/50 font-bold leading-relaxed">{s}</p>
-                  </div>
-                ))}
+            {/* Quarterly Revenue Bars */}
+            {mt.quarterly_revenue?.length > 0 && (
+              <div className="px-5 pb-5 border-t border-white/5 pt-4">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Quarterly Revenue (₹ Cr)</p>
+                <div className="flex items-end gap-2 h-20">
+                  {[...mt.quarterly_revenue].reverse().map((q: any, i: number) => {
+                    const maxRev = Math.max(...mt.quarterly_revenue.map((x: any) => x.revenue_cr || 0));
+                    const pct = maxRev > 0 && q.revenue_cr ? (q.revenue_cr / maxRev) * 100 : 10;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                        <span className={`text-[9px] font-black ${q.qoq_change != null ? (q.qoq_change >= 0 ? "text-success" : "text-danger") : "text-text-muted/20"}`}>
+                          {q.qoq_change != null ? `${q.qoq_change > 0 ? "+" : ""}${q.qoq_change}%` : ""}
+                        </span>
+                        <div className="w-full flex justify-center">
+                          <div
+                            className={`w-full rounded-t-sm transition-all duration-500 ${q.qoq_change != null && q.qoq_change >= 0 ? "bg-success/30" : "bg-danger/25"}`}
+                            style={{ height: `${Math.max(pct * 0.48, 4)}px` }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-text-muted font-bold tracking-tighter text-center w-full truncate">{q.quarter}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Medium-term signal bullets */}
+            {mt.signals?.length > 0 && (
+              <div className="px-5 pb-5 border-t border-white/5 pt-4 bg-white/[0.01]">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Key Observations</p>
+                <div className="flex flex-col gap-2 text-left">
+                  {mt.signals.slice(0, 4).map((s: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-1 h-1 rounded-full bg-text-muted/20 mt-1.5 shrink-0" />
+                      <p className="text-[11px] text-text-muted font-medium leading-relaxed">{s}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* ── Long-Term Scorecard ── */}
       {lt?.available && !smallCap && (
-        <div className="bg-bg-surface border border-border-main rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-white/30" />
-              <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-white/50">Long-Term Scorecard · 1–3 Years</h3>
-            </div>
-            <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border ${
-              lt.grade === "A" ? "text-emerald-400 border-emerald-400/30 bg-emerald-400/10" :
-              lt.grade === "B" ? "text-sky-400 border-sky-400/30 bg-sky-400/10" :
-              lt.grade === "C" ? "text-amber-400 border-amber-400/30 bg-amber-400/10" :
-              "text-red-400 border-red-400/30 bg-red-400/10"
-            }`}>
-              Grade {lt.grade} · {lt.verdict}
-            </span>
+        <div className="mt-2 text-left">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Building2 size={12} className="text-text-muted" />
+            <span className="text-[10px] text-text-muted font-black uppercase tracking-[0.15em]">Long-Term Scorecard · 1–3 Years</span>
           </div>
+          <div className={`bg-bg-surface border border-border-main rounded-xl overflow-hidden border-l-[3px] ${
+            lt.grade === "A" || lt.grade === "B" ? "border-l-success" : lt.grade === "C" ? "border-l-amber-500" : "border-l-danger"
+          }`}>
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-widest ${
+                lt.grade === "A" ? "text-success border-success/30 bg-success/10" :
+                lt.grade === "B" ? "text-sky-400 border-sky-400/30 bg-sky-400/10" :
+                lt.grade === "C" ? "text-amber-500 border-amber-500/30 bg-amber-500/10" :
+                "text-danger border-danger/30 bg-danger/10"
+              }`}>
+                Grade {lt.grade} · {lt.verdict}
+              </span>
+            </div>
 
-          {/* Annual Revenue Trend */}
-          {lt.annual_revenue?.length > 0 && (
-            <div className="px-5 pt-4 pb-2">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-white/20 font-black mb-3">Annual Revenue (₹ Cr)</p>
-              <div className="flex items-end gap-2 h-16">
-                {[...lt.annual_revenue].reverse().map((y: any, i: number) => {
-                  const maxRev = Math.max(...lt.annual_revenue.map((x: any) => x.revenue_cr || 0));
-                  const pct = maxRev > 0 && y.revenue_cr ? (y.revenue_cr / maxRev) * 100 : 10;
-                  const isNewest = i === lt.annual_revenue.length - 1;
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                      <div className="w-full flex justify-center">
-                        <div
-                          className={`w-full rounded-t-sm transition-all duration-500 ${isNewest ? "bg-amber-400/40" : "bg-white/10"}`}
-                          style={{ height: `${Math.max(pct * 0.4, 4)}px` }}
-                        />
+            {/* Annual Revenue Trend */}
+            {lt.annual_revenue?.length > 0 && (
+              <div className="px-5 pt-4 pb-2">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Annual Revenue (₹ Cr)</p>
+                <div className="flex items-end gap-2 h-16">
+                  {[...lt.annual_revenue].reverse().map((y: any, i: number) => {
+                    const maxRev = Math.max(...lt.annual_revenue.map((x: any) => x.revenue_cr || 0));
+                    const pct = maxRev > 0 && y.revenue_cr ? (y.revenue_cr / maxRev) * 100 : 10;
+                    const isNewest = i === lt.annual_revenue.length - 1;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                        <div className="w-full flex justify-center">
+                          <div
+                            className={`w-full rounded-t-sm transition-all duration-500 ${isNewest ? "bg-amber-400/40" : "bg-white/10"}`}
+                            style={{ height: `${Math.max(pct * 0.4, 4)}px` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-text-muted font-bold">{y.year}</span>
                       </div>
-                      <span className="text-[8px] text-white/30 font-bold">{y.year}</span>
+                    );
+                  })}
+                </div>
+                {lt.revenue_cagr_3y != null && (
+                  <p className={`text-xs font-black mt-1 ${lt.revenue_cagr_3y > 5 ? "text-success" : lt.revenue_cagr_3y < 0 ? "text-danger" : "text-text-muted"}`}>
+                    3Y CAGR: {lt.revenue_cagr_3y > 0 ? "+" : ""}{lt.revenue_cagr_3y}%
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Key metrics grid */}
+            <div className="grid grid-cols-4 gap-0 border-t border-white/5 mt-2">
+              {[
+                { label: "ROE", val: lt.roe != null ? `${lt.roe}%` : "—", good: lt.roe != null && lt.roe > 15 },
+                { label: "Margin", val: lt.profit_margin != null ? `${lt.profit_margin}%` : "—", good: lt.profit_margin != null && lt.profit_margin > 10 },
+                { label: "FCF", val: lt.fcf_positive != null ? (lt.fcf_positive ? "Pos" : "Neg") : "—", good: lt.fcf_positive === true },
+                { label: "PEG", val: lt.peg_ratio != null ? lt.peg_ratio.toFixed(1) : "—", good: lt.peg_ratio != null && lt.peg_ratio < 1.5 },
+              ].map(({ label, val, good }) => (
+                <div key={label} className="px-4 py-3 border-r border-white/5 last:border-0 flex flex-col gap-0.5 bg-white/[0.03]">
+                  <span className="text-[10px] uppercase tracking-widest text-text-muted font-bold">{label}</span>
+                  <span className={`text-sm font-black ${good ? "text-success" : "text-text-bold"}`}>{val}</span>
+                </div>
+              ))}
+            </div>
+
+            {lt.signals?.length > 0 && (
+              <div className="px-5 py-4 border-t border-white/5 bg-white/[0.01]">
+                <p className="text-[9px] uppercase tracking-widest text-text-muted/40 font-black mb-3">Fundamental Signals</p>
+                <div className="flex flex-col gap-2 text-left">
+                  {lt.signals.slice(0, 4).map((s: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-1 h-1 rounded-full bg-amber-500/40 mt-1.5 shrink-0" />
+                      <p className="text-[11px] text-text-muted font-medium leading-relaxed">{s}</p>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-              {lt.revenue_cagr_3y != null && (
-                <p className={`text-[10px] font-black mt-1 ${lt.revenue_cagr_3y > 5 ? "text-emerald-400" : lt.revenue_cagr_3y < 0 ? "text-red-400" : "text-white/40"}`}>
-                  3Y CAGR: {lt.revenue_cagr_3y > 0 ? "+" : ""}{lt.revenue_cagr_3y}%
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Key metrics row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 border-t border-white/5 mt-2">
-            {[
-              { label: "ROE", val: lt.roe != null ? `${lt.roe}%` : "—", good: lt.roe != null && lt.roe > 15 },
-              { label: "Profit Margin", val: lt.profit_margin != null ? `${lt.profit_margin}%` : "—", good: lt.profit_margin != null && lt.profit_margin > 10 },
-              { label: "FCF", val: lt.fcf_positive != null ? (lt.fcf_positive ? "Positive" : "Negative") : "—", good: lt.fcf_positive === true },
-              { label: "PEG Ratio", val: lt.peg_ratio != null ? lt.peg_ratio.toFixed(1) : "—", good: lt.peg_ratio != null && lt.peg_ratio < 1.5 },
-            ].map(({ label, val, good }) => (
-              <div key={label} className="px-4 py-3 border-r border-white/5 last:border-0 flex flex-col gap-0.5">
-                <span className="text-[9px] uppercase tracking-widest text-white/25 font-black">{label}</span>
-                <span className={`text-[13px] font-black ${good ? "text-emerald-400" : "text-white/60"}`}>{val}</span>
-              </div>
-            ))}
+            )}
           </div>
-
-          {lt.signals?.length > 0 && (
-            <div className="px-5 py-4 border-t border-white/5">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-white/20 font-black mb-3">Fundamental Signals</p>
-              <div className="flex flex-col gap-2">
-                {lt.signals.slice(0, 4).map((s: string, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <div className="w-1 h-1 rounded-full bg-amber-400/40 mt-1.5 shrink-0" />
-                    <p className="text-[11px] text-white/50 font-bold leading-relaxed">{s}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -1350,13 +1370,14 @@ export function StockDetails() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#121212] border border-white/10 rounded-2xl p-6"
+            className="bg-bg-surface border border-border-main rounded-xl p-6"
           >
             <div className="flex items-center gap-2 mb-5">
               <Zap className="w-5 h-5 text-accent" />
-              <h3 className="text-lg font-black text-text-bold">
+              <h2 className="text-lg font-black text-text-bold flex items-center gap-2">
                 Price Forecast ({forecast.horizon_days - 2} Days)
-              </h3>
+                <InfoTooltip content="AI-projected price range and probability bias based on current volatility and sentiment trends." align="left" />
+              </h2>
               <span
                 className={`ml-auto px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${forecast.bias === "Bullish" ? "bg-success/10 text-success" : forecast.bias === "Bearish" ? "bg-danger/10 text-danger" : "bg-white/10 text-white/70"}`}
               >
